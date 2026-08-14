@@ -290,6 +290,27 @@ Todas descobertas testando contra o serviço; valem como lista de conferência:
 - **Cuidado com `toISOString` em datas de competência**: à noite, no fuso de Brasília, ele adianta
   o dia e muda a competência da nota.
 
+## Emissão por Web Service está bloqueada
+
+`GerarNfse` e `RecepcionarLoteRpsSincrono` respondem `A01 — Não foi possível atender a
+solicitação` sempre que `CodigoTributacaoMunicipio` é enviado, com qualquer valor. Sem o campo,
+o serviço responde `E202 — Código de tributação não informado`, exigindo o mesmo campo.
+
+Bisseção do mínimo do XSD para cima, que isolou o campo:
+
+| Envio | Retorno |
+| --- | --- |
+| mínimo do XSD, sem `CodigoTributacaoMunicipio` | `E202` |
+| apenas `CodigoCnae` | `E202` |
+| `CodigoTributacaoMunicipio` — qualquer valor testado | `A01` |
+
+Assinatura, schema e certificado estão descartados: erros nesses pontos produzem `E174`/`E172`,
+`E160` e falha de handshake, todos observados em outros testes. As consultas funcionam pelo mesmo
+canal. O texto do chamado está em [`docs/chamado-gissonline-a01.md`](docs/chamado-gissonline-a01.md).
+
+Enquanto isso, a emissão é feita pelo portal. O dry-run do CLI continua útil para conferir e
+validar o XML antes.
+
 ## Ambiente de homologação
 
 O manual de Serviços Prestados v1.6 anuncia `ws-homologacao.giss.com.br`, mas esse host só serve o
