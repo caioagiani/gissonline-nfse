@@ -77,11 +77,10 @@ export const DEFAULT_PROFILE: IssuingProfile = {
     recipientIndicator: 0,
     cst: "000",
     taxClassification: "000001",
-    // O XSD declara este campo como TSCodMunIBGE (pattern [0-9]{7}), mas todas
-    // as notas realmente emitidas gravam `1` — é um indicador de localidade, não
-    // um código IBGE. Seguimos o comportamento real do serviço; a validação
-    // local acusa a divergência e a trata como conhecida.
-    incidenceLocationCode: "1",
+    // As notas gravadas mostram `1`, mas isso é normalização interna do portal:
+    // enviar `1` pelo Web Service devolve E160 (fora do schema). No envio vai o
+    // código IBGE de 7 dígitos, como o XSD exige.
+    incidenceLocationCode: "3552502",
     reductionRate: 0,
   },
 };
