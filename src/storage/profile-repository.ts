@@ -34,6 +34,8 @@ export interface IssuingProfile {
   specialTaxRegime?: number;
   /** Série usada nos RPS */
   series: string;
+  /** Alíquota padrão do ISS em percentual, quando não informada por nota */
+  rate?: number;
   defaultDescription?: string;
   pisCofins?: PisCofins;
   approximateTaxes?: ApproximateTaxes;
@@ -166,7 +168,8 @@ export function buildRps(base: IssuingProfile, input: IssueInput): Rps {
         otherWithholdings: input.otherWithholdings ?? 0,
         totalTaxes: 0,
         iss: 0,
-        rate: input.rate,
+        // Obrigatória para prestador do Simples Nacional: sem ela vem E163.
+        rate: input.rate ?? profile.rate,
         unconditionalDiscount: input.unconditionalDiscount ?? 0,
         conditionalDiscount: input.conditionalDiscount ?? 0,
         pisCofins: profile.pisCofins,
