@@ -53,6 +53,7 @@ EMISSÃO
   emitir --tomador X --valor V [--descricao T]      Emite NFS-e (GerarNfse)
          [--rps N] [--serie S]                        via RPS quando --rps é informado
          [--competencia D] [--csll V] [--inss V] [--ir V]
+         [--item 01.09] [--cnae N] [--nbs N] [--aliquota 3.07]
          [--info T] [--confirmar]
   cancelar --numero N --motivo 1..5 [--confirmar]   Cancela uma NFS-e
   substituir --numero N --motivo 1..5 --tomador X --valor V
@@ -108,6 +109,10 @@ const options = {
   info: { type: "string" },
   rps: { type: "string" },
   csll: { type: "string" },
+  aliquota: { type: "string" },
+  item: { type: "string" },
+  cnae: { type: "string" },
+  nbs: { type: "string" },
   inss: { type: "string" },
   ir: { type: "string" },
   motivo: { type: "string" },
@@ -644,10 +649,16 @@ function buildRpsFromCli(values: CliValues): Rps {
     competenceDate: values.competencia,
     rpsNumber: values.rps,
     series: values.serie,
+    rate: values.aliquota ? Number(values.aliquota) : undefined,
     csll: values.csll ? Number(values.csll) : undefined,
     inss: values.inss ? Number(values.inss) : undefined,
     incomeTax: values.ir ? Number(values.ir) : undefined,
     additionalInformation: values.info,
+    profile: {
+      ...(values.item ? { serviceListItem: values.item } : {}),
+      ...(values.cnae ? { cnaeCode: values.cnae, municipalTaxCode: values.cnae } : {}),
+      ...(values.nbs ? { nbsCode: values.nbs } : {}),
+    },
   });
 }
 
@@ -658,6 +669,9 @@ function issueSummary(values: CliValues, rps: Rps): string {
     `Competência:  ${isoDate(rps.competenceDate)}`,
     `Discriminação: ${rps.service.description}`,
     `Item LC 116:  ${rps.service.serviceListItem}`,
+    `CNAE:         ${rps.service.cnaeCode ?? "—"}`,
+    `NBS:          ${rps.service.nbsCode ?? "—"}`,
+    `Alíquota:     ${rps.service.amounts.rate ?? "—"}%`,
     `ISS retido:   ${rps.service.issWithheld === 1 ? "sim" : "não"}`,
   ];
   if (rps.identification) {
@@ -674,6 +688,9 @@ function printValidation(xml: string): void {
     console.log("\nSchema: não verificado (xmllint não instalado).");
   } else if (result.valid) {
     console.log("\nSchema: XML válido contra gerar-nfse-envio-v2_04.xsd.");
+    for (const d of result.knownDivergences) {
+      console.log(`  (divergência conhecida do XSD, ignorada) ${d.slice(0, 90)}`);
+    }
   } else {
     console.log("\nSchema: XML INVÁLIDO —");
     for (const error of result.errors) console.log(`  ${error}`);

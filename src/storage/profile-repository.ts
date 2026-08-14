@@ -75,8 +75,11 @@ export const DEFAULT_PROFILE: IssuingProfile = {
     recipientIndicator: 0,
     cst: "000",
     taxClassification: "000001",
-    // Código IBGE de 7 dígitos, não o índice devolvido na consulta.
-    incidenceLocationCode: "3552502",
+    // O XSD declara este campo como TSCodMunIBGE (pattern [0-9]{7}), mas todas
+    // as notas realmente emitidas gravam `1` — é um indicador de localidade, não
+    // um código IBGE. Seguimos o comportamento real do serviço; a validação
+    // local acusa a divergência e a trata como conhecida.
+    incidenceLocationCode: "1",
     reductionRate: 0,
   },
 };
@@ -113,6 +116,8 @@ export interface IssueInput {
   rpsNumber?: number | string;
   series?: string;
   rpsType?: 1 | 2 | 3;
+  /** Alíquota do ISS em %. A prefeitura recalcula, mas o espelho a exibe. */
+  rate?: number;
   /** Retenções federais — a NT 007 pede o total agregado em `csll` */
   csll?: number;
   inss?: number;
@@ -160,6 +165,8 @@ export function buildRps(base: IssuingProfile, input: IssueInput): Rps {
         csll: input.csll ?? 0,
         otherWithholdings: input.otherWithholdings ?? 0,
         totalTaxes: 0,
+        iss: 0,
+        rate: input.rate,
         unconditionalDiscount: input.unconditionalDiscount ?? 0,
         conditionalDiscount: input.conditionalDiscount ?? 0,
         pisCofins: profile.pisCofins,

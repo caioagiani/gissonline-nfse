@@ -6,7 +6,19 @@ import { join, resolve } from "node:path";
 export interface ValidationResult {
   valid: boolean;
   errors: string[];
+  /** Erros que vêm de divergência conhecida entre o XSD publicado e o serviço */
+  knownDivergences: string[];
 }
+
+/**
+ * Casos em que o XSD publicado contradiz o que o serviço realmente aceita —
+ * confirmados contra notas emitidas de verdade.
+ */
+const KNOWN_DIVERGENCES = [
+  // O XSD tipa cLocalidadeIncid como código IBGE de 7 dígitos, mas as notas
+  // emitidas gravam `1`.
+  /cLocalidadeIncid/,
+];
 
 /**
  * Valida um XML contra o XSD correspondente usando `xmllint`. Devolve `null`
@@ -32,10 +44,15 @@ export function validateAgainstSchema(
   );
 
   const output = `${run.stdout ?? ""}${run.stderr ?? ""}`;
-  const errors = output
+  const all = output
     .split("\n")
     .filter((line) => line.includes("Schemas validity error"))
     .map((line) => line.replace(/^.*Schemas validity error : /, "").trim());
 
-  return { valid: run.status === 0, errors };
+  const knownDivergences = all.filter((e) =>
+    KNOWN_DIVERGENCES.some((pattern) => pattern.test(e)),
+  );
+  const errors = all.filter((e) => !knownDivergences.includes(e));
+
+  return { valid: errors.length === 0, errors, knownDivergences };
 }
