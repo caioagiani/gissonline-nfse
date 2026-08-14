@@ -11,7 +11,7 @@ import { digitsOnly } from "../infra/xml.ts";
  * emissão, alimentado pelas notas consultadas ou pelo cadastro do portal.
  */
 
-export type ContactRole = "cliente" | "fornecedor";
+export type ContactRole = "customer" | "supplier";
 
 export interface Contact {
   /** CPF ou CNPJ, somente dígitos — chave do registro */
@@ -31,29 +31,27 @@ export interface Contact {
 }
 
 interface ContactFile {
-  clientes: Contact[];
-  fornecedores: Contact[];
+  customers: Contact[];
+  suppliers: Contact[];
 }
 
-const EMPTY: ContactFile = { clientes: [], fornecedores: [] };
+const EMPTY: ContactFile = { customers: [], suppliers: [] };
 
 export class ContactRepository {
   readonly path: string;
   #data: ContactFile;
 
-  constructor(path = "dados/catalogo.json") {
+  constructor(path = "data/contacts.json") {
     this.path = resolve(path);
-    const raw = existsSync(this.path)
-      ? (JSON.parse(readFileSync(this.path, "utf8")) as Partial<ContactFile>)
+    this.#data = existsSync(this.path)
+      ? (JSON.parse(readFileSync(this.path, "utf8")) as ContactFile)
       : structuredClone(EMPTY);
-    this.#data = {
-      clientes: (raw.clientes ?? []).map(migrate),
-      fornecedores: (raw.fornecedores ?? []).map(migrate),
-    };
+    this.#data.customers ??= [];
+    this.#data.suppliers ??= [];
   }
 
   #bucket(role: ContactRole): Contact[] {
-    return role === "cliente" ? this.#data.clientes : this.#data.fornecedores;
+    return role === "customer" ? this.#data.customers : this.#data.suppliers;
   }
 
   list(role: ContactRole): Contact[] {
@@ -147,63 +145,6 @@ export class ContactRepository {
     mkdirSync(dirname(this.path), { recursive: true });
     writeFileSync(this.path, `${JSON.stringify(this.#data, null, 2)}\n`);
   }
-}
-
-/**
- * Converte registros gravados antes da migração para inglês. O arquivo é
- * regravado no formato novo na primeira alteração; até lá a leitura funciona
- * nos dois formatos.
- */
-function migrate(record: Contact | LegacyContact): Contact {
-  if ("taxId" in record) return record;
-
-  const address = record.endereco;
-  return {
-    taxId: record.documento,
-    legalName: record.razaoSocial,
-    tradeName: record.nomeFantasia,
-    municipalRegistration: record.inscricaoMunicipal,
-    email: record.email,
-    phone: record.telefone,
-    address: address && {
-      street: address.logradouro,
-      number: address.numero,
-      complement: address.complemento,
-      district: address.bairro,
-      cityCode: address.codigoMunicipio,
-      state: address.uf,
-      zipCode: address.cep,
-    },
-    simplesNacionalOptant: record.optanteSimplesNacional,
-    alias: record.apelido,
-    notes: record.observacao,
-    updatedAt: record.atualizadoEm ?? new Date().toISOString(),
-    source: record.origem ?? "manual",
-  };
-}
-
-/** Formato anterior do arquivo, mantido só para a migração. */
-interface LegacyContact {
-  documento: string;
-  razaoSocial: string;
-  nomeFantasia?: string;
-  inscricaoMunicipal?: string;
-  email?: string;
-  telefone?: string;
-  endereco?: {
-    logradouro: string;
-    numero: string;
-    complemento?: string;
-    bairro: string;
-    codigoMunicipio: string | number;
-    uf: string;
-    cep: string;
-  };
-  optanteSimplesNacional?: 1 | 2;
-  apelido?: string;
-  observacao?: string;
-  atualizadoEm?: string;
-  origem?: string;
 }
 
 /** Decide entre CPF e CNPJ pelo tamanho do documento. */

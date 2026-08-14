@@ -84,7 +84,7 @@ export const DEFAULT_PROFILE: IssuingProfile = {
 export class ProfileRepository {
   readonly path: string;
 
-  constructor(path = "dados/perfil.json") {
+  constructor(path = "data/profile.json") {
     this.path = resolve(path);
   }
 

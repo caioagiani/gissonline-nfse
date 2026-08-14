@@ -27,7 +27,7 @@ cp .env.example .env             # preencha as credenciais
 cp /caminho/do/certificado.pfx cert/    # a pasta já vem no repositório, vazia
 ```
 
-As pastas `cert/` e `dados/` são versionadas vazias (só com `.gitkeep`) para
+As pastas `cert/` e `data/` são versionadas vazias (só com `.gitkeep`) para
 marcar onde os arquivos ficam — o conteúdo delas nunca entra no repositório.
 
 ## Arquitetura
@@ -225,7 +225,7 @@ município (`"SAO PAULO"`), não o código — resolvido por `municipio-ibge/lis
 
 **É API interna, sem contrato público — pode mudar sem aviso.**
 
-Além disso, o projeto mantém um catálogo local em `dados/catalogo.json`, alimentado por
+Além disso, o projeto mantém um catálogo local em `data/contacts.json`, alimentado por
 `portal-importar` ou por `clientes --sincronizar` (que deriva das notas já emitidas). É ele que
 resolve `--tomador exemplo` na emissão, por apelido, documento ou trecho da razão social.
 
@@ -305,14 +305,14 @@ https://ws-homologacao-rtc.giss.com.br/service-ws/nf/nfse-ws
   localizada`, que é justamente o teto útil para testar schema e assinatura;
 - o campo **`tpRetPisCofins` é rejeitado** com `E160`, embora conste do XSD publicado, do manual de
   PIS/COFINS e de notas reais emitidas em produção. Indica schema desatualizado nesse ambiente.
-  O campo faz parte do perfil padrão; remova-o do `dados/perfil.json` para testar em homologação.
+  O campo faz parte do perfil padrão; remova-o do `data/profile.json` para testar em homologação.
 
 ## Perfil fiscal
 
 `src/storage/profile-repository.ts` guarda os valores que se repetem em toda emissão (item da LC 116, CNAE, NBS,
 município, exigibilidade do ISS, PIS/COFINS, IBS/CBS). Os padrões vieram de uma NFS-e real já
 aceita pela prefeitura, com os formatos corrigidos para envio. `npm run giss -- perfil --salvar`
-grava em `dados/perfil.json` para edição.
+grava em `data/profile.json` para edição.
 
 **Confira com sua contabilidade antes de emitir** — os padrões refletem um prestador optante do
 Simples Nacional, ISS não retido, serviço 01.04.
@@ -323,7 +323,7 @@ O que **nunca** entra no repositório (já coberto pelo `.gitignore`):
 
 - `.env` — senha do certificado e credenciais do portal
 - `cert/*` — o `.pfx` e os PEM exportados (a chave sai **sem senha**, modo `0600`)
-- `dados/*` — cadastro local e perfil fiscal, com dados de terceiros
+- `data/*` — cadastro local e perfil fiscal, com dados de terceiros
 
 As duas pastas são versionadas vazias, via `.gitkeep`, e a regra ignora o
 conteúdo (`cert/*`) em vez da pasta (`cert/`) — assim quem clona já sabe onde

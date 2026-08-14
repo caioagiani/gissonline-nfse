@@ -78,7 +78,7 @@ PORTAL (API REST — cadastro de verdade no GissOnline, via login CPF/senha)
   portal-importar [--tipo 1|2]                      Traz o cadastro do portal para o local
 
 PERFIL FISCAL
-  perfil [--salvar]                    Mostra (ou grava em dados/perfil.json) os padrões
+  perfil [--salvar]                    Mostra (ou grava em data/profile.json) os padrões
 
 Opções globais:
   --env producao|homologacao   Ambiente (padrão: GISS_ENV do .env)
@@ -393,7 +393,7 @@ async function main() {
 
     case "clientes":
     case "fornecedores": {
-      const role: ContactRole = command === "clientes" ? "cliente" : "fornecedor";
+      const role: ContactRole = command === "clientes" ? "customer" : "supplier";
       const repository = new ContactRepository();
 
       if (values.sincronizar) {
@@ -404,7 +404,7 @@ async function main() {
         );
         const invoices: Nfse[] = [];
         const query = (page: number) =>
-          role === "cliente"
+          role === "customer"
             ? client.nfse.queryProvidedServices({ ...filter, page })
             : client.nfse.queryTakenServices({ ...filter, page });
         for await (const page of client.paginate(query)) {
@@ -412,7 +412,7 @@ async function main() {
         }
         const { saved } = syncFromInvoices(repository, role, invoices);
         console.log(
-          `${saved} ${role}(s) sincronizado(s) a partir de ${invoices.length} nota(s).\n`,
+          `${saved} ${roleLabel(role)}(s) sincronizado(s) a partir de ${invoices.length} nota(s).\n`,
         );
       }
 
@@ -424,6 +424,10 @@ async function main() {
       throw new Error(`Comando desconhecido: ${command}`);
   }
 }
+
+/** Rótulo em português para as mensagens ao usuário. */
+const roleLabel = (role: ContactRole): string =>
+  role === "customer" ? "cliente" : "fornecedor";
 
 const REASONS: Record<string, string> = {
   "1": "erro na emissão",
@@ -441,7 +445,7 @@ async function runLocalCommand(
   switch (command) {
     case "cliente-add":
     case "fornecedor-add": {
-      const role: ContactRole = command === "cliente-add" ? "cliente" : "fornecedor";
+      const role: ContactRole = command === "cliente-add" ? "customer" : "supplier";
       if (!values.documento || !values.nome) {
         throw new Error("Informe --documento e --nome");
       }
@@ -458,7 +462,7 @@ async function runLocalCommand(
           ? (Number(values.simples) as 1 | 2)
           : undefined,
       });
-      console.log(`${role} salvo: ${contact.legalName} (${contact.taxId})`);
+      console.log(`${roleLabel(role)} salvo: ${contact.legalName} (${contact.taxId})`);
       if (!contact.address) {
         console.log(
           "Atenção: sem endereço. A emissão de NFS-e exige endereço do tomador.",
@@ -469,10 +473,10 @@ async function runLocalCommand(
 
     case "cliente-rm":
     case "fornecedor-rm": {
-      const role: ContactRole = command === "cliente-rm" ? "cliente" : "fornecedor";
+      const role: ContactRole = command === "cliente-rm" ? "customer" : "supplier";
       if (!values.documento) throw new Error("Informe --documento");
       const removed = new ContactRepository().remove(role, values.documento);
-      console.log(removed ? `${role} removido.` : `${role} não encontrado.`);
+      console.log(removed ? `${roleLabel(role)} removido.` : `${roleLabel(role)} não encontrado.`);
       return true;
     }
 
@@ -518,7 +522,7 @@ async function runPortalCommand(
     const parties = await portal.list(role);
     for (const party of parties) {
       const full = party.endereco ? party : await portal.get(party.id!);
-      repository.save(role === 1 ? "cliente" : "fornecedor", {
+      repository.save(role === 1 ? "customer" : "supplier", {
         taxId: full.documento,
         legalName: full.razaoSocial,
         tradeName: full.nomeFantasia,
@@ -626,7 +630,7 @@ function buildRpsFromCli(values: CliValues): Rps {
   }
 
   const repository = new ContactRepository();
-  const contact = repository.find("cliente", values.tomador);
+  const contact = repository.find("customer", values.tomador);
   if (!contact) {
     throw new Error(
       `Tomador "${values.tomador}" não está no cadastro local. Use cliente-add, portal-importar ou clientes --sincronizar.`,
@@ -726,7 +730,7 @@ function printContacts(
   if (values.json) return void console.log(JSON.stringify(contacts, null, 2));
 
   if (contacts.length === 0) {
-    console.log(`Nenhum ${role} no cadastro local (${repository.path}).`);
+    console.log(`Nenhum ${roleLabel(role)} no cadastro local (${repository.path}).`);
     return;
   }
 
@@ -743,7 +747,7 @@ function printContacts(
         .join("  |  "),
     );
   }
-  console.log(`\n${contacts.length} ${role}(s) — ${repository.path}`);
+  console.log(`\n${contacts.length} ${roleLabel(role)}(s) — ${repository.path}`);
 }
 
 main().catch((error: unknown) => {

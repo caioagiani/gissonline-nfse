@@ -12,7 +12,7 @@ export function syncFromInvoices(
   role: ContactRole,
   invoices: Nfse[],
 ): { saved: number; taxIds: string[] } {
-  const groupName = role === "cliente" ? "TomadorServico" : "PrestadorServico";
+  const groupName = role === "customer" ? "TomadorServico" : "PrestadorServico";
   const taxIds = new Set<string>();
 
   for (const invoice of invoices) {
