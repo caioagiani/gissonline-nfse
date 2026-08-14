@@ -16,7 +16,7 @@
     "lc-214-2025"
   ],
   "scripts": {
-    "giss": "node --env-file=.env src/cli.ts",
+    "giss": "node --env-file=.env src/cli/index.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
