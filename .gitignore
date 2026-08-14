@@ -1,7 +1,14 @@
 node_modules/
 .env
-cert/
 out/
 *.log
-dados/
 .playwright-mcp/
+
+# Certificado A1 e os PEM exportados dele. A pasta é versionada (vazia) só para
+# indicar onde o arquivo deve ficar — o conteúdo nunca entra no repositório.
+cert/*
+!cert/.gitkeep
+
+# Cadastro local e perfil fiscal: dados de terceiros e configuração da empresa.
+data/*
+!data/.gitkeep

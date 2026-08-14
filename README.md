@@ -23,31 +23,64 @@ fornecedores.
 
 ```bash
 npm install
-cp .env.example .env      # preencha as credenciais
+cp .env.example .env             # preencha as credenciais
+cp /caminho/do/certificado.pfx cert/    # a pasta já vem no repositório, vazia
 ```
 
-## Estrutura
+As pastas `cert/` e `data/` são versionadas vazias (só com `.gitkeep`) para
+marcar onde os arquivos ficam — o conteúdo delas nunca entra no repositório.
+
+## Arquitetura
+
+Camadas, com dependências sempre apontando para dentro — `domain` não conhece
+ninguém, `cli` conhece todos:
 
 ```
 src/
-  cli.ts               CLI — todos os comandos
-  client.ts            GissClient: as 16 operações SOAP, parse e erros
-  portal.ts            PortalClient: API REST do portal (cadastro)
-  soap.ts              envelope SOAP 1.1 e transporte mTLS
-  sign.ts              assinatura XMLDSig (c14n + rsa-sha1)
-  cert.ts              leitura do .pfx e exportação para PEM
-  messages/
-    prestados.ts       XMLs do serviço nfse
-    tomados.ts         XMLs do serviço nfsc
-  types.ts             tipos de domínio (Rps, Servico, Tomador…)
-  perfil.ts            padrões fiscais do prestador
-  catalogo.ts          cadastro local de clientes/fornecedores
-  sync.ts              deriva participantes das notas
-  validar.ts           validação contra os XSD via xmllint
-  config.ts            ambiente, endpoints e credenciais
-  xml.ts               construtores de XML e helpers
+  domain/              regras e contratos, sem I/O
+    types.ts             Rps, Service, Amounts, ServiceTaker, Supplier…
+    errors.ts            GissError, SoapFaultError, PortalError
+    signature-policy.ts  Strategy: onde a assinatura entra em cada operação
+  infra/               I/O e detalhes técnicos
+    certificate.ts       .pfx → PEM (node-forge) e exportação
+    xml-signer.ts        XMLDSig c14n + rsa-sha1
+    soap-client.ts       envelope SOAP 1.1 e transporte mTLS
+    http-client.ts       HTTP JSON para a API REST
+    xml.ts               construtores de XML
+  messages/            serialização — Builder
+    provided-services.ts XMLs do serviço nfse
+    taken-services.ts    XMLs do serviço nfsc
+    parser.ts            respostas → objetos
+  services/            casos de uso
+    nfse-service.ts      10 operações de serviços prestados
+    nfsc-service.ts      6 operações de serviços tomados
+    portal-service.ts    cadastro via API REST
+    giss-client.ts       fachada que compõe os serviços
+  storage/             persistência local — Repository
+    contact-repository.ts  clientes e fornecedores
+    profile-repository.ts  perfil fiscal + montagem do RPS
+    invoice-sync.ts        deriva participantes das notas
+  validation/          validação contra os XSD (xmllint)
+  config/              ambiente, endpoints e credenciais
+  cli/                 interface de linha de comando
+  index.ts             API pública
 docs/                  manuais, schemas XSD, exemplos e tabela de erros
 ```
+
+**Padrões aplicados**, cada um resolvendo um problema concreto que apareceu:
+
+| Padrão | Onde | Por quê |
+| --- | --- | --- |
+| **Strategy** | `domain/signature-policy.ts` | A assinatura muda por operação — raiz, elemento interno, uma por RPS mais a do lote, ou nenhuma. Como estratégia, cada regra fica nomeada e isolada em vez de virar condicional no cliente. |
+| **Builder** | `messages/` | Os XSD exigem ordem exata de elementos; funções compostas de `element`/`group` tornam essa ordem explícita e conferível contra o schema. |
+| **Repository** | `storage/` | Cadastro local e perfil fiscal atrás de uma interface, com migração de formato transparente. |
+| **Facade** | `services/giss-client.ts` | Carrega certificado, monta o assinador e entrega `nfse`/`nfsc` prontos. |
+| **Adapter** | `infra/soap-client.ts`, `http-client.ts` | Isola SOAP e REST; os serviços não conhecem `https` nem `fetch`. |
+
+**Convenção de nomes:** identificadores em inglês, siglas e entidades do padrão
+preservadas (`Rps`, `Nfse`, `Iss`, `Cnpj`). Assim o código continua mapeável
+linha a linha contra os manuais e os XSD. Comentários e mensagens ao usuário
+seguem em português.
 
 ## Configuração (`.env`)
 
@@ -67,6 +100,7 @@ npm run giss                                  # ajuda com todos os comandos
 npm run giss -- cert [--exportar]             # certificado; --exportar grava os PEM
 
 # consultas — serviços prestados
+npm run giss -- ultimas [--limite 10] [--meses 12]   # as NFS-e mais recentes
 npm run giss -- prestado --inicio 2026-07-01 --fim 2026-07-31 [--competencia] [--todas]
 npm run giss -- faixa --de 555 --ate 569
 npm run giss -- rps --numero 12 --serie A
@@ -96,34 +130,56 @@ Flags globais: `--env producao|homologacao`, `--json`, `--xml`, `--debug`.
 Como biblioteca:
 
 ```ts
-import { GissClient } from "./src/client.ts";
+import { GissClient, ContactRepository, ProfileRepository, buildRps } from "./src/index.ts";
 
 const giss = new GissClient();
-const { notas } = await giss.consultarNfseServicoPrestado({
-  periodoEmissao: { inicial: "2026-07-01", final: "2026-07-31" },
+
+// consulta
+const { invoices } = await giss.nfse.queryProvidedServices({
+  issuePeriod: { from: "2026-07-01", to: "2026-07-31" },
 });
+
+// paginação automática
+for await (const page of giss.paginate((page) =>
+  giss.nfse.queryProvidedServices({ issuePeriod: { from, to }, page }),
+)) {
+  console.log(page.invoices.length);
+}
+
+// emissão
+const taker = ContactRepository.asServiceTaker(
+  new ContactRepository().find("cliente", "exemplo")!,
+);
+const rps = buildRps(new ProfileRepository().load(), {
+  taker,
+  serviceAmount: 1500,
+  description: "Desenvolvimento de software",
+});
+
+giss.nfse.previewIssueNfse(rps);   // XML assinado, sem enviar
+await giss.nfse.issueNfse(rps);    // emite de verdade
 ```
 
 ## Operações
 
 | Serviço | Operação | Método | Estado |
 | --- | --- | --- | --- |
-| nfse | ConsultarNfseServicoPrestado | `consultarNfseServicoPrestado` | validado em produção |
-| nfse | ConsultarNfsePorFaixa | `consultarNfsePorFaixa` | validado em produção |
-| nfse | ConsultarNfsePorRps | `consultarNfsePorRps` | validado em produção |
-| nfse | ConsultarLoteRps | `consultarLoteRps` | validado em produção |
-| nfse | ConsultarNfseServicoTomado | `consultarNfseServicoTomado` | responde `A01` (ver limitações) |
-| nfse | GerarNfse | `gerarNfse` | schema + assinatura aceitos em homologação |
-| nfse | RecepcionarLoteRps | `enviarLoteRps` | schema + assinatura aceitos em homologação |
-| nfse | RecepcionarLoteRpsSincrono | `enviarLoteRpsSincrono` | schema + assinatura aceitos em homologação |
-| nfse | CancelarNfse | `cancelarNfse` | schema + assinatura aceitos em homologação |
-| nfse | SubstituirNfse | `substituirNfse` | schema + assinatura aceitos em homologação |
-| nfsc | EmitirNotaServicoComprado | `emitirNotaServicoComprado` | XML valida contra o XSD |
-| nfsc | EnviarLoteNotaServicoComprado | `enviarLoteNotaServicoComprado` | XML valida contra o XSD |
-| nfsc | CancelarNotaServicoComprado | `cancelarNotaServicoComprado` | XML valida contra o XSD |
-| nfsc | ConsultarServicoCompradoPorLote | `consultarServicoCompradoPorLote` | validado em produção |
-| nfsc | ConsultarServicoCompradoPorProtocolo | `consultarServicoCompradoPorProtocolo` | validado em produção |
-| nfsc | ConsultarServicoCompradoPorNumero | `consultarServicoCompradoPorNumero` | validado em produção |
+| nfse | ConsultarNfseServicoPrestado | `nfse.queryProvidedServices` | validado em produção |
+| nfse | ConsultarNfsePorFaixa | `nfse.queryNfseRange` | validado em produção |
+| nfse | ConsultarNfsePorRps | `nfse.queryNfseByRps` | validado em produção |
+| nfse | ConsultarLoteRps | `nfse.queryRpsBatch` | validado em produção |
+| nfse | ConsultarNfseServicoTomado | `nfse.queryTakenServices` | responde `A01` (ver limitações) |
+| nfse | GerarNfse | `nfse.issueNfse` | schema + assinatura aceitos em homologação |
+| nfse | RecepcionarLoteRps | `nfse.sendRpsBatch` | schema + assinatura aceitos em homologação |
+| nfse | RecepcionarLoteRpsSincrono | `nfse.sendRpsBatchSync` | schema + assinatura aceitos em homologação |
+| nfse | CancelarNfse | `nfse.cancelNfse` | schema + assinatura aceitos em homologação |
+| nfse | SubstituirNfse | `nfse.replaceNfse` | schema + assinatura aceitos em homologação |
+| nfsc | EmitirNotaServicoComprado | `nfsc.issuePurchasedService` | XML valida contra o XSD |
+| nfsc | EnviarLoteNotaServicoComprado | `nfsc.sendPurchasedServiceBatch` | XML valida contra o XSD |
+| nfsc | CancelarNotaServicoComprado | `nfsc.cancelPurchasedService` | XML valida contra o XSD |
+| nfsc | ConsultarServicoCompradoPorLote | `nfsc.queryPurchasedByBatch` | validado em produção |
+| nfsc | ConsultarServicoCompradoPorProtocolo | `nfsc.queryPurchasedByProtocol` | validado em produção |
+| nfsc | ConsultarServicoCompradoPorNumero | `nfsc.queryPurchasedByNumber` | validado em produção |
 
 "Validado em produção" = a operação foi executada contra `ws-suzano` e devolveu dados ou uma
 resposta de negócio coerente. As de emissão só foram até onde o ambiente de homologação
@@ -135,10 +191,11 @@ O **Web Service SOAP não tem cadastro** — a lista de serviços publicada em `
 as 16 operações de nota, e no padrão ABRASF os dados do participante viajam dentro de cada NFS-e.
 
 O cadastro que aparece no portal (*Manutenção Cadastral → Clientes e Fornecedores*) roda numa
-**API REST separada**, implementada em `src/portal.ts`:
+**API REST separada**, implementada em `src/services/portal-service.ts`:
 
 ```bash
-npm run giss -- portal-clientes                  # lista o cadastro real do portal
+npm run giss -- portal-clientes                  # clientes cadastrados no portal
+npm run giss -- portal-clientes --tipo 2         # fornecedores
 npm run giss -- portal-add --documento 00000000000191 --nome "Cliente Exemplo LTDA" \
     --logradouro "Bom Sucesso" --numero 220 --bairro Centro \
     --cidade 3550308 --uf SP --cep 03305-000 --confirmar
@@ -168,7 +225,7 @@ município (`"SAO PAULO"`), não o código — resolvido por `municipio-ibge/lis
 
 **É API interna, sem contrato público — pode mudar sem aviso.**
 
-Além disso, o projeto mantém um catálogo local em `dados/catalogo.json`, alimentado por
+Além disso, o projeto mantém um catálogo local em `data/contacts.json`, alimentado por
 `portal-importar` ou por `clientes --sincronizar` (que deriva das notas já emitidas). É ele que
 resolve `--tomador exemplo` na emissão, por apelido, documento ou trecho da razão social.
 
@@ -248,14 +305,14 @@ https://ws-homologacao-rtc.giss.com.br/service-ws/nf/nfse-ws
   localizada`, que é justamente o teto útil para testar schema e assinatura;
 - o campo **`tpRetPisCofins` é rejeitado** com `E160`, embora conste do XSD publicado, do manual de
   PIS/COFINS e de notas reais emitidas em produção. Indica schema desatualizado nesse ambiente.
-  O campo faz parte do perfil padrão; remova-o do `dados/perfil.json` para testar em homologação.
+  O campo faz parte do perfil padrão; remova-o do `data/profile.json` para testar em homologação.
 
 ## Perfil fiscal
 
-`src/perfil.ts` guarda os valores que se repetem em toda emissão (item da LC 116, CNAE, NBS,
+`src/storage/profile-repository.ts` guarda os valores que se repetem em toda emissão (item da LC 116, CNAE, NBS,
 município, exigibilidade do ISS, PIS/COFINS, IBS/CBS). Os padrões vieram de uma NFS-e real já
 aceita pela prefeitura, com os formatos corrigidos para envio. `npm run giss -- perfil --salvar`
-grava em `dados/perfil.json` para edição.
+grava em `data/profile.json` para edição.
 
 **Confira com sua contabilidade antes de emitir** — os padrões refletem um prestador optante do
 Simples Nacional, ISS não retido, serviço 01.04.
@@ -265,12 +322,16 @@ Simples Nacional, ISS não retido, serviço 01.04.
 O que **nunca** entra no repositório (já coberto pelo `.gitignore`):
 
 - `.env` — senha do certificado e credenciais do portal
-- `cert/` — o `.pfx` e os PEM exportados (a chave sai **sem senha**, modo `0600`)
-- `dados/` — catálogo de clientes e perfil fiscal, com dados de terceiros
+- `cert/*` — o `.pfx` e os PEM exportados (a chave sai **sem senha**, modo `0600`)
+- `data/*` — cadastro local e perfil fiscal, com dados de terceiros
+
+As duas pastas são versionadas vazias, via `.gitkeep`, e a regra ignora o
+conteúdo (`cert/*`) em vez da pasta (`cert/`) — assim quem clona já sabe onde
+pôr o certificado, sem risco de subir o arquivo junto.
 
 Duas observações sobre o código:
 
-- o `APP_ID` em `src/portal.ts` não é segredo — é constante pública do bundle do portal
+- o `APP_ID` em `src/services/portal-service.ts` não é segredo — é constante pública do bundle do portal
   (`portal/js/app.js`), enviada por qualquer navegador que abra o site;
 - a assinatura usa `rsa-sha1` e digest `sha1`. São algoritmos fracos pelos padrões atuais, mas é
   o que o serviço valida (manual, seção 6.3). Não troque sem confirmar com a prefeitura.
