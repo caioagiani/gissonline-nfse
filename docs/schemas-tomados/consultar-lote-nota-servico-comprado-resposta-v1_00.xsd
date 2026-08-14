@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<xsd:schema
+    xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+    targetNamespace="http://www.giss.com.br/consultar-lote-nota-servico-comprado-resposta-v1_00.xsd"
+    xmlns="http://www.giss.com.br/consultar-lote-nota-servico-comprado-resposta-v1_00.xsd"
+    xmlns:dsig="http://www.w3.org/2000/09/xmldsig#"
+    xmlns:tipos="http://www.giss.com.br/tipos-servicos-comprados-v1_00.xsd"
+    attributeFormDefault="unqualified"
+    elementFormDefault="qualified">
+    <xsd:import
+        namespace="http://www.w3.org/2000/09/xmldsig#"
+        schemaLocation="xmldsig-core-schema20020212.xsd" />
+
+    <xsd:import
+        namespace="http://www.giss.com.br/tipos-servicos-comprados-v1_00.xsd"
+        schemaLocation="tipos-servicos-comprados-v1_00.xsd" />
+
+    <xsd:element name="ConsultarServicoCompradoPorLoteResposta">
+        <xsd:complexType>
+            <xsd:sequence>
+                <xsd:element
+                    name="Situacao"
+                    type="tipos:tsSituacaoLoteRps"
+                    minOccurs="1"
+                    maxOccurs="1" />
+                <xsd:element name="ListaNfse" minOccurs="0" maxOccurs="1">
+                    <xsd:complexType>
+                        <xsd:sequence>
+                            <xsd:element
+                                ref="tipos:CompNfse"
+                                minOccurs="1"
+                                maxOccurs="unbounded" />
+                            <xsd:element
+                                ref="tipos:ListaMensagemAlertaRetorno"
+                                minOccurs="0"
+                                maxOccurs="1" />
+                        </xsd:sequence>
+                    </xsd:complexType>
+                </xsd:element>
+                <xsd:element
+                    ref="tipos:ListaMensagemRetorno"
+                    minOccurs="0"
+                    maxOccurs="1" />
+                <xsd:element
+                    ref="tipos:ListaMensagemRetornoLote"
+                    minOccurs="0"
+                    maxOccurs="1" />
+            </xsd:sequence>
+        </xsd:complexType>
+    </xsd:element>
+</xsd:schema>

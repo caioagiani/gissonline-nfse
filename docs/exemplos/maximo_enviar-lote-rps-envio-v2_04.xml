@@ -1,0 +1,245 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<p:EnviarLoteRpsEnvio xmlns:ds="http://www.w3.org/2000/09/xmldsig#" xmlns:p="http://www.giss.com.br/enviar-lote-rps-envio-v2_04.xsd" xmlns:p1="http://www.giss.com.br/tipos-v2_04.xsd" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.giss.com.br/enviar-lote-rps-envio-v2_04.xsd ../Schemas_XSD_Servicos_Prestados/v2_04/enviar-lote-rps-envio-v2_04.xsd ">
+  <p:LoteRps Id="" versao="token">
+    <p1:NumeroLote>0</p1:NumeroLote>
+    <p1:Prestador>
+      <p1:CpfCnpj>
+        <p1:Cpf>p1:Cpf</p1:Cpf>
+      </p1:CpfCnpj>
+      <p1:InscricaoMunicipal>p1:InscricaoMunicipal</p1:InscricaoMunicipal>
+    </p1:Prestador>
+    <p1:QuantidadeRps>0</p1:QuantidadeRps>
+    <p1:ListaRps>
+      <p1:Rps>
+        <p1:InfDeclaracaoPrestacaoServico Id="">
+          <p1:Rps Id="">
+            <p1:IdentificacaoRps>
+              <p1:Numero>0</p1:Numero>
+              <p1:Serie>p1:Serie</p1:Serie>
+              <p1:Tipo>0</p1:Tipo>
+            </p1:IdentificacaoRps>
+            <p1:DataEmissao>2001-01-01</p1:DataEmissao>
+            <p1:Status>0</p1:Status>
+            <p1:RpsSubstituido>
+              <p1:Numero>0</p1:Numero>
+              <p1:Serie>p1:Serie</p1:Serie>
+              <p1:Tipo>0</p1:Tipo>
+            </p1:RpsSubstituido>
+          </p1:Rps>
+          <p1:Competencia>2001-01-01</p1:Competencia>
+          <p1:Servico>
+            <p1:Valores>
+              <p1:ValorServicos>0.0</p1:ValorServicos>
+              <p1:ValorDeducoes>0.0</p1:ValorDeducoes>
+              <p1:ValorPis>0.0</p1:ValorPis>
+              <p1:ValorCofins>0.0</p1:ValorCofins>
+              <p1:ValorInss>0.0</p1:ValorInss>
+              <p1:ValorIr>0.0</p1:ValorIr>
+              <p1:ValorCsll>0.0</p1:ValorCsll>
+              <p1:OutrasRetencoes>0.0</p1:OutrasRetencoes>
+              <p1:ValTotTributos>0.0</p1:ValTotTributos>
+              <p1:ValorIss>0.0</p1:ValorIss>
+              <p1:Aliquota>0.0</p1:Aliquota>
+              <p1:DescontoIncondicionado>0.0</p1:DescontoIncondicionado>
+              <p1:DescontoCondicionado>0.0</p1:DescontoCondicionado>
+              <p1:trib>
+                <p1:tribFed>
+                  <p1:piscofins>
+                    <p1:CST>00</p1:CST>
+                    <p1:vBCPisCofins>p1:vBCPisCofins</p1:vBCPisCofins>
+                    <p1:pAliqPis>p1:pAliqPis</p1:pAliqPis>
+                    <p1:pAliqCofins>p1:pAliqCofins</p1:pAliqCofins>
+                    <p1:vPis>p1:vPis</p1:vPis>
+                    <p1:vCofins>p1:vCofins</p1:vCofins>
+                    <p1:tpRetPisCofins>1</p1:tpRetPisCofins>
+                  </p1:piscofins>
+                </p1:tribFed>
+                <p1:totTrib>
+                  <p1:pTotTrib>
+                    <p1:pTotTribFed>p1:pTotTribFed</p1:pTotTribFed>
+                    <p1:pTotTribEst>p1:pTotTribEst</p1:pTotTribEst>
+                    <p1:pTotTribMun>p1:pTotTribMun</p1:pTotTribMun>
+                  </p1:pTotTrib>
+                </p1:totTrib>
+              </p1:trib>
+              <p1:IBSCBS>
+                <p1:finNFSe>0</p1:finNFSe>
+                <p1:indFinal>0</p1:indFinal>
+                <p1:cIndOp>p1:cIndOp</p1:cIndOp>
+                <p1:tpOper>1</p1:tpOper>
+                <p1:gRefNFSe>
+                  <p1:refNFSe>p1:refNFSe</p1:refNFSe>
+                </p1:gRefNFSe>
+                <p1:tpEnteGov>1</p1:tpEnteGov>
+                <p1:indDest>0</p1:indDest>
+                <p1:valores>
+                  <p1:gReeRepRes>
+                    <p1:documentos>
+                      <p1:dFeNacional>
+                        <p1:tipoChaveDFe>1</p1:tipoChaveDFe>
+                        <p1:chaveDFe>p1:chaveDFe</p1:chaveDFe>
+                      </p1:dFeNacional>
+                      <p1:dtEmiDoc>p1:dtEmiDoc</p1:dtEmiDoc>
+                      <p1:dtCompDoc>p1:dtCompDoc</p1:dtCompDoc>
+                      <p1:tpReeRepRes>01</p1:tpReeRepRes>
+                      <p1:vlrReeRepRes>p1:vlrReeRepRes</p1:vlrReeRepRes>
+                    </p1:documentos>
+                  </p1:gReeRepRes>
+                  <p1:trib>
+                    <p1:gIBSCBS>
+                      <p1:CST>p1:CST</p1:CST>
+                      <p1:cClassTrib>p1:cClassTrib</p1:cClassTrib>
+                    </p1:gIBSCBS>
+                  </p1:trib>
+                  <p1:cLocalidadeIncid>p1:cLocalidadeIncid</p1:cLocalidadeIncid>
+                  <p1:pRedutor>p1:pRedutor</p1:pRedutor>
+                  <p1:vBC>p1:vBC</p1:vBC>
+                </p1:valores>
+              </p1:IBSCBS>
+            </p1:Valores>
+            <p1:IssRetido>0</p1:IssRetido>
+            <p1:ResponsavelRetencao>0</p1:ResponsavelRetencao>
+            <p1:ItemListaServico>01.01</p1:ItemListaServico>
+            <p1:CodigoCnae>0</p1:CodigoCnae>
+            <p1:CodigoTributacaoMunicipio>p1:CodigoTributacaoMunicipio</p1:CodigoTributacaoMunicipio>
+            <p1:CodigoNbs>p1:CodigoNbs</p1:CodigoNbs>
+            <p1:Discriminacao>p1:Discriminacao</p1:Discriminacao>
+            <p1:CodigoMunicipio>0</p1:CodigoMunicipio>
+            <p1:CodigoPais>p1:CodigoPais</p1:CodigoPais>
+            <p1:ExigibilidadeISS>0</p1:ExigibilidadeISS>
+            <p1:IdentifNaoExigibilidade>p1:IdentifNaoExigibilidade</p1:IdentifNaoExigibilidade>
+            <p1:MunicipioIncidencia>0</p1:MunicipioIncidencia>
+            <p1:NumeroProcesso>p1:NumeroProcesso</p1:NumeroProcesso>
+            <p1:comExt>
+              <p1:mdPrestacao>0</p1:mdPrestacao>
+              <p1:vincPrest>0</p1:vincPrest>
+              <p1:tpMoeda>p1:tpMoeda</p1:tpMoeda>
+              <p1:vServMoeda>p1:vServMoeda</p1:vServMoeda>
+              <p1:mecAFComexP>00</p1:mecAFComexP>
+              <p1:mecAFComexT>00</p1:mecAFComexT>
+              <p1:movTempBens>0</p1:movTempBens>
+              <p1:nDI>p1:nDI</p1:nDI>
+              <p1:nRE>p1:nRE</p1:nRE>
+              <p1:mdic>0</p1:mdic>
+            </p1:comExt>
+          </p1:Servico>
+          <p1:Prestador>
+            <p1:CpfCnpj>
+              <p1:Cpf>p1:Cpf</p1:Cpf>
+            </p1:CpfCnpj>
+            <p1:InscricaoMunicipal>p1:InscricaoMunicipal</p1:InscricaoMunicipal>
+          </p1:Prestador>
+          <p1:TomadorServico>
+            <p1:IdentificacaoTomador>
+              <p1:CpfCnpj>
+                <p1:Cpf>p1:Cpf</p1:Cpf>
+              </p1:CpfCnpj>
+              <p1:InscricaoMunicipal>p1:InscricaoMunicipal</p1:InscricaoMunicipal>
+            </p1:IdentificacaoTomador>
+            <p1:NifTomador>p1:NifTomador</p1:NifTomador>
+            <p1:RazaoSocial>p1:RazaoSocial</p1:RazaoSocial>
+            <p1:Endereco>
+              <p1:Endereco>p1:Endereco</p1:Endereco>
+              <p1:Numero>p1:Numero</p1:Numero>
+              <p1:Complemento>p1:Complemento</p1:Complemento>
+              <p1:Bairro>p1:Bairro</p1:Bairro>
+              <p1:CodigoMunicipio>0</p1:CodigoMunicipio>
+              <p1:Uf>AC</p1:Uf>
+              <p1:Cep>p1:Cep</p1:Cep>
+            </p1:Endereco>
+            <p1:Contato/>
+          </p1:TomadorServico>
+          <p1:Intermediario>
+            <p1:IdentificacaoIntermediario>
+              <p1:CpfCnpj>
+                <p1:Cpf>p1:Cpf</p1:Cpf>
+              </p1:CpfCnpj>
+              <p1:InscricaoMunicipal>p1:InscricaoMunicipal</p1:InscricaoMunicipal>
+            </p1:IdentificacaoIntermediario>
+            <p1:RazaoSocial>p1:RazaoSocial</p1:RazaoSocial>
+            <p1:CodigoMunicipio>0</p1:CodigoMunicipio>
+          </p1:Intermediario>
+          <p1:ConstrucaoCivil/>
+          <p1:RegimeEspecialTributacao>0</p1:RegimeEspecialTributacao>
+          <p1:OptanteSimplesNacional>0</p1:OptanteSimplesNacional>
+          <p1:IncentivoFiscal>0</p1:IncentivoFiscal>
+          <p1:Evento/>
+          <p1:InformacoesComplementares>p1:InformacoesComplementares</p1:InformacoesComplementares>
+          <p1:Deducao>
+            <p1:TipoDeducao>0</p1:TipoDeducao>
+            <p1:DescricaoDeducao>p1:DescricaoDeducao</p1:DescricaoDeducao>
+            <p1:IdentificacaoDocumentoDeducao>
+              <p1:IdentificacaoNfse>
+                <p1:CodigoMunicipioGerador>0</p1:CodigoMunicipioGerador>
+                <p1:NumeroNfse>0</p1:NumeroNfse>
+                <p1:CodigoVerificacao>p1:CodigoVerificacao</p1:CodigoVerificacao>
+              </p1:IdentificacaoNfse>
+            </p1:IdentificacaoDocumentoDeducao>
+            <p1:DadosFornecedor>
+              <p1:IdentificacaoFornecedor>
+                <p1:CpfCnpj>
+                  <p1:Cpf>p1:Cpf</p1:Cpf>
+                </p1:CpfCnpj>
+              </p1:IdentificacaoFornecedor>
+            </p1:DadosFornecedor>
+            <p1:DataEmissao>2001-01-01</p1:DataEmissao>
+            <p1:ValorDedutivel>0.0</p1:ValorDedutivel>
+            <p1:ValorUtilizadoDeducao>0.0</p1:ValorUtilizadoDeducao>
+          </p1:Deducao>
+        </p1:InfDeclaracaoPrestacaoServico>
+        <ds:Signature Id="idvalue0">
+          <ds:SignedInfo Id="idvalue1">
+            <ds:CanonicalizationMethod Algorithm="http://tempuri.org"/>
+            <ds:SignatureMethod Algorithm="http://tempuri.org">
+              <ds:HMACOutputLength>0</ds:HMACOutputLength>
+            </ds:SignatureMethod>
+            <ds:Reference Id="idvalue2" Type="http://tempuri.org" URI="http://tempuri.org">
+              <ds:Transforms>
+                <ds:Transform Algorithm="http://tempuri.org">
+                  <ds:XPath>ds:XPath</ds:XPath>
+                </ds:Transform>
+              </ds:Transforms>
+              <ds:DigestMethod Algorithm="http://tempuri.org"/>
+              <ds:DigestValue>MA==</ds:DigestValue>
+            </ds:Reference>
+          </ds:SignedInfo>
+          <ds:SignatureValue Id="idvalue3">MA==</ds:SignatureValue>
+          <ds:KeyInfo Id="idvalue4">
+            <ds:KeyName>ds:KeyName</ds:KeyName>
+          </ds:KeyInfo>
+          <ds:Object Encoding="http://tempuri.org" Id="idvalue5" MimeType="">
+            <ds:SPKIData>
+              <ds:SPKISexp>MA==</ds:SPKISexp>
+            </ds:SPKIData>
+          </ds:Object>
+        </ds:Signature>
+      </p1:Rps>
+    </p1:ListaRps>
+  </p:LoteRps>
+  <ds:Signature Id="idvalue6">
+    <ds:SignedInfo Id="idvalue7">
+      <ds:CanonicalizationMethod Algorithm="http://tempuri.org"/>
+      <ds:SignatureMethod Algorithm="http://tempuri.org">
+        <ds:HMACOutputLength>0</ds:HMACOutputLength>
+      </ds:SignatureMethod>
+      <ds:Reference Id="idvalue8" Type="http://tempuri.org" URI="http://tempuri.org">
+        <ds:Transforms>
+          <ds:Transform Algorithm="http://tempuri.org">
+            <ds:XPath>ds:XPath</ds:XPath>
+          </ds:Transform>
+        </ds:Transforms>
+        <ds:DigestMethod Algorithm="http://tempuri.org"/>
+        <ds:DigestValue>MA==</ds:DigestValue>
+      </ds:Reference>
+    </ds:SignedInfo>
+    <ds:SignatureValue Id="idvalue9">MA==</ds:SignatureValue>
+    <ds:KeyInfo Id="idvalue10">
+      <ds:KeyName>ds:KeyName</ds:KeyName>
+    </ds:KeyInfo>
+    <ds:Object Encoding="http://tempuri.org" Id="idvalue11" MimeType="">
+      <ds:SPKIData>
+        <ds:SPKISexp>MA==</ds:SPKISexp>
+      </ds:SPKIData>
+    </ds:Object>
+  </ds:Signature>
+</p:EnviarLoteRpsEnvio>

@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<p:ConsultarLoteRpsEnvio xmlns:ds="http://www.w3.org/2000/09/xmldsig#" xmlns:p="http://www.giss.com.br/consultar-lote-rps-envio-v2_04.xsd" xmlns:p1="http://www.giss.com.br/tipos-v2_04.xsd" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.giss.com.br/consultar-lote-rps-envio-v2_04.xsd ../Schemas_XSD_Servicos_Prestados/v2_04/consultar-lote-rps-envio-v2_04.xsd ">
+  <p:Prestador>
+    <p1:CpfCnpj>
+      <p1:Cpf>p1:Cpf</p1:Cpf>
+    </p1:CpfCnpj>
+    <p1:InscricaoMunicipal>p1:InscricaoMunicipal</p1:InscricaoMunicipal>
+  </p:Prestador>
+  <p:Protocolo>p:Protocolo</p:Protocolo>
+  <ds:Signature Id="idvalue0">
+    <ds:SignedInfo Id="idvalue1">
+      <ds:CanonicalizationMethod Algorithm="http://tempuri.org"/>
+      <ds:SignatureMethod Algorithm="http://tempuri.org">
+        <ds:HMACOutputLength>0</ds:HMACOutputLength>
+      </ds:SignatureMethod>
+      <ds:Reference Id="idvalue2" Type="http://tempuri.org" URI="http://tempuri.org">
+        <ds:Transforms>
+          <ds:Transform Algorithm="http://tempuri.org">
+            <ds:XPath>ds:XPath</ds:XPath>
+          </ds:Transform>
+        </ds:Transforms>
+        <ds:DigestMethod Algorithm="http://tempuri.org"/>
+        <ds:DigestValue>MA==</ds:DigestValue>
+      </ds:Reference>
+    </ds:SignedInfo>
+    <ds:SignatureValue Id="idvalue3">MA==</ds:SignatureValue>
+    <ds:KeyInfo Id="idvalue4">
+      <ds:KeyName>ds:KeyName</ds:KeyName>
+    </ds:KeyInfo>
+    <ds:Object Encoding="http://tempuri.org" Id="idvalue5" MimeType="">
+      <ds:SPKIData>
+        <ds:SPKISexp>MA==</ds:SPKISexp>
+      </ds:SPKIData>
+    </ds:Object>
+  </ds:Signature>
+</p:ConsultarLoteRpsEnvio>

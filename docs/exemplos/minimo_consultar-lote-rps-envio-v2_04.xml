@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<p:ConsultarLoteRpsEnvio xmlns:ds="http://www.w3.org/2000/09/xmldsig#" xmlns:p="http://www.giss.com.br/consultar-lote-rps-envio-v2_04.xsd" xmlns:p1="http://www.giss.com.br/tipos-v2_04.xsd" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.giss.com.br/consultar-lote-rps-envio-v2_04.xsd ../Schemas_XSD_Servicos_Prestados/v2_04/consultar-lote-rps-envio-v2_04.xsd ">
+  <p:Prestador>
+    <p1:CpfCnpj>
+      <p1:Cpf>p1:Cpf</p1:Cpf>
+    </p1:CpfCnpj>
+  </p:Prestador>
+  <p:Protocolo>p:Protocolo</p:Protocolo>
+</p:ConsultarLoteRpsEnvio>

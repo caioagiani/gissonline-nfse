@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<p:cabecalho versao="token" xmlns:ds="http://www.w3.org/2000/09/xmldsig#" xmlns:p="http://www.giss.com.br/cabecalho-v2_04.xsd" xmlns:p1="http://www.giss.com.br/tipos-v2_04.xsd" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.giss.com.br/cabecalho-v2_04.xsd ../Schemas_XSD_Servicos_Prestados/v2_04/cabecalho-v2_04.xsd ">
+  <p:versaoDados>token</p:versaoDados>
+</p:cabecalho>

@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xsd:schema
+    xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+    targetNamespace="http://www.giss.com.br/consultar-protocolo-nota-servico-comprado-resposta-v1_00.xsd"
+    xmlns="http://www.giss.com.br/consultar-protocolo-nota-servico-comprado-resposta-v1_00.xsd"
+    xmlns:dsig="http://www.w3.org/2000/09/xmldsig#"
+    xmlns:tipos="http://www.giss.com.br/tipos-servicos-comprados-v1_00.xsd"
+    attributeFormDefault="unqualified"
+    elementFormDefault="qualified">
+
+    <xsd:import
+        namespace="http://www.w3.org/2000/09/xmldsig#"
+        schemaLocation="xmldsig-core-schema20020212.xsd" />
+
+    <xsd:import
+        namespace="http://www.giss.com.br/tipos-servicos-comprados-v1_00.xsd"
+        schemaLocation="tipos-servicos-comprados-v1_00.xsd" />
+
+    <xsd:element name="ConsultarServicoCompradoPorProtocoloResposta">
+        <xsd:complexType>
+            <xsd:sequence>
+                <xsd:element
+                    name="ListaNotaServicoComprado"
+                    type="tipos:NotaServicoComprado"
+                    minOccurs="0"
+                    maxOccurs="unbounded" />
+                <xsd:element
+                    name="ListaMensagemRetorno"
+                    type="tipos:ListaMensagemRetorno"
+                    minOccurs="0" />
+            </xsd:sequence>
+        </xsd:complexType>
+    </xsd:element>
+</xsd:schema>

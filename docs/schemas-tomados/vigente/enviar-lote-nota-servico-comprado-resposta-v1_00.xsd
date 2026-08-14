@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<xsd:schema
+    xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+    targetNamespace="http://www.giss.com.br/enviar-lote-nota-servico-comprado-resposta-v1_00.xsd"
+    xmlns="http://www.giss.com.br/enviar-lote-nota-servico-comprado-resposta-v1_00.xsd"
+    xmlns:dsig="http://www.w3.org/2000/09/xmldsig#"
+    xmlns:tipos="http://www.giss.com.br/tipos-servicos-comprados-v1_00.xsd"
+    attributeFormDefault="unqualified"
+    elementFormDefault="qualified">
+
+    <xsd:import
+        namespace="http://www.w3.org/2000/09/xmldsig#"
+        schemaLocation="xmldsig-core-schema20020212.xsd" />
+    <xsd:import
+        namespace="http://www.giss.com.br/tipos-servicos-comprados-v1_00.xsd"
+        schemaLocation="tipos-servicos-comprados-v1_00.xsd" />
+
+    <xsd:element name="EnviarLoteNotaServicoCompradoResposta">
+        <xsd:complexType>
+            <xsd:sequence>
+                <xsd:element
+                    name="IdentificacaoRemessa"
+                    type="tipos:IdentificacaoRemessa"
+                    minOccurs="0" />
+                <xsd:element
+                    name="Protocolo"
+                    type="xsd:nonNegativeInteger"
+                    minOccurs="0" />
+                <xsd:element
+                    name="DataRecebimento"
+                    type="xsd:dateTime"
+                    minOccurs="0" />
+                <xsd:element
+                    name="ListaMensagemRetorno"
+                    type="tipos:ListaMensagemRetorno"
+                    minOccurs="0" />
+            </xsd:sequence>
+        </xsd:complexType>
+    </xsd:element>
+</xsd:schema>

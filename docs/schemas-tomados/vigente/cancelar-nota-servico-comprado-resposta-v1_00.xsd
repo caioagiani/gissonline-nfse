@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<xsd:schema
+    attributeFormDefault="unqualified"
+    elementFormDefault="qualified"
+    targetNamespace="http://www.giss.com.br/cancelar-nota-servico-comprado-resposta-v1_00.xsd"
+    xmlns="http://www.giss.com.br/cancelar-nota-servico-comprado-resposta-v1_00.xsd"
+    xmlns:dsig="http://www.w3.org/2000/09/xmldsig#"
+    xmlns:tipos="http://www.giss.com.br/tipos-servicos-comprados-v1_00.xsd"
+    xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+
+    <xsd:import
+        namespace="http://www.w3.org/2000/09/xmldsig#"
+        schemaLocation="xmldsig-core-schema20020212.xsd"></xsd:import>
+
+    <xsd:import
+        namespace="http://www.giss.com.br/tipos-servicos-comprados-v1_00.xsd"
+        schemaLocation="tipos-servicos-comprados-v1_00.xsd"></xsd:import>
+
+    <xsd:element name="CancelarNotaServicoCompradoResposta">
+        <xsd:complexType>
+            <xsd:sequence>
+                <xsd:element
+                    minOccurs="0"
+                    name="ConfirmacaoCancelamentoNotaServicoComprado"
+                    type="tipos:ConfirmacaoCancelamentoNotaServicoComprado"></xsd:element>
+                <xsd:element
+                    minOccurs="0"
+                    name="ListaMensagemRetorno"
+                    type="tipos:ListaMensagemRetorno"></xsd:element>
+            </xsd:sequence>
+        </xsd:complexType>
+    </xsd:element>
+</xsd:schema>
