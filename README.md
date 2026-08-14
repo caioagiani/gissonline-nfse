@@ -96,6 +96,7 @@ npm run giss                                  # ajuda com todos os comandos
 npm run giss -- cert [--exportar]             # certificado; --exportar grava os PEM
 
 # consultas — serviços prestados
+npm run giss -- ultimas [--limite 10] [--meses 12]   # as NFS-e mais recentes
 npm run giss -- prestado --inicio 2026-07-01 --fim 2026-07-31 [--competencia] [--todas]
 npm run giss -- faixa --de 555 --ate 569
 npm run giss -- rps --numero 12 --serie A
@@ -189,7 +190,8 @@ O cadastro que aparece no portal (*Manutenção Cadastral → Clientes e Fornece
 **API REST separada**, implementada em `src/services/portal-service.ts`:
 
 ```bash
-npm run giss -- portal-clientes                  # lista o cadastro real do portal
+npm run giss -- portal-clientes                  # clientes cadastrados no portal
+npm run giss -- portal-clientes --tipo 2         # fornecedores
 npm run giss -- portal-add --documento 00000000000191 --nome "Cliente Exemplo LTDA" \
     --logradouro "Bom Sucesso" --numero 220 --bairro Centro \
     --cidade 3550308 --uf SP --cep 03305-000 --confirmar

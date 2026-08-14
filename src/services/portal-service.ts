@@ -228,13 +228,20 @@ export class PortalService {
     return city.municipio;
   }
 
-  /** Lista os clientes (tipo 1) ou fornecedores (tipo 2) cadastrados. */
-  async list(role: PartyRole = 1): Promise<PortalParty[]> {
-    const { clientId, companyId } = this.#session;
+  /**
+   * Lista os clientes (papel 1) ou fornecedores (papel 2) cadastrados.
+   *
+   * O último segmento da rota é o **tipo da empresa logada**, não o papel do
+   * participante — passar o papel ali devolve HTTP 500. O papel vem no campo
+   * `tipo` de cada registro, então a separação é feita aqui.
+   */
+  async list(role?: PartyRole): Promise<PortalParty[]> {
+    const { clientId, companyId, companyType } = this.#session;
     const response = await this.call<ApiResponse<PortalParty[]>>(
-      `/service-empresa/api/cliente-fornecedor/cliente/${clientId}/empresa/${companyId}/tipo/${role}`,
+      `/service-empresa/api/cliente-fornecedor/cliente/${clientId}/empresa/${companyId}/tipo/${companyType}`,
     );
-    return response.conteudo;
+    const parties = response.conteudo ?? [];
+    return role === undefined ? parties : parties.filter((p) => p.tipo === role);
   }
 
   /** Busca um participante pelo id interno, com endereço. */
@@ -245,10 +252,10 @@ export class PortalService {
     return response.conteudo;
   }
 
-  /** Procura por CPF/CNPJ entre os já cadastrados. */
+  /** Procura por CPF/CNPJ entre os já cadastrados. Sem `role`, busca em ambos. */
   async findByTaxId(
     taxId: string,
-    role: PartyRole = 1,
+    role?: PartyRole,
   ): Promise<PortalParty | undefined> {
     const digits = digitsOnly(taxId);
     const parties = await this.list(role);

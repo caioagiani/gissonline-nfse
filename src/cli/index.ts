@@ -34,6 +34,7 @@ CERTIFICADO
   cert [--exportar [--out DIR]]        Dados do certificado A1; --exportar grava os PEM
 
 CONSULTAS (serviços prestados)
+  ultimas [--limite N] [--meses N]     As N NFS-e mais recentes (padrão: 10, últimos 12 meses)
   prestado --inicio D --fim D          NFS-e emitidas por período de emissão
            [--competencia]               usa período de competência
            [--numero N] [--pagina N] [--todas]
@@ -68,7 +69,7 @@ CADASTRO LOCAL
   fornecedor-rm --documento D
 
 PORTAL (API REST — cadastro de verdade no GissOnline, via login CPF/senha)
-  portal-clientes [--tipo 1|2]                      Lista o cadastro do portal
+  portal-clientes [--tipo 1|2]                      Cadastro do portal (1=cliente, 2=fornecedor)
   portal-add --documento D --nome N [--tipo 1|2]    Cadastra no portal
              [--fantasia F] [--im N] [--simples] [--mei]
              [--logradouro L --numero N --bairro B --cidade IBGE --uf UF --cep C]
@@ -93,6 +94,8 @@ const options = {
   serie: { type: "string" },
   tipo: { type: "string" },
   pagina: { type: "string" },
+  limite: { type: "string" },
+  meses: { type: "string" },
   todas: { type: "boolean", default: false },
   de: { type: "string" },
   ate: { type: "string" },
@@ -180,6 +183,34 @@ async function main() {
         if (files.chain) console.log(`  cadeia:      ${files.chain}`);
         console.log(`  bundle:      ${files.bundle}`);
         console.log("\nA chave está sem senha — não versione esses arquivos.");
+      }
+      return;
+    }
+
+    case "ultimas": {
+      const limit = asNumber(values.limite) ?? 10;
+      const months = asNumber(values.meses) ?? 12;
+      const to = new Date();
+      const from = new Date(to);
+      from.setMonth(from.getMonth() - months);
+
+      const invoices: Nfse[] = [];
+      for await (const page of client.paginate((page) =>
+        client.nfse.queryProvidedServices({
+          issuePeriod: { from: isoDate(from), to: isoDate(to) },
+          page,
+        }),
+      )) {
+        invoices.push(...page.invoices);
+      }
+
+      // O serviço devolve em ordem crescente; as mais recentes ficam no fim.
+      const latest = invoices.slice(-limit).reverse();
+      printInvoices({ invoices: latest, warnings: [], xml: "" }, values);
+      if (!values.json && !values.xml) {
+        console.log(
+          `\n${latest.length} de ${invoices.length} nota(s) nos últimos ${months} meses`,
+        );
       }
       return;
     }
