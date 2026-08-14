@@ -54,6 +54,12 @@ export interface PortalParty {
   tipoEmpresa: number;
   ativo: boolean;
   inscricaoMunicipal?: string;
+  /**
+   * Contato fica na raiz do participante, e cada campo é um objeto — enviar
+   * string simples devolve HTTP 500.
+   */
+  email?: { email: string };
+  telefone?: { codigoArea: string; telefone: string };
   endereco?: PortalAddress;
 }
 
@@ -318,6 +324,17 @@ export class PortalService {
   }
 }
 
+/** Separa DDD do número, como o portal espera. */
+function splitPhone(
+  phone?: string,
+): { codigoArea: string; telefone: string } | undefined {
+  const digits = phone ? digitsOnly(phone) : "";
+  if (digits.length < 10) return undefined;
+  // descarta o código do país quando vier (55 + DDD + número)
+  const local = digits.length > 11 ? digits.slice(-11) : digits;
+  return { codigoArea: local.slice(0, 2), telefone: local.slice(2) };
+}
+
 /** Monta o corpo de um participante a partir de dados soltos. */
 export function buildPortalParty(
   session: PortalSession,
@@ -329,6 +346,8 @@ export function buildPortalParty(
     role?: PartyRole;
     mei?: boolean;
     simplesNacional?: boolean;
+    email?: string;
+    phone?: string;
     address?: Address & { streetType?: string; cityName?: string };
   },
 ): PortalParty {
@@ -349,6 +368,8 @@ export function buildPortalParty(
     tipoEmpresa: session.companyType,
     ativo: true,
     inscricaoMunicipal: data.municipalRegistration,
+    email: data.email ? { email: data.email } : undefined,
+    telefone: splitPhone(data.phone),
     endereco: address
       ? {
           idCliente: session.clientId,

@@ -590,6 +590,8 @@ async function runPortalCommand(
     role,
     mei: values.mei,
     simplesNacional: values.simples === "1",
+    email: values.email,
+    phone: values.telefone,
     address: address
       ? { ...address, streetType: values["tipo-logradouro"], cityName }
       : undefined,

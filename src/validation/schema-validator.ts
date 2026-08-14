@@ -11,14 +11,11 @@ export interface ValidationResult {
 }
 
 /**
- * Casos em que o XSD publicado contradiz o que o serviço realmente aceita —
- * confirmados contra notas emitidas de verdade.
+ * Casos em que o XSD publicado contradiz o que o serviço aceita, confirmados
+ * contra o comportamento real. Vazio hoje: o serviço valida o XSD ao pé da
+ * letra e devolve E160 em qualquer desvio.
  */
-const KNOWN_DIVERGENCES = [
-  // O XSD tipa cLocalidadeIncid como código IBGE de 7 dígitos, mas as notas
-  // emitidas gravam `1`.
-  /cLocalidadeIncid/,
-];
+const KNOWN_DIVERGENCES: RegExp[] = [];
 
 /**
  * Valida um XML contra o XSD correspondente usando `xmllint`. Devolve `null`
