@@ -34,6 +34,8 @@ export interface IssuingProfile {
   specialTaxRegime?: number;
   /** Série usada nos RPS */
   series: string;
+  /** Alíquota padrão do ISS em percentual, quando não informada por nota */
+  rate?: number;
   defaultDescription?: string;
   pisCofins?: PisCofins;
   approximateTaxes?: ApproximateTaxes;
@@ -75,11 +77,10 @@ export const DEFAULT_PROFILE: IssuingProfile = {
     recipientIndicator: 0,
     cst: "000",
     taxClassification: "000001",
-    // O XSD declara este campo como TSCodMunIBGE (pattern [0-9]{7}), mas todas
-    // as notas realmente emitidas gravam `1` — é um indicador de localidade, não
-    // um código IBGE. Seguimos o comportamento real do serviço; a validação
-    // local acusa a divergência e a trata como conhecida.
-    incidenceLocationCode: "1",
+    // As notas gravadas mostram `1`, mas isso é normalização interna do portal:
+    // enviar `1` pelo Web Service devolve E160 (fora do schema). No envio vai o
+    // código IBGE de 7 dígitos, como o XSD exige.
+    incidenceLocationCode: "3552502",
     reductionRate: 0,
   },
 };
@@ -166,7 +167,8 @@ export function buildRps(base: IssuingProfile, input: IssueInput): Rps {
         otherWithholdings: input.otherWithholdings ?? 0,
         totalTaxes: 0,
         iss: 0,
-        rate: input.rate,
+        // Obrigatória para prestador do Simples Nacional: sem ela vem E163.
+        rate: input.rate ?? profile.rate,
         unconditionalDiscount: input.unconditionalDiscount ?? 0,
         conditionalDiscount: input.conditionalDiscount ?? 0,
         pisCofins: profile.pisCofins,

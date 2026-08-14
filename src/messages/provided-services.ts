@@ -102,9 +102,12 @@ function amountsGroup(amounts: Amounts): string {
     element(`${T}:OutrasRetencoes`, amount(amounts.otherWithholdings)),
     element(`${T}:ValTotTributos`, amount(amounts.totalTaxes)),
     element(`${T}:ValorIss`, amount(amounts.iss)),
+    // A alíquota vai como fração: 3,07% é enviado como 0.0307. Mandar 3.07
+    // significa 307% e o serviço recusa com E165 — a resposta da consulta, em
+    // compensação, devolve o percentual, o que facilita confundir os dois.
     amounts.rate === undefined
       ? ""
-      : element(`${T}:Aliquota`, Number(amounts.rate).toFixed(2)),
+      : element(`${T}:Aliquota`, (Number(amounts.rate) / 100).toFixed(4)),
     element(`${T}:DescontoIncondicionado`, amount(amounts.unconditionalDiscount)),
     element(`${T}:DescontoCondicionado`, amount(amounts.conditionalDiscount)),
     group(`${T}:trib`, [

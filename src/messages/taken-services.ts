@@ -82,7 +82,7 @@ function amountsGroup(amounts: Amounts): string {
     element(`${T}:ValorIss`, amount(amounts.iss)),
     amounts.rate === undefined
       ? ""
-      : element(`${T}:Aliquota`, Number(amounts.rate).toFixed(2)),
+      : element(`${T}:Aliquota`, (Number(amounts.rate) / 100).toFixed(4)),
     element(`${T}:DescontoIncondicionado`, amount(amounts.unconditionalDiscount)),
     element(`${T}:DescontoCondicionado`, amount(amounts.conditionalDiscount)),
   ]);

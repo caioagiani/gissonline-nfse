@@ -333,12 +333,35 @@ async function main() {
         console.log("\nNada foi enviado. Repita com --confirmar para emitir de verdade.");
         return;
       }
-      const result = rps.identification
-        ? await client.nfse.sendRpsBatchSync({
-            batchNumber: Number(values.rps),
-            rps: [rps],
-          })
-        : await client.nfse.issueNfse(rps);
+      // GerarNfse e RecepcionarLoteRpsSincrono respondem A01 mesmo com o XML
+      // correto; o lote assíncrono é o único caminho que emite. O protocolo é
+      // consultado logo em seguida para a emissão parecer síncrona aqui.
+      const batchNumber = Number(values.rps ?? Date.now() % 100000);
+      const withRps: Rps = rps.identification
+        ? rps
+        : {
+            ...rps,
+            identification: {
+              number: batchNumber,
+              series: values.serie ?? "A",
+              type: 1,
+            },
+            issueDate: new Date(),
+            status: 1,
+          };
+
+      const protocol = await client.nfse.sendRpsBatch({
+        batchNumber,
+        rps: [withRps],
+      });
+      console.log(`Lote aceito. Protocolo: ${protocol.protocol}`);
+
+      const result = await waitForBatch(client, protocol.protocol!);
+      if (result.invoices.length === 0) {
+        console.log(`Situação: ${result.status} — ${result.statusLabel}`);
+        console.log("Nenhuma NFS-e no retorno. Consulte o protocolo acima.");
+        return;
+      }
       console.log("NFS-e emitida:");
       printInvoices(result, values);
       return;
@@ -433,6 +456,27 @@ async function main() {
 /** Rótulo em português para as mensagens ao usuário. */
 const roleLabel = (role: ContactRole): string =>
   role === "customer" ? "cliente" : "fornecedor";
+
+/** Aguarda o processamento do lote, que é assíncrono. */
+async function waitForBatch(
+  client: GissClient,
+  protocol: string,
+  attempts = 6,
+): Promise<Awaited<ReturnType<GissClient["nfse"]["queryRpsBatch"]>>> {
+  let last: Awaited<ReturnType<GissClient["nfse"]["queryRpsBatch"]>> | undefined;
+  for (let i = 0; i < attempts; i++) {
+    await new Promise((r) => setTimeout(r, 3000));
+    try {
+      last = await client.nfse.queryRpsBatch(protocol);
+      if (last.invoices.length > 0 || last.status === "3") return last;
+    } catch (error) {
+      // "Remessa ainda não foi processada" é esperado nas primeiras tentativas
+      if (i === attempts - 1) throw error;
+    }
+  }
+  if (!last) throw new Error(`Lote ${protocol} não processado a tempo`);
+  return last;
+}
 
 const REASONS: Record<string, string> = {
   "1": "erro na emissão",

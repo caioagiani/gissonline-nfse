@@ -130,6 +130,10 @@ export interface Amounts {
   otherWithholdings?: number;
   totalTaxes?: number;
   iss?: number;
+  /**
+   * Alíquota do ISS em **percentual** (3.07 = 3,07%). O serviço espera a fração
+   * no XML — a conversão acontece no builder, não aqui.
+   */
   rate?: number;
   unconditionalDiscount?: number;
   conditionalDiscount?: number;
