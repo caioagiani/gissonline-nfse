@@ -23,8 +23,12 @@ fornecedores.
 
 ```bash
 npm install
-cp .env.example .env      # preencha as credenciais
+cp .env.example .env             # preencha as credenciais
+cp /caminho/do/certificado.pfx cert/    # a pasta já vem no repositório, vazia
 ```
+
+As pastas `cert/` e `dados/` são versionadas vazias (só com `.gitkeep`) para
+marcar onde os arquivos ficam — o conteúdo delas nunca entra no repositório.
 
 ## Arquitetura
 
@@ -318,8 +322,12 @@ Simples Nacional, ISS não retido, serviço 01.04.
 O que **nunca** entra no repositório (já coberto pelo `.gitignore`):
 
 - `.env` — senha do certificado e credenciais do portal
-- `cert/` — o `.pfx` e os PEM exportados (a chave sai **sem senha**, modo `0600`)
-- `dados/` — catálogo de clientes e perfil fiscal, com dados de terceiros
+- `cert/*` — o `.pfx` e os PEM exportados (a chave sai **sem senha**, modo `0600`)
+- `dados/*` — cadastro local e perfil fiscal, com dados de terceiros
+
+As duas pastas são versionadas vazias, via `.gitkeep`, e a regra ignora o
+conteúdo (`cert/*`) em vez da pasta (`cert/`) — assim quem clona já sabe onde
+pôr o certificado, sem risco de subir o arquivo junto.
 
 Duas observações sobre o código:
 
