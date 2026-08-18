@@ -427,17 +427,22 @@ local hook and a CI check. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Releasing
 
-Versioning is derived from the commit history by
-[release-please](https://github.com/googleapis/release-please), and publishing
-runs through npm [trusted publishing](https://docs.npmjs.com/trusted-publishers)
-— OIDC, no token stored anywhere.
+Fully automatic. Merging a pull request into `main` is the whole ritual:
+[semantic-release](https://semantic-release.gitbook.io) reads the conventional
+commits, works out the version, writes the changelog, tags, opens the GitHub
+release, and publishes to npm through
+[trusted publishing](https://docs.npmjs.com/trusted-publishers) — OIDC, no token
+stored anywhere.
 
-Every push to `main` updates a release pull request holding the next version and
-the changelog, worked out from the conventional commit types: a `fix` makes it a
-patch, a `feat` a minor, a breaking marker a major. Merging that pull request
-cuts the release — tag, GitHub release and npm publish, with provenance.
+| Commit | Release |
+| --- | --- |
+| `fix:` | patch |
+| `feat:` | minor |
+| `feat!:` or `BREAKING CHANGE:` | major |
+| `chore:`, `ci:`, `docs:`, `test:` | none |
 
-Nothing to run by hand. Just write the commits properly.
+Which is why the commit type matters: it is the only input to the version. A
+`fix` labelled as `chore` never ships.
 
 ## Disclaimer
 

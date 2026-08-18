@@ -80,22 +80,11 @@ npm run commitlint     # checks your commits against origin/main
 
 ## Releasing
 
-Nothing to run by hand. [release-please](https://github.com/googleapis/release-please)
-watches `main` and keeps a release pull request open, holding the next version and
-the changelog derived from the commit types:
+Nothing to run by hand. Merging into `main` is the whole ritual:
+[semantic-release](https://semantic-release.gitbook.io) reads the commits since
+the last tag, decides the version, writes `CHANGELOG.md`, tags, opens the GitHub
+release and publishes to npm.
 
-```
-chore(main): release 1.2.0
-
-### Features
-* add the latest command
-
-### Bug Fixes
-* send the ISS rate as a fraction
-```
-
-Merging that pull request creates the tag and the GitHub release, and publishes
-to npm through trusted publishing.
-
-This is why the commit type matters: it is the only input to the version. A
-`fix` labelled as `chore` never ships.
+This is why the commit type matters: it is the only input to the version. A `fix`
+labelled as `chore` never ships — and a release you did not intend is one
+`feat:` away, so think about the type before merging, not after.
