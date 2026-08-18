@@ -1,5 +1,6 @@
 import { resolve } from "node:path";
 import { digitsOnly } from "../infra/xml.ts";
+import { findMunicipality } from "./municipalities.ts";
 
 export type Environment = "producao" | "homologacao";
 
@@ -26,8 +27,13 @@ function required(key: string): string {
 }
 
 function optional(key: string, fallback: string): string {
+  return read(key) ?? fallback;
+}
+
+/** Valor da variável, ou `undefined` quando ausente — sem impor um padrão. */
+function read(key: string): string | undefined {
   const value = process.env[key]?.trim().replace(/^"|"$/g, "");
-  return value || fallback;
+  return value || undefined;
 }
 
 export function hostFor(environment: Environment, city: string): string {
@@ -47,6 +53,19 @@ export function loadConfig(overrides: Partial<GissConfig> = {}): GissConfig {
 
   const city = overrides.city ?? optional("GISS_MUNICIPIO", "suzano");
 
+  // Errar o código IBGE é fácil e caro: ele identifica o município na nota.
+  // Quando a cidade é uma das conhecidas, o código vem dela — antes, trocar
+  // só `GISS_MUNICIPIO` deixava para trás o código de Suzano, e a nota saía
+  // com o município errado sem nenhum aviso.
+  const known = findMunicipality(city);
+  const cityCode =
+    overrides.cityCode ?? read("GISS_CODIGO_MUNICIPIO") ?? known?.cityCode;
+  if (!cityCode) {
+    throw new Error(
+      `Informe GISS_CODIGO_MUNICIPIO: "${city}" não está na lista de municípios conhecidos (veja MUNICIPALITIES)`,
+    );
+  }
+
   return {
     environment,
     city,
@@ -57,7 +76,7 @@ export function loadConfig(overrides: Partial<GissConfig> = {}): GissConfig {
     cnpj: digitsOnly(overrides.cnpj ?? required("GISS_CNPJ")),
     municipalRegistration:
       overrides.municipalRegistration ?? required("GISS_ISC_MUNICIPAL"),
-    cityCode: overrides.cityCode ?? optional("GISS_CODIGO_MUNICIPIO", "3552502"),
+    cityCode,
     version: overrides.version ?? optional("GISS_VERSAO", "2.04"),
   };
 }

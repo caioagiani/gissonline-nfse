@@ -2,7 +2,9 @@
 
 Node/TypeScript client for the **GissOnline** Web Services — Brazilian municipal service
 invoices (NFS-e) following the ABRASF 2.04 standard with the LC 214/2025 extensions
-(NT SE/CGNFS-e nº 007). Configured for Suzano/SP, but the city is an environment variable.
+(NT SE/CGNFS-e nº 007). Works with every city that runs GissOnline — **32 of them**,
+24 in São Paulo, including Guarulhos, Santos and Santo André. The city is one
+environment variable; see [docs/municipalities.md](docs/municipalities.md).
 
 Covers all **16 operations** of the two published SOAP services — `nfse` (services provided)
 and `nfsc` (services received) — plus the portal REST API, the only way to manage the
@@ -73,6 +75,7 @@ Nothing that writes fires without `--confirm`.
 | | |
 | --- | --- |
 | [docs/cli.md](docs/cli.md) | Every command, completion, documents and lookups |
+| [docs/municipalities.md](docs/municipalities.md) | The cities that publish the Web Service |
 | [docs/library.md](docs/library.md) | Using it as a package, and the 16 operations |
 | [docs/configuration.md](docs/configuration.md) | `.env`, serving several companies, tax profile, homologation |
 | [docs/issuing.md](docs/issuing.md) | What actually issues an invoice, and why |

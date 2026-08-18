@@ -92,6 +92,16 @@ on its own. Neither copy is signed — the Suzano service does not sign the invo
 stores. If the SOAP copy is enough for you, `--xml` on any query prints the envelope
 and needs no portal login.
 
+## Municipalities
+
+```bash
+giss cities                # every city known to publish the Web Service
+giss cities --state SP     # just one state
+```
+
+Setting `GISS_MUNICIPIO` to the slug is enough — the IBGE code follows from it.
+See [municipalities.md](municipalities.md).
+
 ## Lookups
 
 Neither GissOnline service resolves a CNPJ, so filling a party means copying from

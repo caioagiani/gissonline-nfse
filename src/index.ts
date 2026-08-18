@@ -1,6 +1,11 @@
 /** API pública da biblioteca. */
 
 export { loadConfig, hostFor, loadPortalCredentials } from "./config/index.ts";
+export {
+  MUNICIPALITIES,
+  findMunicipality,
+  type Municipality,
+} from "./config/municipalities.ts";
 export type { Environment, GissConfig } from "./config/index.ts";
 
 export { GissError, PortalError, SoapFaultError } from "./domain/errors.ts";
