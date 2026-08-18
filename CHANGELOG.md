@@ -1,3 +1,10 @@
+# [1.2.0](https://github.com/caioagiani/gissonline-nfse/compare/v1.1.1...v1.2.0) (2026-08-18)
+
+
+### Features
+
+* **cli:** download the PDF and XML of an issued invoice ([#12](https://github.com/caioagiani/gissonline-nfse/issues/12)) ([2216e7f](https://github.com/caioagiani/gissonline-nfse/commit/2216e7f6c6a76d660ee8a270dfb54049ea0674f2))
+
 # Changelog
 
 ## [1.1.1](https://github.com/caioagiani/gissonline-nfse/compare/v1.1.0...v1.1.1) (2026-08-18)
