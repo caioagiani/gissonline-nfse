@@ -19,12 +19,38 @@ export interface Certificate {
 }
 
 /**
- * Lê o PKCS#12 (.pfx) e extrai o par chave/certificado do titular.
+ * De onde o certificado pode vir.
+ *
+ * O caminho de arquivo serve para uso local; o `Buffer` existe para quem
+ * guarda o .pfx cifrado em banco e o decifra em memória, sem passar por
+ * disco; e um `Certificate` já carregado é devolvido como está, o que
+ * permite parseá-lo uma vez e reaproveitar entre requisições — o PKCS#12
+ * legado é lento de abrir.
+ */
+export type CertificateInput = string | Buffer | Certificate;
+
+/** Um `Certificate` já carregado, distinguido das fontes ainda por abrir. */
+function isCertificate(input: CertificateInput): input is Certificate {
+  return typeof input === "object" && !Buffer.isBuffer(input);
+}
+
+/**
+ * Carrega o par chave/certificado do titular a partir de um PKCS#12 (.pfx).
  * Usa node-forge porque os PFX da ICP-Brasil costumam vir cifrados com
  * algoritmos legados que o OpenSSL 3 só aceita com o provider `legacy`.
+ *
+ * A senha é obrigatória exceto quando `input` já é um `Certificate`.
  */
-export function loadCertificate(path: string, password: string): Certificate {
-  const pfx = readFileSync(path);
+export function loadCertificate(
+  input: CertificateInput,
+  password?: string,
+): Certificate {
+  if (isCertificate(input)) return input;
+  if (password === undefined) {
+    throw new Error("Informe a senha do certificado");
+  }
+
+  const pfx = typeof input === "string" ? readFileSync(input) : input;
   const p12 = forge.pkcs12.pkcs12FromAsn1(
     forge.asn1.fromDer(forge.util.createBuffer(pfx.toString("binary"))),
     password,

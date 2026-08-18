@@ -1,12 +1,22 @@
 import { loadConfig, type GissConfig } from "../config/index.ts";
 import type { PartyIdentification } from "../domain/types.ts";
-import { loadCertificate, type Certificate } from "../infra/certificate.ts";
+import {
+  loadCertificate,
+  type Certificate,
+  type CertificateInput,
+} from "../infra/certificate.ts";
 import { createXmlSigner } from "../infra/xml-signer.ts";
 import type { QueryResult } from "../messages/parser.ts";
 import { NfscService } from "./nfsc-service.ts";
 import { NfseService } from "./nfse-service.ts";
 
 export interface GissClientOptions extends Partial<GissConfig> {
+  /**
+   * Certificado a usar, no lugar de `certificatePath`: o caminho do .pfx, o
+   * arquivo em memória, ou um `Certificate` já carregado. A última forma evita
+   * reabrir o PKCS#12 a cada instância, que é a parte cara.
+   */
+  certificate?: CertificateInput;
   /** Loga na saída de erro os XMLs enviados e recebidos */
   debug?: boolean;
 }
@@ -19,6 +29,9 @@ export interface GissClientOptions extends Partial<GissConfig> {
  * O cadastro de participantes não passa por aqui — vive na API REST do portal,
  * em `PortalService`.
  */
+/** Marca a config quando o certificado não veio de um arquivo. */
+const MEMORY_CERTIFICATE = "<in-memory>";
+
 export class GissClient {
   readonly config: GissConfig;
   readonly certificate: Certificate;
@@ -26,10 +39,20 @@ export class GissClient {
   readonly nfsc: NfscService;
 
   constructor(options: GissClientOptions = {}) {
-    const { debug = false, ...overrides } = options;
-    this.config = loadConfig(overrides);
+    const { debug = false, certificate, ...overrides } = options;
+
+    // `CERT_PATH` e `CERT_PASSWORD` só existem para abrir o arquivo: quando o
+    // certificado chega pronto, nada disso é necessário e exigir as variáveis
+    // impediria o uso sem `.env`. Um .pfx em memória ainda precisa da senha.
+    const fromMemory = certificate !== undefined && typeof certificate !== "string";
+    const parsed = fromMemory && !Buffer.isBuffer(certificate);
+    this.config = loadConfig({
+      ...(fromMemory ? { certificatePath: MEMORY_CERTIFICATE } : {}),
+      ...(parsed ? { certificatePassword: "" } : {}),
+      ...overrides,
+    });
     this.certificate = loadCertificate(
-      this.config.certificatePath,
+      certificate ?? this.config.certificatePath,
       this.config.certificatePassword,
     );
 

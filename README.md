@@ -133,6 +133,10 @@ official manuals and XSD.
 | `GISS_CNPJ` / `GISS_ISC_MUNICIPAL` | the provider |
 | `GISS_LOGIN` / `GISS_PASS` | portal login, only for the REST directory |
 
+Every one of these has a programmatic override, so an application that serves
+more than one company never needs a `.env` — see
+[Serving several companies](#serving-several-companies).
+
 ## Usage
 
 ```bash
@@ -366,6 +370,65 @@ on the element itself instead of inherited from the SOAP envelope, so the file i
 on its own. Neither copy is signed — the Suzano service does not sign the invoices it
 stores. If the SOAP copy is enough for you, `--xml` on any query prints the envelope
 and needs no portal login.
+## Serving several companies
+
+Nothing in the package is global: pass the whole configuration to the constructor
+and no environment variable is read. The certificate accepts a path, the `.pfx`
+already in memory, or an instance you loaded earlier:
+
+```ts
+import { GissClient, loadCertificate } from "gissonline-nfse";
+
+const pfx = await decryptStoredCertificate(tenantId);   // never touches disk
+
+const giss = new GissClient({
+  environment: "producao",
+  city: "suzano",
+  cityCode: "3552502",
+  cnpj: tenant.cnpj,
+  municipalRegistration: tenant.municipalRegistration,
+  version: "2.04",
+  certificate: pfx,
+  certificatePassword: tenant.certificatePassword,
+});
+```
+
+Accepting a `Buffer` is what keeps a customer's private key off your filesystem.
+Reusing a parsed certificate is a separate concern:
+
+```ts
+const certificate = loadCertificate(pfx, password);     // parse once
+for (const rps of batch) {
+  const giss = new GissClient({ ...tenantConfig, certificate });
+}
+```
+
+With an instance neither `CERT_PATH` nor `CERT_PASSWORD` is needed — both exist
+only to open the file.
+
+**On caching certificates across requests.** Measured here: a `Certificate` weighs
+14 KB (1,000 tenants ≈ 14 MB), parsing a `.pfx` takes ~16 ms, and a SOAP
+round-trip takes ~400 ms — so the parse is about **4%** of a call. Memory is not
+the constraint; holding many private keys in a long-lived process is. Prefer
+job-scoped reuse, as above, over a global cache. If you do cache, keep the TTL
+short and include the certificate's fingerprint in the key, so replacing an
+expiring A1 invalidates the entry instead of signing with the old one until a
+worker restarts.
+
+The portal credentials take overrides the same way, since each company logs in
+with its own CPF:
+
+```ts
+const portal = await PortalService.authenticate(
+  loadPortalCredentials(giss.config, { login: tenant.cpf, password: tenant.password }),
+);
+```
+
+One caveat for a multi-company product: a CNPJ that is not registered in the
+homologation environment fails every call with `E361`, so a new customer's first
+invoice would go straight to production unless GissOnline registers them for
+testing. That is an onboarding question to settle with the vendor, not something
+the package can work around.
 
 ## Lookups
 
