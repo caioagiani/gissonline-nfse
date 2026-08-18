@@ -17,7 +17,8 @@ fornecedores.
 
 ## Requisitos
 
-- Node 24+ (roda `.ts` nativamente)
+- Node 20+ para usar o pacote publicado; 24+ para rodar do repositório sem build,
+  já que os `.ts` executam nativamente
 - Certificado digital A1 ICP-Brasil (`.pfx`) do prestador
 - `xmllint` (opcional) — habilita a validação contra os XSD antes de enviar
 
@@ -174,7 +175,7 @@ for await (const page of giss.paginate((page) =>
 
 // emissão
 const taker = ContactRepository.asServiceTaker(
-  new ContactRepository().find("cliente", "exemplo")!,
+  new ContactRepository().find("customer", "exemplo")!,
 );
 const rps = buildRps(new ProfileRepository().load(), {
   taker,
