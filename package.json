@@ -7,12 +7,16 @@
     "nfse",
     "gissonline",
     "abrasf",
-    "nota-fiscal-de-servico",
+    "nota-fiscal",
     "iss",
     "soap",
     "xmldsig",
     "icp-brasil",
-    "lc-214-2025"
+    "certificado-digital",
+    "lc-214-2025",
+    "brazil",
+    "tax",
+    "cli"
   ],
   "scripts": {
     "build": "tsc && node -e \"require('node:fs').chmodSync('dist/cli/index.js', 0o755)\"",
