@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import forge from "node-forge";
 
@@ -105,6 +105,8 @@ export function exportPem(
   certificate: Certificate,
   directory: string,
 ): ExportedFiles {
+  mkdirSync(directory, { recursive: true });
+
   const files: ExportedFiles = {
     certificate: join(directory, "cert.pem"),
     key: join(directory, "key.pem"),
