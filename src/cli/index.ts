@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { existsSync } from "node:fs";
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { parseArgs } from "node:util";
 import {
@@ -21,6 +21,7 @@ import {
 import {
   buildPortalParty,
   PortalService,
+  type DocumentFormat,
   type PartyRole,
 } from "../services/portal-service.ts";
 import {
@@ -67,6 +68,10 @@ ISSUING
   cancel --number N --reason 1..5 [--confirm]       Cancels an invoice
   replace --number N --reason 1..5 --customer X --amount V
           [--description T] [--confirm]             Cancels and reissues
+
+DOCUMENTS (portal REST — the Web Service issues no files)
+  pdf --number N [--out DIR|FILE]                   Downloads the invoice PDF
+  xml --number N [--out DIR|FILE]                   Downloads the invoice XML
 
 LOCAL DIRECTORY
   customers [--sync --from D --to D]                Lists/updates customers
@@ -445,6 +450,32 @@ async function main() {
       return;
     }
 
+    case "pdf":
+    case "xml": {
+      if (!values.number) throw new Error("Provide the invoice --number");
+
+      // O arquivo é identificado pelo id interno da nota, que só a consulta
+      // conhece — o número impresso não serve na rota do portal.
+      const { invoices } = await client.nfse.queryProvidedServices({
+        nfseNumber: values.number,
+      });
+      const invoice = invoices[0];
+      if (!invoice) throw new Error(`Invoice ${values.number} was not found`);
+      if (!invoice.internalId) {
+        throw new Error(`Invoice ${values.number} has no internal id to download`);
+      }
+
+      const portal = await PortalService.authenticate(loadPortalCredentials(client.config));
+      const file = await portal.invoiceDocument(invoice.internalId, command);
+      const target = documentTarget(values.out, invoice.number, command);
+      mkdirSync(dirname(target), { recursive: true });
+      writeFileSync(target, file);
+
+      console.log(`Invoice ${invoice.number}  |  ${invoice.taker?.legalName ?? ""}`);
+      console.log(`${target}  (${(file.length / 1024).toFixed(1)} KB)`);
+      return;
+    }
+
     case "portal-list":
     case "portal-add":
     case "portal-rm":
@@ -607,6 +638,20 @@ async function runLocalCommand(
     default:
       return false;
   }
+}
+
+/**
+ * Aceita um diretório ou o caminho completo do arquivo em `--out`; sem nada,
+ * grava no diretório atual com o número da nota no nome.
+ */
+function documentTarget(
+  out: string | undefined,
+  number: string,
+  format: DocumentFormat,
+): string {
+  const name = `nfse-${number}.${format}`;
+  if (!out) return resolve(process.cwd(), name);
+  return out.toLowerCase().endsWith(`.${format}`) ? resolve(out) : resolve(out, name);
 }
 
 /** Comandos que falam com a API REST do portal, não com o Web Service. */
