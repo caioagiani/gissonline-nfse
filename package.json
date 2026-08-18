@@ -24,7 +24,8 @@
     "giss": "node --env-file-if-exists=.env src/cli/index.ts",
     "prepack": "npm run build",
     "prepare": "husky || true",
-    "commitlint": "commitlint --from origin/main --to HEAD"
+    "commitlint": "commitlint --from origin/main --to HEAD",
+    "completion:zsh": "node -e \"process.stdout.write(require('node:fs').readFileSync(new URL('completions/_giss', 'file://' + process.cwd() + '/'), 'utf8'))\""
   },
   "dependencies": {
     "fast-xml-parser": "^5.2.5",

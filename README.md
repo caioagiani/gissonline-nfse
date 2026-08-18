@@ -37,12 +37,24 @@ giss latest
 giss issue --customer acme --amount 1500 --description "..." --confirm
 ```
 
-Bash completion:
+Shell completion — **bash**:
 
 ```bash
-source node_modules/gissonline-nfse/completions/giss.bash
+source "$(npm root -g)/gissonline-nfse/completions/giss.bash"
 # or copy it to /usr/local/etc/bash_completion.d/
 ```
+
+**zsh**:
+
+```bash
+mkdir -p ~/.zsh/completions
+cp "$(npm root -g)/gissonline-nfse/completions/_giss" ~/.zsh/completions/
+# in ~/.zshrc, before `compinit`:
+#   fpath=(~/.zsh/completions $fpath)
+```
+
+With oh-my-zsh, `~/.oh-my-zsh/completions` is already on `fpath` — copy `_giss`
+there and restart the shell.
 
 ### From the repository
 
