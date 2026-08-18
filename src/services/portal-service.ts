@@ -53,13 +53,26 @@ export interface PortalParty {
   simplesNacional: boolean;
   tipoEmpresa: number;
   ativo: boolean;
+  /**
+   * The backend only persists a record whose `alterado` is true — a PUT without
+   * it answers 200 and silently changes nothing. Set by `update`.
+   */
+  alterado?: boolean;
   inscricaoMunicipal?: string;
+  /**
+   * Contact sits at the party root, and each field is an object — sending plain
+   * strings answers HTTP 500. The shape comes from the portal's own form:
+   * `dados.email.email`, `dados.telefone.codigoArea`, `dados.telefone.telefone`.
+   */
+  email?: { email: string; alterado?: boolean };
+  telefone?: { codigoArea: string; telefone: string; alterado?: boolean };
   endereco?: PortalAddress;
 }
 
 export interface PortalAddress {
   idEndereco?: number;
   idCliente: number;
+  alterado?: boolean;
   /** 2 = endereço comercial, como o portal grava */
   tipo: number;
   idIbge: number;
@@ -271,12 +284,26 @@ export class PortalService {
     return response.conteudo;
   }
 
-  /** Atualiza um cadastro existente (exige o `id`). */
+  /**
+   * Atualiza um cadastro existente (exige o `id`).
+   *
+   * Marca `alterado` no participante e nos grupos aninhados: sem isso o serviço
+   * responde 200 e não grava nada, que é como o portal distingue o que mudou.
+   */
   async update(party: PortalParty): Promise<PortalParty> {
     if (!party.id) throw new Error("Informe o id do cadastro a atualizar");
+
+    const body: PortalParty = {
+      ...party,
+      alterado: true,
+      ...(party.endereco ? { endereco: { ...party.endereco, alterado: true } } : {}),
+      ...(party.email ? { email: { ...party.email, alterado: true } } : {}),
+      ...(party.telefone ? { telefone: { ...party.telefone, alterado: true } } : {}),
+    };
+
     const response = await this.call<ApiResponse<PortalParty>>(
       "/service-empresa/api/cliente-fornecedor/",
-      { method: "PUT", body: JSON.stringify(party) },
+      { method: "PUT", body: JSON.stringify(body) },
     );
     return response.conteudo;
   }
@@ -318,6 +345,17 @@ export class PortalService {
   }
 }
 
+/** Splits the area code from the number, the way the portal expects. */
+function splitPhone(
+  phone?: string,
+): { codigoArea: string; telefone: string } | undefined {
+  const digits = phone ? digitsOnly(phone) : "";
+  if (digits.length < 10) return undefined;
+  // drop the country code when present (55 + area + number)
+  const local = digits.length > 11 ? digits.slice(-11) : digits;
+  return { codigoArea: local.slice(0, 2), telefone: local.slice(2) };
+}
+
 /** Monta o corpo de um participante a partir de dados soltos. */
 export function buildPortalParty(
   session: PortalSession,
@@ -329,6 +367,8 @@ export function buildPortalParty(
     role?: PartyRole;
     mei?: boolean;
     simplesNacional?: boolean;
+    email?: string;
+    phone?: string;
     address?: Address & { streetType?: string; cityName?: string };
   },
 ): PortalParty {
@@ -349,6 +389,8 @@ export function buildPortalParty(
     tipoEmpresa: session.companyType,
     ativo: true,
     inscricaoMunicipal: data.municipalRegistration,
+    email: data.email ? { email: data.email } : undefined,
+    telefone: splitPhone(data.phone),
     endereco: address
       ? {
           idCliente: session.clientId,
