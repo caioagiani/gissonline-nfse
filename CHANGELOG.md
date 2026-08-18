@@ -1,3 +1,10 @@
+# [1.4.0](https://github.com/caioagiani/gissonline-nfse/compare/v1.3.0...v1.4.0) (2026-08-18)
+
+
+### Features
+
+* **nfse:** issue without the risk of issuing twice ([#16](https://github.com/caioagiani/gissonline-nfse/issues/16)) ([065af45](https://github.com/caioagiani/gissonline-nfse/commit/065af45d3d826ea815fc2014d0614f9def8228f3))
+
 # [1.3.0](https://github.com/caioagiani/gissonline-nfse/compare/v1.2.0...v1.3.0) (2026-08-18)
 
 
