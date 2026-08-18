@@ -63,10 +63,13 @@ export function loadConfig(overrides: Partial<GissConfig> = {}): GissConfig {
 }
 
 /** Credenciais do portal web — usadas só pela API REST de cadastro. */
-export function loadPortalCredentials(config: GissConfig) {
+export function loadPortalCredentials(
+  config: GissConfig,
+  overrides: { login?: string; password?: string } = {},
+) {
   return {
-    login: required("GISS_LOGIN"),
-    password: required("GISS_PASS"),
+    login: overrides.login ?? required("GISS_LOGIN"),
+    password: overrides.password ?? required("GISS_PASS"),
     cityCode: config.cityCode,
     cnpj: config.cnpj,
   };

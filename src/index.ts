@@ -10,7 +10,11 @@ export * from "./domain/types.ts";
 export * from "./domain/signature-policy.ts";
 
 export { loadCertificate, exportPem } from "./infra/certificate.ts";
-export type { Certificate, ExportedFiles } from "./infra/certificate.ts";
+export type {
+  Certificate,
+  CertificateInput,
+  ExportedFiles,
+} from "./infra/certificate.ts";
 export { createXmlSigner } from "./infra/xml-signer.ts";
 export { SOAP_SERVICES } from "./infra/soap-client.ts";
 export type {
