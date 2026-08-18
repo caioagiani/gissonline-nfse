@@ -1,3 +1,10 @@
+# [1.3.0](https://github.com/caioagiani/gissonline-nfse/compare/v1.2.0...v1.3.0) (2026-08-18)
+
+
+### Features
+
+* **infra:** accept the certificate from memory or already parsed ([#13](https://github.com/caioagiani/gissonline-nfse/issues/13)) ([54c2182](https://github.com/caioagiani/gissonline-nfse/commit/54c2182f3df530ed4e326846f894d66cb8cc6fd8)), closes [#14](https://github.com/caioagiani/gissonline-nfse/issues/14)
+
 # [1.2.0](https://github.com/caioagiani/gissonline-nfse/compare/v1.1.1...v1.2.0) (2026-08-18)
 
 
