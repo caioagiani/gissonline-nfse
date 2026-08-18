@@ -1,3 +1,10 @@
+## [1.4.1](https://github.com/caioagiani/gissonline-nfse/compare/v1.4.0...v1.4.1) (2026-08-18)
+
+
+### Bug Fixes
+
+* **storage:** require the ISS rate when the tax is chargeable ([#15](https://github.com/caioagiani/gissonline-nfse/issues/15)) ([eb4493c](https://github.com/caioagiani/gissonline-nfse/commit/eb4493cd0c1668adddf317dc0d129839b84edf85))
+
 # [1.4.0](https://github.com/caioagiani/gissonline-nfse/compare/v1.3.0...v1.4.0) (2026-08-18)
 
 
