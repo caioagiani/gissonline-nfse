@@ -144,6 +144,16 @@ export function buildRps(base: IssuingProfile, input: IssueInput): Rps {
     );
   }
 
+  // Com o ISS exigível o serviço recusa a nota sem alíquota, e o código que
+  // devolve — E163 — só aparece ao consultar o protocolo do lote, bem depois
+  // do envio. Falhar aqui nomeia o campo que falta. Não há padrão possível:
+  // a alíquota é de cada contribuinte, e chutar uma emitiria imposto errado.
+  if ((input.rate ?? profile.rate) === undefined && profile.issTaxability === 1) {
+    throw new Error(
+      "Informe a alíquota do ISS em `rate` (ou --rate no CLI): com o imposto exigível o serviço recusa a nota com E163",
+    );
+  }
+
   return {
     identification: input.rpsNumber
       ? {
