@@ -1,3 +1,10 @@
+# [1.5.0](https://github.com/caioagiani/gissonline-nfse/compare/v1.4.1...v1.5.0) (2026-08-18)
+
+
+### Features
+
+* **config:** support the 32 cities that publish the Web Service ([#17](https://github.com/caioagiani/gissonline-nfse/issues/17)) ([ac74a58](https://github.com/caioagiani/gissonline-nfse/commit/ac74a58a4f3bcffbeebba82186256ca071d146b2))
+
 ## [1.4.1](https://github.com/caioagiani/gissonline-nfse/compare/v1.4.0...v1.4.1) (2026-08-18)
 
 
