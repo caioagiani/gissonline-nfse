@@ -38,6 +38,7 @@ _giss() {
     'portal-import:Import the portal directory'
     'pdf:Download the invoice PDF'
     'xml:Download the invoice XML'
+    'cities:Cities known to publish the Web Service'
     'zip:Look up a postal code (BrasilAPI)'
     'cnpj:Look up a company by CNPJ (BrasilAPI)'
     'profile:Show or save the tax profile defaults'
@@ -143,6 +144,9 @@ _giss() {
         pdf|xml)
           _arguments $global_opts '--number[Invoice number]:number:' \
             '--out[Target directory or file]:target:_files'
+          ;;
+        cities)
+          _arguments $global_opts '--state[Filter by state]:uf:(AL GO MG PE PR SP)'
           ;;
         profile)
           _arguments $global_opts '--save[Write to data/profile.json]'

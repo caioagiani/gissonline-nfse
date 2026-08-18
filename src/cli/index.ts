@@ -24,6 +24,7 @@ import {
   type DocumentFormat,
   type PartyRole,
 } from "../services/portal-service.ts";
+import { MUNICIPALITIES } from "../config/municipalities.ts";
 import {
   ContactRepository,
   taxIdOf,
@@ -99,6 +100,9 @@ LOOKUPS (BrasilAPI — convenience, not a source of truth)
   Both customer-add and portal-add accept --lookup, which fills the missing
   fields from the CNPJ before registering. Anything you pass explicitly wins.
 
+MUNICIPALITIES
+  cities [--state SP]                               Cities known to publish the Web Service
+
 TAX PROFILE
   profile [--save]                     Shows (or writes to data/profile.json) the defaults
 
@@ -146,11 +150,11 @@ const options = {
   email: { type: "string" },
   phone: { type: "string" },
   alias: { type: "string" },
+  state: { type: "string" },
   street: { type: "string" },
   district: { type: "string" },
   complement: { type: "string" },
   city: { type: "string" },
-  state: { type: "string" },
   zip: { type: "string" },
   simples: { type: "string" },
   save: { type: "boolean", default: false },
@@ -625,6 +629,23 @@ async function runLocalCommand(
       if (found.email) console.log(`  email:     ${found.email}`);
       if (found.phone) console.log(`  phone:     ${found.phone}`);
       console.log(`\n  giss customer-add --tax-id ${found.taxId} --lookup`);
+      return true;
+    }
+
+    case "cities": {
+      const state = values.state?.toUpperCase();
+      const list = state
+        ? MUNICIPALITIES.filter((m) => m.state === state)
+        : MUNICIPALITIES;
+
+      if (values.json) return void console.log(JSON.stringify(list, null, 2)), true;
+      for (const city of list) {
+        console.log(
+          `${city.slug.padEnd(18)} ${city.cityCode}  ${city.name}/${city.state}`,
+        );
+      }
+      console.log(`\n${list.length} municipalit${list.length === 1 ? "y" : "ies"}`);
+      console.log("Set GISS_MUNICIPIO to the first column; the IBGE code follows from it.");
       return true;
     }
 
