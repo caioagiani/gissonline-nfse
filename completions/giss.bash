@@ -9,7 +9,7 @@ _giss_completions() {
   commands="cert latest issued range rps batch received purchased-batch \
 purchased-protocol purchased-number issue cancel replace customers \
 suppliers customer-add supplier-add customer-rm supplier-rm \
-portal-list portal-add portal-rm portal-import profile"
+portal-list portal-add portal-rm portal-import zip cnpj profile"
 
   global_opts="--env --json --xml --debug --help"
 

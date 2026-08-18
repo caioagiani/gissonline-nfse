@@ -36,6 +36,8 @@ _giss() {
     'portal-add:Register in the portal'
     'portal-rm:Remove from the portal'
     'portal-import:Import the portal directory'
+    'zip:Look up a postal code (BrasilAPI)'
+    'cnpj:Look up a company by CNPJ (BrasilAPI)'
     'profile:Show or save the tax profile defaults'
   )
 
