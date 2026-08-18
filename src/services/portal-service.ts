@@ -1,6 +1,6 @@
 import { PortalError } from "../domain/errors.ts";
 import type { Address } from "../domain/types.ts";
-import { requestJson } from "../infra/http-client.ts";
+import { requestBinary, requestJson } from "../infra/http-client.ts";
 import { digitsOnly } from "../infra/xml.ts";
 
 /**
@@ -96,6 +96,9 @@ interface ApiResponse<T> {
   conteudo: T;
   mensagem?: string;
 }
+
+/** Formatos em que o portal entrega uma nota emitida. */
+export type DocumentFormat = "pdf" | "xml";
 
 export class PortalService {
   readonly base: string;
@@ -317,30 +320,62 @@ export class PortalService {
   }
 
   /**
-   * O token dura cerca de 8 horas. Se expirar no meio de um processo longo, a
-   * API responde 401/403 — aqui refazemos o login uma vez e repetimos a
-   * chamada, para que quem usa a classe não precise tratar sessão.
+   * Baixa uma nota emitida, em PDF (a representação impressa) ou XML (o
+   * `CompNfse` que o serviço gravou).
+   *
+   * O identificador é o interno da nota — o atributo `Id` de `InfNfse` na
+   * resposta da consulta —, não o número impresso no documento. Nenhum dos dois
+   * Web Services gera arquivo: o ABRASF devolve o XML embutido na resposta
+   * SOAP, então esta é a via para obtê-los prontos.
    */
+  async invoiceDocument(
+    internalId: number | string,
+    format: DocumentFormat = "pdf",
+  ): Promise<Buffer> {
+    return this.withSession((headers) =>
+      requestBinary(
+        this.base,
+        `/service-relatorio/api/relatorio/${format}/${this.#session.clientId}/nota/${internalId}`,
+        { headers },
+        `application/${format}`,
+      ),
+    );
+  }
+
+  /** Chamada JSON autenticada. */
   private async call<T>(route: string, init: RequestInit = {}): Promise<T> {
-    const send = () =>
+    return this.withSession((headers) =>
       requestJson<T>(this.base, route, {
         ...init,
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${this.#session.token}`,
-          ...init.headers,
-        },
-      });
+        headers: { ...headers, ...init.headers },
+      }),
+    );
+  }
+
+  /**
+   * O token dura cerca de 8 horas. Se expirar no meio de um processo longo, a
+   * API responde 401/403 — aqui refazemos o login uma vez e repetimos a
+   * chamada, para que quem usa a classe não precise tratar sessão. Os
+   * cabeçalhos chegam montados ao chamador, que só escolhe o transporte: JSON
+   * ou binário.
+   */
+  private async withSession<T>(
+    send: (headers: Record<string, string>) => Promise<T>,
+  ): Promise<T> {
+    const headers = (): Record<string, string> => ({
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${this.#session.token}`,
+    });
 
     try {
-      return await send();
+      return await send(headers());
     } catch (error) {
       const expired =
         error instanceof PortalError &&
         (error.status === 401 || error.status === 403);
       if (!expired) throw error;
       await this.renew();
-      return send();
+      return send(headers());
     }
   }
 }

@@ -9,7 +9,7 @@ _giss_completions() {
   commands="cert latest issued range rps batch received purchased-batch \
 purchased-protocol purchased-number issue cancel replace customers \
 suppliers customer-add supplier-add customer-rm supplier-rm \
-portal-list portal-add portal-rm portal-import zip cnpj profile"
+portal-list portal-add portal-rm portal-import pdf xml zip cnpj profile"
 
   global_opts="--env --json --xml --debug --help"
 
@@ -48,6 +48,7 @@ portal-list portal-add portal-rm portal-import zip cnpj profile"
     customer-rm|supplier-rm) opts="--tax-id" ;;
     portal-rm)       opts="--tax-id --type --confirm" ;;
     portal-list|portal-import) opts="--type" ;;
+    pdf|xml)         opts="--number --out" ;;
     profile)         opts="--save" ;;
     *)               opts="" ;;
   esac

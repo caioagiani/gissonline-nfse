@@ -36,6 +36,8 @@ _giss() {
     'portal-add:Register in the portal'
     'portal-rm:Remove from the portal'
     'portal-import:Import the portal directory'
+    'pdf:Download the invoice PDF'
+    'xml:Download the invoice XML'
     'zip:Look up a postal code (BrasilAPI)'
     'cnpj:Look up a company by CNPJ (BrasilAPI)'
     'profile:Show or save the tax profile defaults'
@@ -137,6 +139,10 @@ _giss() {
           ;;
         portal-list|portal-import)
           _arguments $global_opts '--type[Role]:role:((1\:customer 2\:supplier))'
+          ;;
+        pdf|xml)
+          _arguments $global_opts '--number[Invoice number]:number:' \
+            '--out[Target directory or file]:target:_files'
           ;;
         profile)
           _arguments $global_opts '--save[Write to data/profile.json]'

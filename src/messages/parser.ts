@@ -22,6 +22,8 @@ export interface Party {
 
 export interface Nfse {
   number: string;
+  /** Id interno (`InfNfse@Id`), que as rotas de download do portal exigem */
+  internalId?: string;
   verificationCode: string;
   issueDate: string;
   competenceDate?: string;
@@ -186,6 +188,7 @@ function extractInvoices(node: unknown): Nfse[] {
 
     return {
       number: asText(info["Numero"]) ?? "",
+      internalId: asText(info["@Id"]),
       verificationCode: asText(info["CodigoVerificacao"]) ?? "",
       issueDate: asText(info["DataEmissao"]) ?? "",
       competenceDate: asText(findAll(info, "Competencia")[0]),

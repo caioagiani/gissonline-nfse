@@ -158,6 +158,10 @@ giss issue --customer acme --amount 15000 --rps 12 --confirm
 giss cancel --number 569 --reason 1 --confirm
 giss replace --number 569 --reason 1 --customer acme --amount 15000 --confirm
 
+# documents of an issued invoice
+giss pdf --number 573                     # writes ./nfse-573.pdf
+giss xml --number 573 --out ~/notas       # writes ~/notas/nfse-573.xml
+
 # local directory
 giss customers --sync --from 2026-01-01 --to 2026-12-31
 giss suppliers
@@ -175,7 +179,15 @@ Global flags: `--env producao|homologacao`, `--json`, `--xml`, `--debug`.
 As a library:
 
 ```ts
-import { GissClient, ContactRepository, ProfileRepository, buildRps } from "gissonline-nfse";
+import { writeFile } from "node:fs/promises";
+import {
+  GissClient,
+  ContactRepository,
+  ProfileRepository,
+  PortalService,
+  buildRps,
+  loadPortalCredentials,
+} from "gissonline-nfse";
 
 const giss = new GissClient();
 
@@ -203,6 +215,12 @@ const rps = buildRps(new ProfileRepository().load(), {
 
 giss.nfse.previewIssueNfse(rps);   // signed XML, not sent
 await giss.nfse.sendRpsBatch({ batchNumber: 1, rps: [rps] });
+
+// documents — through the portal, the Web Service issues no files
+const portal = await PortalService.authenticate(loadPortalCredentials(giss.config));
+const [invoice] = (await giss.nfse.queryProvidedServices({ nfseNumber: "573" })).invoices;
+await writeFile("nfse-573.pdf", await portal.invoiceDocument(invoice.internalId!));
+await writeFile("nfse-573.xml", await portal.invoiceDocument(invoice.internalId!, "xml"));
 ```
 
 ## Operations
@@ -325,6 +343,29 @@ Two of its rules cost a debugging round each: contact fields are **objects**, no
 strings (`email: {email}`, `telefone: {codigoArea, telefone}`) — plain strings
 answer HTTP 500; and an update only persists when `alterado` is true, otherwise
 the `PUT` answers 200 and silently changes nothing.
+
+## Documents (PDF and XML)
+
+Neither Web Service produces a file: ABRASF only returns the invoice as XML embedded
+in the SOAP response, and the printed representation is the portal's job — `pdf`,
+`danfe` and `imprimir` appear nowhere in the two WSDLs. So `giss pdf` and `giss xml`
+go through the portal REST API:
+
+```bash
+giss pdf --number 573                  # ./nfse-573.pdf
+giss xml --number 573                  # ./nfse-573.xml
+giss pdf --number 573 --out ~/notas    # a directory, or a full path ending in .pdf
+```
+
+Both resolve the invoice by its printed number, then download by the **internal id** —
+the `Id` attribute of `InfNfse`, which the portal route needs and the printed number
+cannot replace. That is why the commands query the invoice first.
+
+The XML is the same `CompNfse` the query returns, but standalone: namespaces declared
+on the element itself instead of inherited from the SOAP envelope, so the file is valid
+on its own. Neither copy is signed — the Suzano service does not sign the invoices it
+stores. If the SOAP copy is enough for you, `--xml` on any query prints the envelope
+and needs no portal login.
 
 ## Lookups
 
