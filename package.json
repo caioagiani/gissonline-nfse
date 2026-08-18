@@ -60,7 +60,8 @@
     "docs/schemas",
     "docs/schemas-tomados",
     "completions",
-    "README.md"
+    "README.md",
+    "LICENSE"
   ],
   "sideEffects": false
 }
