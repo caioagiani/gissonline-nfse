@@ -386,6 +386,11 @@ Source: <https://suzano.giss.com.br/giss-ajuda/desenvolvedores.html>.
 merged over v1_00 — necessary because the published v1_01 is a delta that does not compile
 on its own. The originals stay untouched in the directory above.
 
+## Contributing
+
+Commits follow [Conventional Commits](https://www.conventionalcommits.org), enforced by a
+local hook and a CI check. See [CONTRIBUTING.md](CONTRIBUTING.md).
+
 ## Releasing
 
 Publishing runs on GitHub Actions through npm
