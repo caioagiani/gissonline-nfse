@@ -1,17 +1,23 @@
 name: Release
 
-# Publica quando uma tag v*.*.* chega. Para versionar:
-#   npm version patch|minor|major
-#   git push --follow-tags
+# release-please watches main, reads the conventional commits since the last
+# release and keeps a pull request open with the next version and the changelog
+# already worked out. Merging that pull request cuts the release: the tag is
+# created and this same run publishes to npm.
+#
+# Publishing and versioning live in one workflow on purpose. The default
+# GITHUB_TOKEN does not trigger other workflows, so a tag created here would
+# never wake a separate publish job.
+#
+# The filename matters: npm trusted publishing is configured against
+# `release.yml` for this repository. Renaming this file breaks OIDC auth.
 on:
   push:
-    tags: ["v*.*.*"]
+    branches: [main]
 
-# Autenticação por Trusted Publishing (OIDC): nenhum token de npm envolvido.
-# Configure em npmjs.com → gissonline-nfse → Settings → Trusted Publisher,
-# apontando para este repositório e para este arquivo (release.yml).
 permissions:
   contents: write
+  pull-requests: write
   id-token: write
 
 concurrency:
@@ -19,41 +25,42 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  publish:
+  release:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: googleapis/release-please-action@v4
+        id: release
         with:
-          # OIDC exige Node >= 22.14 e npm >= 11.5.1
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+      # Everything below only runs on the push that merges the release PR.
+      - uses: actions/checkout@v4
+        if: ${{ steps.release.outputs.release_created }}
+
+      - uses: actions/setup-node@v4
+        if: ${{ steps.release.outputs.release_created }}
+        with:
+          # Trusted publishing needs Node >= 22.14 and npm >= 11.5.1
           node-version: 24
           cache: npm
           registry-url: https://registry.npmjs.org
 
       - name: Ensure npm supports trusted publishing
-        run: |
-          npm install -g npm@latest
-          npm --version
+        if: ${{ steps.release.outputs.release_created }}
+        run: npm install -g npm@latest
 
       - run: npm ci
+        if: ${{ steps.release.outputs.release_created }}
+
       - run: npm run typecheck
+        if: ${{ steps.release.outputs.release_created }}
+
       - run: npm run build
+        if: ${{ steps.release.outputs.release_created }}
 
-      - name: Check the tag matches package.json
-        run: |
-          tag="${GITHUB_REF_NAME#v}"
-          pkg=$(node -p "require('./package.json').version")
-          if [ "$tag" != "$pkg" ]; then
-            echo "Tag $tag does not match package.json $pkg" >&2
-            exit 1
-          fi
-
-      # Sem NODE_AUTH_TOKEN: a credencial vem do OIDC do próprio workflow.
-      # O provenance é gerado automaticamente nesse modo.
+      # No NODE_AUTH_TOKEN: the credential comes from this workflow's OIDC
+      # identity. Provenance is generated automatically in this mode.
       - name: Publish to npm
+        if: ${{ steps.release.outputs.release_created }}
         run: npm publish --access public
-
-      - name: Create GitHub release
-        run: gh release create "$GITHUB_REF_NAME" --generate-notes --title "$GITHUB_REF_NAME"
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

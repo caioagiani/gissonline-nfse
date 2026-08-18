@@ -80,14 +80,22 @@ npm run commitlint     # checks your commits against origin/main
 
 ## Releasing
 
-Only from `main`, after the pull request is merged:
+Nothing to run by hand. [release-please](https://github.com/googleapis/release-please)
+watches `main` and keeps a release pull request open, holding the next version and
+the changelog derived from the commit types:
 
-```bash
-npm version patch|minor|major
-git push --follow-tags
+```
+chore(main): release 1.2.0
+
+### Features
+* add the latest command
+
+### Bug Fixes
+* send the ISS rate as a fraction
 ```
 
-The tag triggers the release workflow, which publishes to npm through trusted
-publishing (OIDC, no token) and opens the GitHub release. Pick the bump from the
-types in the commits since the last tag — a `feat` makes it a minor, a breaking
-change makes it a major.
+Merging that pull request creates the tag and the GitHub release, and publishes
+to npm through trusted publishing.
+
+This is why the commit type matters: it is the only input to the version. A
+`fix` labelled as `chore` never ships.

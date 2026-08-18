@@ -405,17 +405,17 @@ local hook and a CI check. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Releasing
 
-Publishing runs on GitHub Actions through npm
-[trusted publishing](https://docs.npmjs.com/trusted-publishers) — OIDC, no token
-stored anywhere. To cut a release:
+Versioning is derived from the commit history by
+[release-please](https://github.com/googleapis/release-please), and publishing
+runs through npm [trusted publishing](https://docs.npmjs.com/trusted-publishers)
+— OIDC, no token stored anywhere.
 
-```bash
-npm version patch|minor|major
-git push --follow-tags
-```
+Every push to `main` updates a release pull request holding the next version and
+the changelog, worked out from the conventional commit types: a `fix` makes it a
+patch, a `feat` a minor, a breaking marker a major. Merging that pull request
+cuts the release — tag, GitHub release and npm publish, with provenance.
 
-The tag triggers the workflow, which typechecks, builds, verifies the tag matches
-`package.json`, publishes with provenance and opens the GitHub release.
+Nothing to run by hand. Just write the commits properly.
 
 ## Disclaimer
 
