@@ -14,6 +14,11 @@ import { isoDate } from "../infra/xml.ts";
 import type { Nfse, QueryResult } from "../messages/parser.ts";
 import { GissClient } from "../services/giss-client.ts";
 import {
+  lookupParty,
+  lookupZip,
+  type CompanyLookup,
+} from "../services/lookup-service.ts";
+import {
   buildPortalParty,
   PortalService,
   type PartyRole,
@@ -82,6 +87,13 @@ PORTAL (REST API — the actual GissOnline directory, via CPF/password login)
   portal-rm --tax-id D [--type 1|2] [--confirm]     Removes from the portal
   portal-import [--type 1|2]                        Imports the portal directory locally
 
+LOOKUPS (BrasilAPI — convenience, not a source of truth)
+  zip <cep>                            Street, district, city and state for a postal code
+  cnpj <cnpj>                          Company details, address and IBGE code
+
+  Both customer-add and portal-add accept --lookup, which fills the missing
+  fields from the CNPJ before registering. Anything you pass explicitly wins.
+
 TAX PROFILE
   profile [--save]                     Shows (or writes to data/profile.json) the defaults
 
@@ -139,6 +151,7 @@ const options = {
   save: { type: "boolean", default: false },
   "street-type": { type: "string" },
   mei: { type: "boolean", default: false },
+  lookup: { type: "boolean", default: false },
   json: { type: "boolean", default: false },
   xml: { type: "boolean", default: false },
   debug: { type: "boolean", default: false },
@@ -179,7 +192,7 @@ async function main() {
   }
 
   // Comandos de cadastro local e perfil não tocam a rede nem o certificado.
-  if (await runLocalCommand(command, values)) return;
+  if (await runLocalCommand(command, values, positionals)) return;
 
   const client = new GissClient({
     environment: values.env as Environment | undefined,
@@ -510,11 +523,14 @@ const REASONS: Record<string, string> = {
 async function runLocalCommand(
   command: string,
   values: CliValues,
+  positionals: string[],
 ): Promise<boolean> {
+  // eslint-disable-next-line no-param-reassign -- --lookup enriches the input
   switch (command) {
     case "customer-add":
     case "supplier-add": {
       const role: ContactRole = command === "customer-add" ? "customer" : "supplier";
+      values = await withLookup(values);
       if (!values["tax-id"] || !values.name) {
         throw new Error("Provide --tax-id and --name");
       }
@@ -549,6 +565,37 @@ async function runLocalCommand(
       return true;
     }
 
+    case "zip": {
+      const code = positionals[1] ?? values.zip;
+      if (!code) throw new Error("Provide the postal code: giss zip 01310-100");
+      const found = await lookupZip(code);
+      if (values.json) return void console.log(JSON.stringify(found, null, 2)), true;
+      console.log(`  zip:      ${found.zipCode}`);
+      console.log(`  street:   ${found.street ?? "—"}`);
+      console.log(`  district: ${found.district ?? "—"}`);
+      console.log(`  city:     ${found.city}/${found.state}`);
+      return true;
+    }
+
+    case "cnpj": {
+      const taxId = positionals[1] ?? values["tax-id"];
+      if (!taxId) throw new Error("Provide the CNPJ: giss cnpj 00000000000191");
+      const found = await lookupParty(taxId);
+      if (values.json) return void console.log(JSON.stringify(found, null, 2)), true;
+      console.log(`  name:      ${found.legalName}`);
+      if (found.tradeName) console.log(`  trade:     ${found.tradeName}`);
+      console.log(`  status:    ${found.status ?? "—"}${found.simplesNacionalOptant ? " · Simples Nacional" : ""}`);
+      console.log(`  address:   ${[found.street, found.number].filter(Boolean).join(", ") || "—"}`);
+      if (found.complement) console.log(`  complement:${found.complement}`);
+      console.log(`  district:  ${found.district ?? "—"}`);
+      console.log(`  city:      ${found.city}/${found.state}  IBGE ${found.cityCode ?? "—"}`);
+      console.log(`  zip:       ${found.zipCode ?? "—"}`);
+      if (found.email) console.log(`  email:     ${found.email}`);
+      if (found.phone) console.log(`  phone:     ${found.phone}`);
+      console.log(`\n  giss customer-add --tax-id ${found.taxId} --lookup`);
+      return true;
+    }
+
     case "profile": {
       const repository = new ProfileRepository();
       const profile = repository.load();
@@ -568,6 +615,7 @@ async function runPortalCommand(
   values: CliValues,
   config: GissConfig,
 ): Promise<void> {
+  // eslint-disable-next-line no-param-reassign -- --lookup enriches the input
   const role = (values.type ? Number(values.type) : 1) as PartyRole;
   const label = role === 1 ? "customer" : "supplier";
   const portal = await PortalService.authenticate(loadPortalCredentials(config));
@@ -632,6 +680,7 @@ async function runPortalCommand(
   }
 
   // portal-add
+  values = await withLookup(values);
   if (!values["tax-id"] || !values.name) {
     throw new Error("Provide --tax-id and --name");
   }
@@ -654,6 +703,8 @@ async function runPortalCommand(
     role,
     mei: values.mei,
     simplesNacional: values.simples === "1",
+    email: values.email,
+    phone: values.phone,
     address: address
       ? { ...address, streetType: values["street-type"], cityName }
       : undefined,
@@ -668,6 +719,39 @@ async function runPortalCommand(
 
   const created = await portal.create(party);
   console.log(`${label} registered in the portal: ${created.razaoSocial} (id ${created.id})`);
+}
+
+/**
+ * Fills the gaps from the CNPJ registry. Anything passed explicitly wins — the
+ * lookup only supplies what the command line left out.
+ */
+async function withLookup(values: CliValues): Promise<CliValues> {
+  if (!values.lookup) return values;
+  const taxId = values["tax-id"];
+  if (!taxId) throw new Error("--lookup needs --tax-id");
+
+  const found: CompanyLookup = await lookupParty(taxId);
+  console.log(`Looked up ${found.legalName}${found.status ? ` (${found.status})` : ""}`);
+
+  const filled = { ...values } as Record<string, unknown>;
+  const fill = (key: string, value: string | undefined) => {
+    if (value && !filled[key]) filled[key] = value;
+  };
+
+  fill("name", found.legalName);
+  fill("trade-name", found.tradeName);
+  fill("street", found.street);
+  fill("number", found.number);
+  fill("complement", found.complement);
+  fill("district", found.district);
+  fill("city", found.cityCode);
+  fill("state", found.state);
+  fill("zip", found.zipCode);
+  fill("email", found.email);
+  fill("phone", found.phone);
+  if (found.simplesNacionalOptant && !filled["simples"]) filled["simples"] = "1";
+
+  return filled as CliValues;
 }
 
 /** Monta o endereço; o XSD exige o grupo completo ou nenhum. */

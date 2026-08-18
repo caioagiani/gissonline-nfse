@@ -321,6 +321,28 @@ The REST login takes three steps: `POST login/token` with `grant_type=password`,
 
 **It is an internal API with no public contract — it can change without notice.**
 
+Two of its rules cost a debugging round each: contact fields are **objects**, not
+strings (`email: {email}`, `telefone: {codigoArea, telefone}`) — plain strings
+answer HTTP 500; and an update only persists when `alterado` is true, otherwise
+the `PUT` answers 200 and silently changes nothing.
+
+## Lookups
+
+Neither GissOnline service resolves a CNPJ, so filling a party means copying from
+the Receita's site. `giss zip` and `giss cnpj` close that gap through
+[BrasilAPI](https://brasilapi.com.br):
+
+```bash
+giss zip 04744-010
+giss cnpj 60977243000106
+giss customer-add --tax-id 60977243000106 --lookup   # fills the blanks
+```
+
+`--lookup` works on `customer-add` and `portal-add`, and anything passed
+explicitly wins over the lookup. BrasilAPI is a free community service with no
+SLA — treat the result as a starting point to check, never as a source of truth,
+and note that it rejects requests without an identifying `User-Agent`.
+
 For issuing via Web Service the portal directory is not even needed: party data travels
 inside the invoice, taken from the local directory.
 
