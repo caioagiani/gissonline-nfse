@@ -1,4 +1,4 @@
-import { GissError } from "../domain/errors.ts";
+import { GissError, type ServiceMessage } from "../domain/errors.ts";
 import {
   cancellationTarget,
   elementSignature,
@@ -31,9 +31,24 @@ import {
   parseQueryResult,
   type BatchResult,
   type CancellationResult,
+  type Nfse,
   type ProtocolResult,
   type QueryResult,
 } from "../messages/parser.ts";
+
+/**
+ * Resultado de uma emissão idempotente.
+ *
+ * `already-issued` é a resposta a uma repetição: o RPS já virou nota, e
+ * nenhuma segunda foi criada. `pending` significa que o lote foi aceito mas
+ * ainda não terminou de processar — o protocolo permite retomar.
+ */
+export interface IssueOutcome {
+  status: "issued" | "already-issued" | "pending" | "rejected";
+  invoice?: Nfse;
+  protocol?: string;
+  warnings: ServiceMessage[];
+}
 
 export interface NfseServiceOptions {
   host: string;
@@ -106,6 +121,112 @@ export class NfseService {
       this.batchPolicy(batch),
     );
     return parseBatchResult(xml);
+  }
+
+  /**
+   * Emite uma NFS-e a partir de um RPS, sem correr o risco de emitir duas.
+   *
+   * Emitir é assíncrono por obrigação — `GerarNfse` e o lote síncrono respondem
+   * `A01` mesmo com o XML correto, então só o lote assíncrono emite, e entre o
+   * envio e a nota existe uma janela em que o processo pode morrer. Repetir a
+   * chamada depois disso é o caminho natural, e é justamente o que duplicaria a
+   * nota.
+   *
+   * O que evita isso é o número do RPS: ele identifica a intenção de emitir, e
+   * o serviço só o aceita uma vez. Por isso a consulta por RPS vem antes do
+   * envio e depois da espera — se a nota já existe, ela é devolvida em vez de
+   * uma segunda ser criada. O número precisa vir de fora, estável entre as
+   * tentativas; gerado a cada chamada, nada disso funciona.
+   */
+  async issueRps(
+    rps: Rps,
+    options: {
+      /** Número do lote; por padrão o do próprio RPS */
+      batchNumber?: number;
+      /** Tentativas de consulta ao protocolo (padrão 6) */
+      attempts?: number;
+      /** Intervalo entre as consultas, em ms (padrão 3000) */
+      intervalMs?: number;
+    } = {},
+  ): Promise<IssueOutcome> {
+    const identification = rps.identification;
+    if (!identification?.number) {
+      throw new Error(
+        "Informe o número do RPS: sem ele a emissão não é idempotente e uma repetição vira nota duplicada",
+      );
+    }
+
+    const query = {
+      number: identification.number,
+      series: identification.series,
+      type: identification.type,
+    };
+
+    const existing = await this.findByRps(query);
+    if (existing) {
+      return { status: "already-issued", invoice: existing, warnings: [] };
+    }
+
+    const { attempts = 6, intervalMs = 3000 } = options;
+    const batch = await this.sendRpsBatch({
+      batchNumber: options.batchNumber ?? Number(identification.number),
+      rps: [rps],
+    });
+
+    for (let attempt = 0; attempt < attempts; attempt++) {
+      await new Promise((resolve) => setTimeout(resolve, intervalMs));
+
+      let result: BatchResult | undefined;
+      try {
+        result = await this.queryRpsBatch(batch.protocol!);
+      } catch {
+        // o protocolo costuma responder erro enquanto o lote não foi lido;
+        // a consulta por RPS abaixo é quem dá a palavra final
+      }
+
+      const invoice = result?.invoices[0];
+      if (invoice) {
+        return {
+          status: "issued",
+          invoice,
+          protocol: batch.protocol,
+          warnings: result?.warnings ?? [],
+        };
+      }
+      if (result && result.status === "3") {
+        return {
+          status: "rejected",
+          protocol: batch.protocol,
+          warnings: result.warnings,
+        };
+      }
+    }
+
+    // A espera esgotou, o que não quer dizer que a nota não saiu: o
+    // processamento pode ter terminado depois. Quem decide é o RPS.
+    const late = await this.findByRps(query);
+    return late
+      ? { status: "issued", invoice: late, protocol: batch.protocol, warnings: [] }
+      : { status: "pending", protocol: batch.protocol, warnings: [] };
+  }
+
+  /**
+   * A NFS-e gerada a partir de um RPS, ou `undefined` se ainda não existe.
+   * O serviço responde com erro quando não encontra, o que aqui não é falha.
+   */
+  async findByRps(args: {
+    number: number | string;
+    series: string;
+    type?: 1 | 2 | 3;
+    provider?: PartyIdentification;
+  }): Promise<Nfse | undefined> {
+    try {
+      const { invoices } = await this.queryNfseByRps(args);
+      return invoices[0];
+    } catch (error) {
+      if (error instanceof GissError) return undefined;
+      throw error;
+    }
   }
 
   /** Cancela uma NFS-e pelo número, informando o motivo. */

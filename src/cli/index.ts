@@ -372,15 +372,22 @@ async function main() {
         return;
       }
       // GerarNfse e RecepcionarLoteRpsSincrono respondem A01 mesmo com o XML
-      // correto; o lote assíncrono é o único caminho que emite. O protocolo é
-      // consultado logo em seguida para a emissão parecer síncrona aqui.
-      const batchNumber = Number(values.rps ?? Date.now() % 100000);
+      // correto; o lote assíncrono é o único caminho que emite. `issueRps`
+      // cuida do protocolo e da espera, e é ele que garante que repetir o
+      // comando com o mesmo --rps não gere uma segunda nota.
+      const rpsNumber = values.rps ?? String(Date.now() % 100000);
+      if (!values.rps) {
+        console.log(
+          `RPS ${rpsNumber} (generated). Pass --rps to make a retry safe to repeat.`,
+        );
+      }
+
       const withRps: Rps = rps.identification
         ? rps
         : {
             ...rps,
             identification: {
-              number: batchNumber,
+              number: rpsNumber,
               series: values.series ?? "A",
               type: 1,
             },
@@ -388,20 +395,33 @@ async function main() {
             status: 1,
           };
 
-      const protocol = await client.nfse.sendRpsBatch({
-        batchNumber,
-        rps: [withRps],
-      });
-      console.log(`Batch accepted. Protocol: ${protocol.protocol}`);
+      const outcome = await client.nfse.issueRps(withRps);
 
-      const result = await waitForBatch(client, protocol.protocol!);
-      if (result.invoices.length === 0) {
-        console.log(`Status:   ${result.status} — ${result.statusLabel}`);
-        console.log("No invoice in the response. Check the protocol above.");
+      if (outcome.status === "already-issued") {
+        console.log("This RPS had already been issued:");
+        printInvoices({ invoices: [outcome.invoice!], warnings: [], xml: "" }, values);
         return;
       }
-      console.log("Invoice issued:");
-      printInvoices(result, values);
+      if (outcome.invoice) {
+        console.log("Invoice issued:");
+        printInvoices(
+          { invoices: [outcome.invoice], warnings: outcome.warnings, xml: "" },
+          values,
+        );
+        return;
+      }
+
+      for (const warning of outcome.warnings) {
+        console.log(`⚠ [${warning.code}] ${warning.message}`);
+      }
+      console.log(
+        outcome.status === "rejected"
+          ? `Rejected. Protocol: ${outcome.protocol}`
+          : `Still processing. Query it with: ${INVOCATION} batch --protocol ${outcome.protocol}`,
+      );
+      console.log(
+        `Repeating with --rps ${rpsNumber} is safe: an already-issued RPS is not issued twice.`,
+      );
       return;
     }
 
@@ -522,25 +542,6 @@ const roleLabel = (role: ContactRole): string =>
   role === "customer" ? "customer" : "supplier";
 
 /** Aguarda o processamento do lote, que é assíncrono. */
-async function waitForBatch(
-  client: GissClient,
-  protocol: string,
-  attempts = 6,
-): Promise<Awaited<ReturnType<GissClient["nfse"]["queryRpsBatch"]>>> {
-  let last: Awaited<ReturnType<GissClient["nfse"]["queryRpsBatch"]>> | undefined;
-  for (let i = 0; i < attempts; i++) {
-    await new Promise((r) => setTimeout(r, 3000));
-    try {
-      last = await client.nfse.queryRpsBatch(protocol);
-      if (last.invoices.length > 0 || last.status === "3") return last;
-    } catch (error) {
-      // "Remessa ainda não foi processada" é esperado nas primeiras tentativas
-      if (i === attempts - 1) throw error;
-    }
-  }
-  if (!last) throw new Error(`Batch ${protocol} was not processed in time`);
-  return last;
-}
 
 const REASONS: Record<string, string> = {
   "1": "issuing error",
