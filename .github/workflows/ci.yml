@@ -1,0 +1,30 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run build
+      # xmllint valida os XSD que acompanham o pacote
+      - run: sudo apt-get install -y --no-install-recommends libxml2-utils
+      - name: Validate bundled schemas
+        run: |
+          for f in docs/schemas/*.xsd docs/schemas-tomados/vigente/*.xsd; do
+            xmllint --noout "$f" || exit 1
+          done
+      - name: Check the CLI runs
+        run: node dist/cli/index.js --help | grep -q "Usage:"
+      - name: Check the package contents
+        run: npm pack --dry-run

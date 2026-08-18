@@ -31,114 +31,113 @@ import { validateAgainstSchema } from "../validation/schema-validator.ts";
 const INVOCATION = process.env["npm_lifecycle_event"] ? "npm run giss --" : "giss";
 
 const HELP = `
-giss — cliente dos Web Services GissOnline (NFS-e ABRASF 2.04 + LC 214/2025)
+giss — GissOnline NFS-e Web Services client (ABRASF 2.04 + LC 214/2025)
 
-Uso: ${INVOCATION} <comando> [opções]
+Usage: ${INVOCATION} <command> [options]
 
-CERTIFICADO
-  cert [--exportar [--out DIR]]        Dados do certificado A1; --exportar grava os PEM
+CERTIFICATE
+  cert [--export [--out DIR]]          A1 certificate details; --export writes the PEM files
 
-CONSULTAS (serviços prestados)
-  ultimas [--limite N] [--meses N]     As N NFS-e mais recentes (padrão: 10, últimos 12 meses)
-  prestado --inicio D --fim D          NFS-e emitidas por período de emissão
-           [--competencia]               usa período de competência
-           [--numero N] [--pagina N] [--todas]
-  faixa --de N --ate N [--pagina N]    NFS-e por faixa de numeração
-  rps --numero N --serie S [--tipo 1]  NFS-e gerada a partir de um RPS
-  lote --protocolo P                   Situação de um lote de RPS
+QUERIES (services provided)
+  latest [--limit N] [--months N]      Most recent invoices (default: 10, last 12 months)
+  issued --from D --to D               Invoices by issue period
+         [--competence]                  use the competence period instead
+         [--number N] [--page N] [--all]
+  range --first N --last N [--page N]  Invoices by number range
+  rps --number N --series S [--type 1] Invoice generated from an RPS
+  batch --protocol P                   Status of an RPS batch
 
-CONSULTAS (serviços tomados)
-  tomado --inicio D --fim D            NFS-e em que você é o tomador
-         [--competencia] [--numero N] [--pagina N] [--todas]
-  comprado-lote --protocolo P          Notas declaradas em um lote (nfsc)
-  comprado-protocolo --protocolo P     Situação de um protocolo (nfsc)
-  comprado-numero --inicio D --fim D --numero N --serie S
+QUERIES (services received)
+  received --from D --to D             Invoices where you are the customer
+           [--competence] [--number N] [--page N] [--all]
+  purchased-batch --protocol P         Invoices declared in a batch (nfsc)
+  purchased-protocol --protocol P      Status of a protocol (nfsc)
+  purchased-number --from D --to D --number N --series S
 
-EMISSÃO
-  emitir --tomador X --valor V [--descricao T]      Emite NFS-e (GerarNfse)
-         [--rps N] [--serie S]                        via RPS quando --rps é informado
-         [--competencia D] [--csll V] [--inss V] [--ir V]
-         [--item 01.09] [--cnae N] [--nbs N] [--aliquota 3.07]
-         [--info T] [--confirmar]
-  cancelar --numero N --motivo 1..5 [--confirmar]   Cancela uma NFS-e
-  substituir --numero N --motivo 1..5 --tomador X --valor V
-             [--descricao T] [--confirmar]          Cancela e reemite
+ISSUING
+  issue --customer X --amount V [--description T]   Issues an invoice
+        [--rps N] [--series S] [--competence D]
+        [--item 01.09] [--cnae N] [--nbs N] [--rate 3.07]
+        [--csll V] [--inss V] [--income-tax V] [--notes T] [--confirm]
+  cancel --number N --reason 1..5 [--confirm]       Cancels an invoice
+  replace --number N --reason 1..5 --customer X --amount V
+          [--description T] [--confirm]             Cancels and reissues
 
-CADASTRO LOCAL
-  clientes [--sincronizar --inicio D --fim D]       Lista/atualiza tomadores
-  fornecedores [--sincronizar --inicio D --fim D]   Lista/atualiza prestadores
-  cliente-add --documento D --nome N [--apelido A] [--im N] [--email E] [--telefone T]
-              [--logradouro L --numero N --bairro B --cidade IBGE --uf UF --cep C]
-              [--complemento C] [--fantasia F] [--simples 1|2]
-  fornecedor-add  (mesmas opções de cliente-add)
-  cliente-rm --documento D
-  fornecedor-rm --documento D
+LOCAL DIRECTORY
+  customers [--sync --from D --to D]                Lists/updates customers
+  suppliers [--sync --from D --to D]                Lists/updates suppliers
+  customer-add --tax-id D --name N [--alias A] [--registration N] [--email E] [--phone T]
+               [--street L --number N --district B --city IBGE --state UF --zip C]
+               [--complement C] [--trade-name F] [--simples 1|2]
+  supplier-add  (same options as customer-add)
+  customer-rm --tax-id D
+  supplier-rm --tax-id D
 
-PORTAL (API REST — cadastro de verdade no GissOnline, via login CPF/senha)
-  portal-clientes [--tipo 1|2]                      Cadastro do portal (1=cliente, 2=fornecedor)
-  portal-add --documento D --nome N [--tipo 1|2]    Cadastra no portal
-             [--fantasia F] [--im N] [--simples] [--mei]
-             [--logradouro L --numero N --bairro B --cidade IBGE --uf UF --cep C]
-             [--complemento C] [--tipo-logradouro Rua] [--confirmar]
-  portal-rm --documento D [--tipo 1|2] [--confirmar] Remove do portal
-  portal-importar [--tipo 1|2]                      Traz o cadastro do portal para o local
+PORTAL (REST API — the actual GissOnline directory, via CPF/password login)
+  portal-list [--type 1|2]                          Portal directory (1=customer, 2=supplier)
+  portal-add --tax-id D --name N [--type 1|2]       Registers in the portal
+             [--trade-name F] [--registration N] [--simples] [--mei]
+             [--street L --number N --district B --city IBGE --state UF --zip C]
+             [--complement C] [--street-type Rua] [--confirm]
+  portal-rm --tax-id D [--type 1|2] [--confirm]     Removes from the portal
+  portal-import [--type 1|2]                        Imports the portal directory locally
 
-PERFIL FISCAL
-  perfil [--salvar]                    Mostra (ou grava em data/profile.json) os padrões
+TAX PROFILE
+  profile [--save]                     Shows (or writes to data/profile.json) the defaults
 
-Opções globais:
-  --env producao|homologacao   Ambiente (padrão: GISS_ENV do .env)
-  --json | --xml | --debug     Formato de saída / diagnóstico
+Global options:
+  --env producao|homologacao   Environment (default: GISS_ENV from .env)
+  --json | --xml | --debug     Output format / diagnostics
 `;
 
 const options = {
   env: { type: "string" },
-  inicio: { type: "string" },
-  fim: { type: "string" },
-  competencia: { type: "string" },
-  numero: { type: "string" },
-  serie: { type: "string" },
-  tipo: { type: "string" },
-  pagina: { type: "string" },
-  limite: { type: "string" },
-  meses: { type: "string" },
-  todas: { type: "boolean", default: false },
-  de: { type: "string" },
-  ate: { type: "string" },
-  protocolo: { type: "string" },
-  exportar: { type: "boolean", default: false },
+  from: { type: "string" },
+  to: { type: "string" },
+  competence: { type: "string" },
+  number: { type: "string" },
+  series: { type: "string" },
+  type: { type: "string" },
+  page: { type: "string" },
+  limit: { type: "string" },
+  months: { type: "string" },
+  all: { type: "boolean", default: false },
+  first: { type: "string" },
+  last: { type: "string" },
+  protocol: { type: "string" },
+  export: { type: "boolean", default: false },
   out: { type: "string" },
-  tomador: { type: "string" },
-  valor: { type: "string" },
-  descricao: { type: "string" },
-  info: { type: "string" },
+  customer: { type: "string" },
+  amount: { type: "string" },
+  description: { type: "string" },
+  notes: { type: "string" },
   rps: { type: "string" },
   csll: { type: "string" },
-  aliquota: { type: "string" },
+  rate: { type: "string" },
   item: { type: "string" },
   cnae: { type: "string" },
   nbs: { type: "string" },
   inss: { type: "string" },
-  ir: { type: "string" },
-  motivo: { type: "string" },
-  confirmar: { type: "boolean", default: false },
-  sincronizar: { type: "boolean", default: false },
-  documento: { type: "string" },
-  nome: { type: "string" },
-  fantasia: { type: "string" },
-  im: { type: "string" },
+  "income-tax": { type: "string" },
+  reason: { type: "string" },
+  confirm: { type: "boolean", default: false },
+  sync: { type: "boolean", default: false },
+  "tax-id": { type: "string" },
+  name: { type: "string" },
+  "trade-name": { type: "string" },
+  registration: { type: "string" },
   email: { type: "string" },
-  telefone: { type: "string" },
-  apelido: { type: "string" },
-  logradouro: { type: "string" },
-  bairro: { type: "string" },
-  complemento: { type: "string" },
-  cidade: { type: "string" },
-  uf: { type: "string" },
-  cep: { type: "string" },
+  phone: { type: "string" },
+  alias: { type: "string" },
+  street: { type: "string" },
+  district: { type: "string" },
+  complement: { type: "string" },
+  city: { type: "string" },
+  state: { type: "string" },
+  zip: { type: "string" },
   simples: { type: "string" },
-  salvar: { type: "boolean", default: false },
-  "tipo-logradouro": { type: "string" },
+  save: { type: "boolean", default: false },
+  "street-type": { type: "string" },
   mei: { type: "boolean", default: false },
   json: { type: "boolean", default: false },
   xml: { type: "boolean", default: false },
@@ -191,31 +190,31 @@ async function main() {
   switch (command) {
     case "cert": {
       const { subject, validFrom, validTo } = client.certificate;
-      console.log(`Titular:    ${subject}`);
-      console.log(`Válido de:  ${validFrom.toISOString().slice(0, 10)}`);
-      console.log(`Válido até: ${validTo.toISOString().slice(0, 10)}`);
-      console.log(`Ambiente:   ${client.config.environment}`);
-      console.log(`Host:       ${client.config.host}`);
+      console.log(`Holder:      ${subject}`);
+      console.log(`Valid from:  ${validFrom.toISOString().slice(0, 10)}`);
+      console.log(`Valid until: ${validTo.toISOString().slice(0, 10)}`);
+      console.log(`Environment: ${client.config.environment}`);
+      console.log(`Host:        ${client.config.host}`);
       console.log(
-        `Prestador:  CNPJ ${client.config.cnpj} / IM ${client.config.municipalRegistration}`,
+        `Provider:    CNPJ ${client.config.cnpj} / IM ${client.config.municipalRegistration}`,
       );
 
-      if (values.exportar) {
+      if (values.export) {
         const target = values.out ?? dirname(client.config.certificatePath);
         const files = exportPem(client.certificate, target);
-        console.log("\nPEM exportado:");
-        console.log(`  certificado: ${files.certificate}`);
-        console.log(`  chave:       ${files.key}`);
-        if (files.chain) console.log(`  cadeia:      ${files.chain}`);
+        console.log("\nPEM files written:");
+        console.log(`  certificate: ${files.certificate}`);
+        console.log(`  key:         ${files.key}`);
+        if (files.chain) console.log(`  chain:       ${files.chain}`);
         console.log(`  bundle:      ${files.bundle}`);
-        console.log("\nA chave está sem senha — não versione esses arquivos.");
+        console.log("\nThe key has no passphrase — keep these files out of version control.");
       }
       return;
     }
 
-    case "ultimas": {
-      const limit = asNumber(values.limite) ?? 10;
-      const months = asNumber(values.meses) ?? 12;
+    case "latest": {
+      const limit = asNumber(values.limit) ?? 10;
+      const months = asNumber(values.months) ?? 12;
       const to = new Date();
       const from = new Date(to);
       from.setMonth(from.getMonth() - months);
@@ -235,46 +234,46 @@ async function main() {
       printInvoices({ invoices: latest, warnings: [], xml: "" }, values);
       if (!values.json && !values.xml) {
         console.log(
-          `\n${latest.length} de ${invoices.length} nota(s) nos últimos ${months} meses`,
+          `\n${latest.length} of ${invoices.length} invoice(s) in the last ${months} months`,
         );
       }
       return;
     }
 
-    case "prestado":
-    case "tomado": {
-      const taken = command === "tomado";
-      const filter = values.numero
-        ? { nfseNumber: values.numero }
-        : dateFilter(values.inicio, values.fim, Boolean(values.competencia));
+    case "issued":
+    case "received": {
+      const taken = command === "received";
+      const filter = values.number
+        ? { nfseNumber: values.number }
+        : dateFilter(values.from, values.to, Boolean(values.competence));
       const query = (page: number) =>
         taken
           ? client.nfse.queryTakenServices({ ...filter, page })
           : client.nfse.queryProvidedServices({ ...filter, page });
 
-      if (values.todas && !values.numero) {
+      if (values.all && !values.number) {
         let total = 0;
         for await (const page of client.paginate(query)) {
           total += page.invoices.length;
           printInvoices(page, values, taken);
         }
-        if (!values.json && !values.xml) console.log(`\nTotal: ${total} nota(s)`);
+        if (!values.json && !values.xml) console.log(`\nTotal: ${total} invoice(s)`);
         return;
       }
 
-      printInvoices(await query(asNumber(values.pagina) ?? 1), values, taken);
+      printInvoices(await query(asNumber(values.page) ?? 1), values, taken);
       return;
     }
 
-    case "faixa": {
-      if (!values.de || !values.ate) {
-        throw new Error("Informe --de e --ate com os números inicial e final");
+    case "range": {
+      if (!values.first || !values.last) {
+        throw new Error("Provide --first and --last with the invoice number range");
       }
       printInvoices(
         await client.nfse.queryNfseRange({
-          firstNumber: values.de,
-          lastNumber: values.ate,
-          page: asNumber(values.pagina),
+          firstNumber: values.first,
+          lastNumber: values.last,
+          page: asNumber(values.page),
         }),
         values,
       );
@@ -282,61 +281,61 @@ async function main() {
     }
 
     case "rps": {
-      if (!values.numero || !values.serie) {
-        throw new Error("Informe --numero e --serie do RPS");
+      if (!values.number || !values.series) {
+        throw new Error("Provide the RPS --number and --series");
       }
       printInvoices(
         await client.nfse.queryNfseByRps({
-          number: values.numero,
-          series: values.serie,
-          type: values.tipo ? (Number(values.tipo) as 1 | 2 | 3) : undefined,
+          number: values.number,
+          series: values.series,
+          type: values.type ? (Number(values.type) as 1 | 2 | 3) : undefined,
         }),
         values,
       );
       return;
     }
 
-    case "lote": {
-      if (!values.protocolo) throw new Error("Informe --protocolo do lote");
-      const result = await client.nfse.queryRpsBatch(values.protocolo);
+    case "batch": {
+      if (!values.protocol) throw new Error("Provide the batch --protocol");
+      const result = await client.nfse.queryRpsBatch(values.protocol);
       if (values.xml) return void console.log(result.xml);
       if (values.json) return void console.log(JSON.stringify(result, null, 2));
-      console.log(`Situação: ${result.status} — ${result.statusLabel}`);
-      if (result.batchNumber) console.log(`Lote:     ${result.batchNumber}`);
-      if (result.receivedAt) console.log(`Recebido: ${result.receivedAt}`);
+      console.log(`Status:   ${result.status} — ${result.statusLabel}`);
+      if (result.batchNumber) console.log(`Batch:    ${result.batchNumber}`);
+      if (result.receivedAt) console.log(`Received: ${result.receivedAt}`);
       printInvoices(result, values);
       return;
     }
 
-    case "comprado-lote": {
-      if (!values.protocolo) throw new Error("Informe --protocolo");
+    case "purchased-batch": {
+      if (!values.protocol) throw new Error("Provide the --protocol");
       printInvoices(
-        await client.nfsc.queryPurchasedByBatch(values.protocolo),
+        await client.nfsc.queryPurchasedByBatch(values.protocol),
         values,
       );
       return;
     }
 
-    case "comprado-protocolo": {
-      if (!values.protocolo) throw new Error("Informe --protocolo");
-      const result = await client.nfsc.queryPurchasedByProtocol(values.protocolo);
+    case "purchased-protocol": {
+      if (!values.protocol) throw new Error("Provide the --protocol");
+      const result = await client.nfsc.queryPurchasedByProtocol(values.protocol);
       if (values.xml) return void console.log(result.xml);
-      console.log(`Situação: ${result.status} — ${result.statusLabel}`);
+      console.log(`Status:   ${result.status} — ${result.statusLabel}`);
       printInvoices(result, values);
       return;
     }
 
-    case "comprado-numero": {
-      if (!values.inicio || !values.fim || !values.numero || !values.serie) {
-        throw new Error("Informe --inicio, --fim, --numero e --serie");
+    case "purchased-number": {
+      if (!values.from || !values.to || !values.number || !values.series) {
+        throw new Error("Provide --from, --to, --number and --series");
       }
-      const range = { from: values.inicio, to: values.fim };
+      const range = { from: values.from, to: values.to };
       printInvoices(
         await client.nfsc.queryPurchasedByNumber({
           issuePeriod: range,
           competencePeriod: range,
-          declaredNumber: values.numero,
-          declaredSeries: values.serie,
+          declaredNumber: values.number,
+          declaredSeries: values.series,
         }),
         values,
         true,
@@ -344,14 +343,14 @@ async function main() {
       return;
     }
 
-    case "emitir": {
+    case "issue": {
       const rps = buildRpsFromCli(values);
-      if (!values.confirmar) {
+      if (!values.confirm) {
         const preview = client.nfse.previewIssueNfse(rps);
         if (values.xml) return void console.log(preview);
         console.log(issueSummary(values, rps));
         printValidation(preview);
-        console.log("\nNada foi enviado. Repita com --confirmar para emitir de verdade.");
+        console.log("\nNothing was sent. Repeat with --confirm to actually issue.");
         return;
       }
       // GerarNfse e RecepcionarLoteRpsSincrono respondem A01 mesmo com o XML
@@ -364,7 +363,7 @@ async function main() {
             ...rps,
             identification: {
               number: batchNumber,
-              series: values.serie ?? "A",
+              series: values.series ?? "A",
               type: 1,
             },
             issueDate: new Date(),
@@ -375,81 +374,81 @@ async function main() {
         batchNumber,
         rps: [withRps],
       });
-      console.log(`Lote aceito. Protocolo: ${protocol.protocol}`);
+      console.log(`Batch accepted. Protocol: ${protocol.protocol}`);
 
       const result = await waitForBatch(client, protocol.protocol!);
       if (result.invoices.length === 0) {
-        console.log(`Situação: ${result.status} — ${result.statusLabel}`);
-        console.log("Nenhuma NFS-e no retorno. Consulte o protocolo acima.");
+        console.log(`Status:   ${result.status} — ${result.statusLabel}`);
+        console.log("No invoice in the response. Check the protocol above.");
         return;
       }
-      console.log("NFS-e emitida:");
+      console.log("Invoice issued:");
       printInvoices(result, values);
       return;
     }
 
-    case "cancelar": {
-      if (!values.numero || !values.motivo) {
-        throw new Error("Informe --numero da NFS-e e --motivo (1 a 5)");
+    case "cancel": {
+      if (!values.number || !values.reason) {
+        throw new Error("Provide the invoice --number and --reason (1 to 5)");
       }
-      if (!values.confirmar) {
+      if (!values.confirm) {
         console.log(
-          `Cancelaria a NFS-e ${values.numero} com o motivo ${values.motivo} (${REASONS[values.motivo] ?? "?"}).`,
+          `Would cancel invoice ${values.number}, reason ${values.reason} (${REASONS[values.reason] ?? "?"}).`,
         );
-        console.log("Nada foi enviado. Repita com --confirmar.");
+        console.log("Nothing was sent. Repeat with --confirm.");
         return;
       }
       const result = await client.nfse.cancelNfse({
-        nfseNumber: values.numero,
-        cancellationCode: Number(values.motivo) as CancellationCode,
+        nfseNumber: values.number,
+        cancellationCode: Number(values.reason) as CancellationCode,
       });
-      console.log(`NFS-e ${values.numero} cancelada.`);
-      if (result.cancelledAt) console.log(`Data/hora: ${result.cancelledAt}`);
+      console.log(`Invoice ${values.number} cancelled.`);
+      if (result.cancelledAt) console.log(`Timestamp: ${result.cancelledAt}`);
       return;
     }
 
-    case "substituir": {
-      if (!values.numero || !values.motivo) {
-        throw new Error("Informe --numero da NFS-e substituída e --motivo (1 a 5)");
+    case "replace": {
+      if (!values.number || !values.reason) {
+        throw new Error("Provide the replaced invoice --number and --reason (1 to 5)");
       }
       const rps = buildRpsFromCli(values);
-      if (!values.confirmar) {
+      if (!values.confirm) {
         console.log(
-          `Substituiria a NFS-e ${values.numero} (motivo ${values.motivo}) por:\n`,
+          `Would replace invoice ${values.number} (reason ${values.reason}) with:\n`,
         );
         console.log(issueSummary(values, rps));
-        console.log("\nNada foi enviado. Repita com --confirmar.");
+        console.log("\nNothing was sent. Repeat with --confirm.");
         return;
       }
       const result = await client.nfse.replaceNfse(
         {
-          nfseNumber: values.numero,
-          cancellationCode: Number(values.motivo) as CancellationCode,
+          nfseNumber: values.number,
+          cancellationCode: Number(values.reason) as CancellationCode,
         },
         rps,
       );
-      console.log(`NFS-e ${values.numero} substituída por:`);
+      console.log(`Invoice ${values.number} replaced by:`);
       printInvoices(result, values);
       return;
     }
 
-    case "portal-clientes":
+    case "portal-list":
     case "portal-add":
     case "portal-rm":
-    case "portal-importar":
+    case "portal-import":
       await runPortalCommand(command, values, client.config);
       return;
 
-    case "clientes":
-    case "fornecedores": {
-      const role: ContactRole = command === "clientes" ? "customer" : "supplier";
+    case "customers":
+    case "suppliers": {
+      const role: ContactRole = command === "customers" ? "customer" : "supplier";
       const repository = new ContactRepository();
 
-      if (values.sincronizar) {
+      if (values.sync) {
         const filter = dateFilter(
-          values.inicio,
-          values.fim,
-          Boolean(values.competencia),
+          values.from,
+          values.to,
+          Boolean(values.competence),
         );
         const invoices: Nfse[] = [];
         const query = (page: number) =>
@@ -461,7 +460,7 @@ async function main() {
         }
         const { saved } = syncFromInvoices(repository, role, invoices);
         console.log(
-          `${saved} ${roleLabel(role)}(s) sincronizado(s) a partir de ${invoices.length} nota(s).\n`,
+          `${saved} ${roleLabel(role)}(s) synced from ${invoices.length} invoice(s).\n`,
         );
       }
 
@@ -470,13 +469,13 @@ async function main() {
     }
 
     default:
-      throw new Error(`Comando desconhecido: ${command}`);
+      throw new Error(`Unknown command: ${command}`);
   }
 }
 
 /** Rótulo em português para as mensagens ao usuário. */
 const roleLabel = (role: ContactRole): string =>
-  role === "customer" ? "cliente" : "fornecedor";
+  role === "customer" ? "customer" : "supplier";
 
 /** Aguarda o processamento do lote, que é assíncrono. */
 async function waitForBatch(
@@ -495,16 +494,16 @@ async function waitForBatch(
       if (i === attempts - 1) throw error;
     }
   }
-  if (!last) throw new Error(`Lote ${protocol} não processado a tempo`);
+  if (!last) throw new Error(`Batch ${protocol} was not processed in time`);
   return last;
 }
 
 const REASONS: Record<string, string> = {
-  "1": "erro na emissão",
-  "2": "serviço não prestado",
-  "3": "erro de assinatura",
-  "4": "duplicidade da nota",
-  "5": "erro de processamento",
+  "1": "issuing error",
+  "2": "service not provided",
+  "3": "signature error",
+  "4": "duplicate invoice",
+  "5": "processing error",
 };
 
 /** Comandos que não precisam de rede nem de certificado. */
@@ -513,47 +512,47 @@ async function runLocalCommand(
   values: CliValues,
 ): Promise<boolean> {
   switch (command) {
-    case "cliente-add":
-    case "fornecedor-add": {
-      const role: ContactRole = command === "cliente-add" ? "customer" : "supplier";
-      if (!values.documento || !values.nome) {
-        throw new Error("Informe --documento e --nome");
+    case "customer-add":
+    case "supplier-add": {
+      const role: ContactRole = command === "customer-add" ? "customer" : "supplier";
+      if (!values["tax-id"] || !values.name) {
+        throw new Error("Provide --tax-id and --name");
       }
       const contact = new ContactRepository().save(role, {
-        taxId: values.documento,
-        legalName: values.nome,
-        tradeName: values.fantasia,
-        municipalRegistration: values.im,
+        taxId: values["tax-id"],
+        legalName: values.name,
+        tradeName: values["trade-name"],
+        municipalRegistration: values.registration,
         email: values.email,
-        phone: values.telefone,
-        alias: values.apelido,
+        phone: values.phone,
+        alias: values.alias,
         address: buildAddress(values),
         simplesNacionalOptant: values.simples
           ? (Number(values.simples) as 1 | 2)
           : undefined,
       });
-      console.log(`${roleLabel(role)} salvo: ${contact.legalName} (${contact.taxId})`);
+      console.log(`${roleLabel(role)} saved: ${contact.legalName} (${contact.taxId})`);
       if (!contact.address) {
         console.log(
-          "Atenção: sem endereço. A emissão de NFS-e exige endereço do tomador.",
+          "Warning: no address. Issuing an invoice requires the customer address.",
         );
       }
       return true;
     }
 
-    case "cliente-rm":
-    case "fornecedor-rm": {
-      const role: ContactRole = command === "cliente-rm" ? "customer" : "supplier";
-      if (!values.documento) throw new Error("Informe --documento");
-      const removed = new ContactRepository().remove(role, values.documento);
-      console.log(removed ? `${roleLabel(role)} removido.` : `${roleLabel(role)} não encontrado.`);
+    case "customer-rm":
+    case "supplier-rm": {
+      const role: ContactRole = command === "customer-rm" ? "customer" : "supplier";
+      if (!values["tax-id"]) throw new Error("Provide --tax-id");
+      const removed = new ContactRepository().remove(role, values["tax-id"]);
+      console.log(removed ? `${roleLabel(role)} removed.` : `${roleLabel(role)} not found.`);
       return true;
     }
 
-    case "perfil": {
+    case "profile": {
       const repository = new ProfileRepository();
       const profile = repository.load();
-      if (values.salvar) console.log(`Perfil gravado em ${repository.save(profile)}`);
+      if (values.save) console.log(`Profile written to ${repository.save(profile)}`);
       console.log(JSON.stringify(profile, null, 2));
       return true;
     }
@@ -569,11 +568,11 @@ async function runPortalCommand(
   values: CliValues,
   config: GissConfig,
 ): Promise<void> {
-  const role = (values.tipo ? Number(values.tipo) : 1) as PartyRole;
-  const label = role === 1 ? "cliente" : "fornecedor";
+  const role = (values.type ? Number(values.type) : 1) as PartyRole;
+  const label = role === 1 ? "customer" : "supplier";
   const portal = await PortalService.authenticate(loadPortalCredentials(config));
 
-  if (command === "portal-clientes") {
+  if (command === "portal-list") {
     const parties = await portal.list(role);
     if (values.json) return void console.log(JSON.stringify(parties, null, 2));
     for (const party of parties) {
@@ -587,7 +586,7 @@ async function runPortalCommand(
     return;
   }
 
-  if (command === "portal-importar") {
+  if (command === "portal-import") {
     const repository = new ContactRepository();
     const parties = await portal.list(role);
     for (const party of parties) {
@@ -611,36 +610,36 @@ async function runPortalCommand(
         source: "portal",
       });
     }
-    console.log(`${parties.length} ${label}(s) importado(s) do portal.`);
+    console.log(`${parties.length} ${label}(s) imported from the portal.`);
     return;
   }
 
   if (command === "portal-rm") {
-    if (!values.documento) throw new Error("Informe --documento");
-    const existing = await portal.findByTaxId(values.documento, role);
+    if (!values["tax-id"]) throw new Error("Provide --tax-id");
+    const existing = await portal.findByTaxId(values["tax-id"], role);
     if (!existing) {
-      console.log(`${label} ${values.documento} não está cadastrado no portal.`);
+      console.log(`${label} ${values["tax-id"]} is not registered in the portal.`);
       return;
     }
-    if (!values.confirmar) {
-      console.log(`Removeria: ${existing.razaoSocial} (${existing.documento})`);
-      console.log("Nada foi enviado. Repita com --confirmar.");
+    if (!values.confirm) {
+      console.log(`Would remove: ${existing.razaoSocial} (${existing.documento})`);
+      console.log("Nothing was sent. Repeat with --confirm.");
       return;
     }
     await portal.remove(await portal.get(existing.id!));
-    console.log(`${label} removido do portal: ${existing.razaoSocial}`);
+    console.log(`${label} removed from the portal: ${existing.razaoSocial}`);
     return;
   }
 
   // portal-add
-  if (!values.documento || !values.nome) {
-    throw new Error("Informe --documento e --nome");
+  if (!values["tax-id"] || !values.name) {
+    throw new Error("Provide --tax-id and --name");
   }
 
-  const existing = await portal.findByTaxId(values.documento, role);
+  const existing = await portal.findByTaxId(values["tax-id"], role);
   if (existing) {
     console.log(
-      `Já cadastrado no portal: ${existing.razaoSocial} (${existing.documento}).`,
+      `Already registered in the portal: ${existing.razaoSocial} (${existing.documento}).`,
     );
     return;
   }
@@ -648,77 +647,77 @@ async function runPortalCommand(
   const address = buildAddress(values);
   const cityName = address ? await portal.cityName(address.cityCode) : undefined;
   const party = buildPortalParty(portal.session, {
-    taxId: values.documento,
-    legalName: values.nome,
-    tradeName: values.fantasia,
-    municipalRegistration: values.im,
+    taxId: values["tax-id"],
+    legalName: values.name,
+    tradeName: values["trade-name"],
+    municipalRegistration: values.registration,
     role,
     mei: values.mei,
     simplesNacional: values.simples === "1",
     address: address
-      ? { ...address, streetType: values["tipo-logradouro"], cityName }
+      ? { ...address, streetType: values["street-type"], cityName }
       : undefined,
   });
 
-  if (!values.confirmar) {
-    console.log(`Cadastraria no portal (${portal.session.legalName}):\n`);
+  if (!values.confirm) {
+    console.log(`Would register in the portal (${portal.session.legalName}):\n`);
     console.log(JSON.stringify(party, null, 2));
-    console.log("\nNada foi enviado. Repita com --confirmar.");
+    console.log("\nNothing was sent. Repeat with --confirm.");
     return;
   }
 
   const created = await portal.create(party);
-  console.log(`${label} cadastrado no portal: ${created.razaoSocial} (id ${created.id})`);
+  console.log(`${label} registered in the portal: ${created.razaoSocial} (id ${created.id})`);
 }
 
 /** Monta o endereço; o XSD exige o grupo completo ou nenhum. */
 function buildAddress(values: CliValues): Address | undefined {
-  if (!values.logradouro) return undefined;
-  const missing = (["bairro", "cidade", "uf", "cep"] as const).filter(
+  if (!values.street) return undefined;
+  const missing = (["district", "city", "state", "zip"] as const).filter(
     (field) => !values[field],
   );
   if (missing.length > 0) {
     throw new Error(
-      `Endereço incompleto — faltam: ${missing.map((f) => `--${f}`).join(", ")}. ` +
-        "--cidade recebe o código IBGE de 7 dígitos.",
+      `Incomplete address — missing: ${missing.map((f) => `--${f}`).join(", ")}. ` +
+        "--city takes the 7-digit IBGE code.",
     );
   }
   return {
-    street: values.logradouro,
-    number: values.numero ?? "S/N",
-    complement: values.complemento,
-    district: values.bairro!,
-    cityCode: values.cidade!,
-    state: values.uf!.toUpperCase(),
-    zipCode: values.cep!.replace(/\D/g, ""),
+    street: values.street,
+    number: values.number ?? "S/N",
+    complement: values.complement,
+    district: values.district!,
+    cityCode: values.city!,
+    state: values.state!.toUpperCase(),
+    zipCode: values.zip!.replace(/\D/g, ""),
   };
 }
 
 function buildRpsFromCli(values: CliValues): Rps {
-  if (!values.tomador || !values.valor) {
-    throw new Error("Informe --tomador (documento ou apelido) e --valor");
+  if (!values.customer || !values.amount) {
+    throw new Error("Provide --customer (tax id or alias) and --amount");
   }
 
   const repository = new ContactRepository();
-  const contact = repository.find("customer", values.tomador);
+  const contact = repository.find("customer", values.customer);
   if (!contact) {
     throw new Error(
-      `Tomador "${values.tomador}" não está no cadastro local. Use cliente-add, portal-importar ou clientes --sincronizar.`,
+      `Customer "${values.customer}" is not in the local directory. Use customer-add, portal-import or customers --sync.`,
     );
   }
 
   return buildRps(new ProfileRepository().load(), {
     taker: ContactRepository.asServiceTaker(contact),
-    serviceAmount: Number(values.valor),
-    description: values.descricao,
-    competenceDate: values.competencia,
+    serviceAmount: Number(values.amount),
+    description: values.description,
+    competenceDate: values.competence,
     rpsNumber: values.rps,
-    series: values.serie,
-    rate: values.aliquota ? Number(values.aliquota) : undefined,
+    series: values.series,
+    rate: values.rate ? Number(values.rate) : undefined,
     csll: values.csll ? Number(values.csll) : undefined,
     inss: values.inss ? Number(values.inss) : undefined,
-    incomeTax: values.ir ? Number(values.ir) : undefined,
-    additionalInformation: values.info,
+    incomeTax: values["income-tax"] ? Number(values["income-tax"]) : undefined,
+    additionalInformation: values.notes,
     profile: {
       ...(values.item ? { serviceListItem: values.item } : {}),
       ...(values.cnae ? { cnaeCode: values.cnae, municipalTaxCode: values.cnae } : {}),
@@ -729,19 +728,19 @@ function buildRpsFromCli(values: CliValues): Rps {
 
 function issueSummary(values: CliValues, rps: Rps): string {
   const lines = [
-    `Tomador:      ${rps.taker?.legalName} (${rps.taker?.cnpj ?? rps.taker?.cpf})`,
-    `Valor:        R$ ${Number(values.valor).toFixed(2)}`,
-    `Competência:  ${isoDate(rps.competenceDate)}`,
-    `Discriminação: ${rps.service.description}`,
-    `Item LC 116:  ${rps.service.serviceListItem}`,
-    `CNAE:         ${rps.service.cnaeCode ?? "—"}`,
-    `NBS:          ${rps.service.nbsCode ?? "—"}`,
-    `Alíquota:     ${rps.service.amounts.rate ?? "—"}%`,
-    `ISS retido:   ${rps.service.issWithheld === 1 ? "sim" : "não"}`,
+    `Customer:      ${rps.taker?.legalName} (${rps.taker?.cnpj ?? rps.taker?.cpf})`,
+    `Amount:        R$ ${Number(values.amount).toFixed(2)}`,
+    `Competence:    ${isoDate(rps.competenceDate)}`,
+    `Description:   ${rps.service.description}`,
+    `LC 116 item:   ${rps.service.serviceListItem}`,
+    `CNAE:          ${rps.service.cnaeCode ?? "—"}`,
+    `NBS:           ${rps.service.nbsCode ?? "—"}`,
+    `Rate:          ${rps.service.amounts.rate ?? "—"}%`,
+    `ISS withheld:  ${rps.service.issWithheld === 1 ? "yes" : "no"}`,
   ];
   if (rps.identification) {
     lines.push(
-      `RPS:          ${rps.identification.number} série ${rps.identification.series}`,
+      `RPS:           ${rps.identification.number} series ${rps.identification.series}`,
     );
   }
   return lines.join("\n");
@@ -750,21 +749,21 @@ function issueSummary(values: CliValues, rps: Rps): string {
 function printValidation(xml: string): void {
   const result = validateAgainstSchema(xml, "gerar-nfse-envio-v2_04.xsd");
   if (result === null) {
-    console.log("\nSchema: não verificado (xmllint não instalado).");
+    console.log("\nSchema: not checked (xmllint not installed).");
   } else if (result.valid) {
-    console.log("\nSchema: XML válido contra gerar-nfse-envio-v2_04.xsd.");
+    console.log("\nSchema: XML valid against gerar-nfse-envio-v2_04.xsd.");
     for (const d of result.knownDivergences) {
-      console.log(`  (divergência conhecida do XSD, ignorada) ${d.slice(0, 90)}`);
+      console.log(`  (known XSD divergence, ignored) ${d.slice(0, 90)}`);
     }
   } else {
-    console.log("\nSchema: XML INVÁLIDO —");
+    console.log("\nSchema: XML INVALID —");
     for (const error of result.errors) console.log(`  ${error}`);
   }
 }
 
 function dateFilter(from: string | undefined, to: string | undefined, byCompetence: boolean) {
   if (!from || !to) {
-    throw new Error("Informe --inicio e --fim no formato AAAA-MM-DD (ou use --numero)");
+    throw new Error("Provide --from and --to as YYYY-MM-DD (or use --number)");
   }
   const range = { from, to };
   return byCompetence ? { competencePeriod: range } : { issuePeriod: range };
@@ -783,7 +782,7 @@ function printInvoices(
   }
 
   if (result.invoices.length === 0) {
-    console.log("Nenhuma NFS-e encontrada.");
+    console.log("No invoice found.");
     return;
   }
 
@@ -812,7 +811,7 @@ function printContacts(
   if (values.json) return void console.log(JSON.stringify(contacts, null, 2));
 
   if (contacts.length === 0) {
-    console.log(`Nenhum ${roleLabel(role)} no cadastro local (${repository.path}).`);
+    console.log(`No ${roleLabel(role)} in the local directory (${repository.path}).`);
     return;
   }
 
@@ -834,14 +833,14 @@ function printContacts(
 
 main().catch((error: unknown) => {
   if (error instanceof GissError) {
-    console.error(`\n${error.operation} retornou erro:`);
+    console.error(`\n${error.operation} returned an error:`);
     for (const message of error.messages) {
       console.error(
         `  [${message.code}] ${message.message}${message.correction ? ` — ${message.correction}` : ""}`,
       );
     }
   } else if (error instanceof PortalError) {
-    console.error(`\nAPI do portal: ${error.message}`);
+    console.error(`\nPortal API: ${error.message}`);
   } else {
     console.error(error instanceof Error ? error.message : error);
   }
