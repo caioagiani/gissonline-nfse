@@ -1,0 +1,150 @@
+#compdef giss
+# Zsh completion for the giss CLI.
+#
+#   mkdir -p ~/.zsh/completions
+#   cp completions/_giss ~/.zsh/completions/
+#   # in ~/.zshrc, before `compinit`:
+#   fpath=(~/.zsh/completions $fpath)
+#
+# With oh-my-zsh, ~/.oh-my-zsh/completions is already on fpath.
+
+_giss() {
+  local -a commands global_opts
+  local context state line
+
+  commands=(
+    'cert:A1 certificate details'
+    'latest:Most recent invoices'
+    'issued:Invoices by issue or competence period'
+    'range:Invoices by number range'
+    'rps:Invoice generated from an RPS'
+    'batch:Status of an RPS batch'
+    'received:Invoices where you are the customer'
+    'purchased-batch:Invoices declared in a batch (nfsc)'
+    'purchased-protocol:Status of a protocol (nfsc)'
+    'purchased-number:Received invoices by declared number'
+    'issue:Issue an invoice'
+    'cancel:Cancel an invoice'
+    'replace:Cancel and reissue an invoice'
+    'customers:List or sync customers'
+    'suppliers:List or sync suppliers'
+    'customer-add:Add a customer to the local directory'
+    'supplier-add:Add a supplier to the local directory'
+    'customer-rm:Remove a customer'
+    'supplier-rm:Remove a supplier'
+    'portal-list:Portal directory'
+    'portal-add:Register in the portal'
+    'portal-rm:Remove from the portal'
+    'portal-import:Import the portal directory'
+    'profile:Show or save the tax profile defaults'
+  )
+
+  global_opts=(
+    '--env[Environment]:environment:(producao homologacao)'
+    '--json[JSON output]'
+    '--xml[Raw XML output]'
+    '--debug[Log the XML sent and received]'
+    '--help[Show help]'
+  )
+
+  _arguments -C \
+    '1: :->command' \
+    '*:: :->args' && return 0
+
+  case $state in
+    command)
+      _describe -t commands 'giss command' commands && return 0
+      ;;
+    args)
+      case $words[1] in
+        cert)
+          _arguments $global_opts '--export[Write the PEM files]' '--out[Target directory]:directory:_files -/'
+          ;;
+        latest)
+          _arguments $global_opts '--limit[How many invoices]:number:' '--months[How far back]:number:'
+          ;;
+        issued|received)
+          _arguments $global_opts \
+            '--from[Start date]:date (YYYY-MM-DD):' \
+            '--to[End date]:date (YYYY-MM-DD):' \
+            '--competence[Use the competence period]' \
+            '--number[Specific invoice number]:number:' \
+            '--page[Result page]:number:' \
+            '--all[Walk every page]'
+          ;;
+        range)
+          _arguments $global_opts '--first[First number]:number:' '--last[Last number]:number:' '--page[Result page]:number:'
+          ;;
+        rps)
+          _arguments $global_opts '--number[RPS number]:number:' '--series[RPS series]:series:' '--type[RPS type]:type:(1 2 3)'
+          ;;
+        batch|purchased-batch|purchased-protocol)
+          _arguments $global_opts '--protocol[Protocol]:protocol:'
+          ;;
+        purchased-number)
+          _arguments $global_opts '--from[Start date]:date:' '--to[End date]:date:' \
+            '--number[Declared number]:number:' '--series[Declared series]:series:'
+          ;;
+        issue)
+          _arguments $global_opts \
+            '--customer[Tax id or alias]:customer:' \
+            '--amount[Service amount]:amount:' \
+            '--description[Service description]:text:' \
+            '--competence[Competence date]:date (YYYY-MM-DD):' \
+            '--rps[RPS number]:number:' \
+            '--series[RPS series]:series:' \
+            '--item[LC 116 item]:item:' \
+            '--cnae[CNAE code]:code:' \
+            '--nbs[NBS code]:code:' \
+            '--rate[ISS rate in percent]:rate:' \
+            '--csll[CSLL withheld]:amount:' \
+            '--inss[INSS withheld]:amount:' \
+            '--income-tax[Income tax withheld]:amount:' \
+            '--notes[Additional information]:text:' \
+            '--confirm[Actually issue it]'
+          ;;
+        cancel)
+          _arguments $global_opts '--number[Invoice number]:number:' \
+            '--reason[Cancellation reason]:reason:((1\:"issuing error" 2\:"service not provided" 3\:"signature error" 4\:"duplicate invoice" 5\:"processing error"))' \
+            '--confirm[Actually cancel it]'
+          ;;
+        replace)
+          _arguments $global_opts '--number[Invoice number]:number:' \
+            '--reason[Cancellation reason]:reason:(1 2 3 4 5)' \
+            '--customer[Tax id or alias]:customer:' '--amount[Service amount]:amount:' \
+            '--description[Service description]:text:' '--confirm[Actually replace it]'
+          ;;
+        customers|suppliers)
+          _arguments $global_opts '--sync[Sync from invoices]' '--from[Start date]:date:' '--to[End date]:date:'
+          ;;
+        customer-add|supplier-add|portal-add)
+          _arguments $global_opts \
+            '--tax-id[CPF or CNPJ]:tax id:' '--name[Legal name]:name:' '--alias[Short alias]:alias:' \
+            '--registration[Municipal registration]:number:' '--email[Email]:email:' '--phone[Phone]:phone:' \
+            '--trade-name[Trade name]:name:' '--street[Street]:street:' '--number[Street number]:number:' \
+            '--district[District]:district:' '--city[City IBGE code]:code:' '--state[State]:uf:' \
+            '--zip[Zip code]:zip:' '--complement[Complement]:text:' '--street-type[Street type]:type:' \
+            '--simples[Simples Nacional]:option:(1 2)' '--mei[MEI]' '--type[Role]:role:((1\:customer 2\:supplier))' \
+            '--confirm[Actually save it]'
+          ;;
+        customer-rm|supplier-rm)
+          _arguments $global_opts '--tax-id[CPF or CNPJ]:tax id:'
+          ;;
+        portal-rm)
+          _arguments $global_opts '--tax-id[CPF or CNPJ]:tax id:' '--type[Role]:role:(1 2)' '--confirm[Actually remove it]'
+          ;;
+        portal-list|portal-import)
+          _arguments $global_opts '--type[Role]:role:((1\:customer 2\:supplier))'
+          ;;
+        profile)
+          _arguments $global_opts '--save[Write to data/profile.json]'
+          ;;
+        *)
+          _arguments $global_opts
+          ;;
+      esac
+      ;;
+  esac
+}
+
+_giss "$@"

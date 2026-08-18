@@ -1,4 +1,4 @@
-# Bash completion for the giss CLI.
+# Bash completion for the giss CLI. For zsh use `_giss` in this same folder.
 #   source completions/giss.bash
 # or copy it to /usr/local/etc/bash_completion.d/ (or /etc/bash_completion.d/).
 _giss_completions() {
