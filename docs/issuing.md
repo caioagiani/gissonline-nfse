@@ -25,6 +25,22 @@ the service rejects it with `E165`. The query, in turn, returns the percentage (
 it is easy to copy the value from a response and get the request wrong. The builder does
 the conversion: the API takes percentages.
 
+## The rate has no default
+
+`DEFAULT_PROFILE` carries no `rate`, and `buildRps` refuses to assemble an RPS
+without one whenever the ISS is chargeable (`issTaxability: 1`). That is
+deliberate: the rate belongs to each taxpayer, so a default would quietly issue
+invoices with the wrong tax — worse than failing. Non-chargeable cases
+(exemption, non-incidence, export) assemble without it.
+
+Without the check the service answers `E163`, and only when you query the
+batch protocol — long after the send looked fine.
+
+```ts
+buildRps(profile, { taker, serviceAmount: 100, description: "…", rate: 3.07 });
+// or set `rate` once in the profile
+```
+
 ## Issuing without issuing twice
 
 Because the batch is asynchronous, there is a window between "sent" and "the
@@ -55,5 +71,4 @@ run without one rather than let a retry duplicate silently.
 
 `findByRps` is the same check on its own, returning `undefined` instead of
 throwing when the invoice does not exist yet.
-
 See [gotchas.md](gotchas.md) for the rest of what the live service taught us.
