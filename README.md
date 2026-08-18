@@ -386,6 +386,20 @@ Source: <https://suzano.giss.com.br/giss-ajuda/desenvolvedores.html>.
 merged over v1_00 — necessary because the published v1_01 is a delta that does not compile
 on its own. The originals stay untouched in the directory above.
 
+## Releasing
+
+Publishing runs on GitHub Actions through npm
+[trusted publishing](https://docs.npmjs.com/trusted-publishers) — OIDC, no token
+stored anywhere. To cut a release:
+
+```bash
+npm version patch|minor|major
+git push --follow-tags
+```
+
+The tag triggers the workflow, which typechecks, builds, verifies the tag matches
+`package.json`, publishes with provenance and opens the GitHub release.
+
 ## Disclaimer
 
 Independent project, not affiliated with Eicon or GissOnline. The portal REST API is
