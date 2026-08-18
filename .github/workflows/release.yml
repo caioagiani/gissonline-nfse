@@ -1,13 +1,12 @@
 name: Release
 
-# release-please watches main, reads the conventional commits since the last
-# release and keeps a pull request open with the next version and the changelog
-# already worked out. Merging that pull request cuts the release: the tag is
-# created and this same run publishes to npm.
+# semantic-release reads the conventional commits pushed to main, works out the
+# next version, writes the changelog, tags, and opens the GitHub release. The
+# npm publish runs as a separate step so it can authenticate through trusted
+# publishing (OIDC) rather than a token — @semantic-release/npm has npmPublish
+# turned off for that reason.
 #
-# Publishing and versioning live in one workflow on purpose. The default
-# GITHUB_TOKEN does not trigger other workflows, so a tag created here would
-# never wake a separate publish job.
+# The version commit carries [skip ci] so it does not trigger this workflow again.
 #
 # The filename matters: npm trusted publishing is configured against
 # `release.yml` for this repository. Renaming this file breaks OIDC auth.
@@ -17,6 +16,7 @@ on:
 
 permissions:
   contents: write
+  issues: write
   pull-requests: write
   id-token: write
 
@@ -28,18 +28,12 @@ jobs:
   release:
     runs-on: ubuntu-latest
     steps:
-      - uses: googleapis/release-please-action@v4
-        id: release
-        with:
-          config-file: release-please-config.json
-          manifest-file: .release-please-manifest.json
-
-      # Everything below only runs on the push that merges the release PR.
       - uses: actions/checkout@v4
-        if: ${{ steps.release.outputs.release_created }}
+        with:
+          fetch-depth: 0
+          persist-credentials: true
 
       - uses: actions/setup-node@v4
-        if: ${{ steps.release.outputs.release_created }}
         with:
           # Trusted publishing needs Node >= 22.14 and npm >= 11.5.1
           node-version: 24
@@ -47,20 +41,36 @@ jobs:
           registry-url: https://registry.npmjs.org
 
       - name: Ensure npm supports trusted publishing
-        if: ${{ steps.release.outputs.release_created }}
         run: npm install -g npm@latest
 
       - run: npm ci
-        if: ${{ steps.release.outputs.release_created }}
-
       - run: npm run typecheck
-        if: ${{ steps.release.outputs.release_created }}
-
       - run: npm run build
-        if: ${{ steps.release.outputs.release_created }}
+
+      # Decides the version, writes CHANGELOG.md, commits, tags and creates the
+      # GitHub release. Does not publish.
+      - name: Version and tag
+        id: semantic
+        run: npx semantic-release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Did the version change?
+        id: check
+        run: |
+          published=$(npm view gissonline-nfse version 2>/dev/null || echo none)
+          current=$(node -p "require('./package.json').version")
+          echo "current=$current" >> "$GITHUB_OUTPUT"
+          if [ "$published" = "$current" ]; then
+            echo "release=false" >> "$GITHUB_OUTPUT"
+            echo "Version $current is already on npm — nothing to publish."
+          else
+            echo "release=true" >> "$GITHUB_OUTPUT"
+            echo "Publishing $current (npm has $published)."
+          fi
 
       # No NODE_AUTH_TOKEN: the credential comes from this workflow's OIDC
       # identity. Provenance is generated automatically in this mode.
       - name: Publish to npm
-        if: ${{ steps.release.outputs.release_created }}
+        if: steps.check.outputs.release == 'true'
         run: npm publish --access public
