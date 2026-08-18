@@ -1,8 +1,8 @@
 {
   "name": "gissonline-nfse",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "type": "module",
-  "description": "Cliente Node/TypeScript para os Web Services do GissOnline (NFS-e ABRASF 2.04 + LC 214/2025): emissão, cancelamento, substituição, consultas e cadastro de participantes",
+  "description": "Node/TypeScript client for the GissOnline Web Services (Brazilian municipal service invoices, NFS-e ABRASF 2.04 + LC 214/2025): issuing, cancelling, replacing, queries and the customer directory",
   "keywords": [
     "nfse",
     "gissonline",
