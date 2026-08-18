@@ -25,4 +25,35 @@ the service rejects it with `E165`. The query, in turn, returns the percentage (
 it is easy to copy the value from a response and get the request wrong. The builder does
 the conversion: the API takes percentages.
 
+## Issuing without issuing twice
+
+Because the batch is asynchronous, there is a window between "sent" and "the
+invoice exists" in which a process can die. Retrying is the natural reaction,
+and it is exactly what creates a duplicate — which is not a bug to fix later
+but a cancellation and a conversation with the city hall.
+
+The RPS number is what prevents it: it identifies the *intent* to issue, and
+the service accepts it once. `issueRps` checks by RPS before sending and again
+after waiting, so a repeat returns the invoice already issued instead of making
+a second one:
+
+```ts
+const outcome = await giss.nfse.issueRps(rps);   // rps.identification.number required
+
+switch (outcome.status) {
+  case "issued":         // it was created now
+  case "already-issued": // a previous attempt had created it — outcome.invoice
+  case "pending":        // accepted, still processing — retry with outcome.protocol
+  case "rejected":       // the service refused it — see outcome.warnings
+}
+```
+
+The number has to come from **your** side and be stable across attempts — a
+number generated per call defeats the whole thing. In a multi-company setup
+that means reserving it transactionally before sending. `issueRps` refuses to
+run without one rather than let a retry duplicate silently.
+
+`findByRps` is the same check on its own, returning `undefined` instead of
+throwing when the invoice does not exist yet.
+
 See [gotchas.md](gotchas.md) for the rest of what the live service taught us.

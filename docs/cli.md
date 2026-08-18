@@ -25,6 +25,8 @@ giss purchased-number --from D --to D --number N --series S
 # issuing (nothing is sent without --confirm)
 giss issue --customer acme --amount 15000 --description "Software development"
 giss issue --customer acme --amount 15000 --rps 12 --confirm
+                                          # repeating the same --rps is safe:
+                                          # an issued RPS is never issued twice
 giss cancel --number 569 --reason 1 --confirm
 giss replace --number 569 --reason 1 --customer acme --amount 15000 --confirm
 

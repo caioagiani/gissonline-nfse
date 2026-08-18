@@ -27,6 +27,7 @@ export type {
 export { GissClient } from "./services/giss-client.ts";
 export type { GissClientOptions } from "./services/giss-client.ts";
 export { NfseService } from "./services/nfse-service.ts";
+export type { IssueOutcome } from "./services/nfse-service.ts";
 export { NfscService } from "./services/nfsc-service.ts";
 export { PortalService, buildPortalParty } from "./services/portal-service.ts";
 export type {
