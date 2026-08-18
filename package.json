@@ -1,7 +1,6 @@
 {
   "name": "gissonline-nfse",
-  "version": "0.1.0",
-  "private": true,
+  "version": "0.2.0",
   "type": "module",
   "description": "Cliente Node/TypeScript para os Web Services do GissOnline (NFS-e ABRASF 2.04 + LC 214/2025): emissão, cancelamento, substituição, consultas e cadastro de participantes",
   "keywords": [
@@ -16,8 +15,10 @@
     "lc-214-2025"
   ],
   "scripts": {
-    "giss": "node --env-file=.env src/cli/index.ts",
-    "typecheck": "tsc --noEmit"
+    "build": "tsc && node -e \"require('node:fs').chmodSync('dist/cli/index.js', 0o755)\"",
+    "typecheck": "tsc -p tsconfig.check.json",
+    "giss": "node --env-file-if-exists=.env src/cli/index.ts",
+    "prepack": "npm run build"
   },
   "dependencies": {
     "fast-xml-parser": "^5.2.5",
@@ -28,5 +29,38 @@
     "@types/node": "^24.3.0",
     "@types/node-forge": "^1.3.14",
     "typescript": "^5.9.2"
-  }
+  },
+  "license": "MIT",
+  "author": "Caio Agiani",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/caioagiani/gissonline-nfse.git"
+  },
+  "homepage": "https://github.com/caioagiani/gissonline-nfse#readme",
+  "bugs": {
+    "url": "https://github.com/caioagiani/gissonline-nfse/issues"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "bin": {
+    "giss": "dist/cli/index.js"
+  },
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "docs/schemas",
+    "docs/schemas-tomados",
+    "completions",
+    "README.md"
+  ],
+  "sideEffects": false
 }

@@ -21,11 +21,37 @@ fornecedores.
 - Certificado digital A1 ICP-Brasil (`.pfx`) do prestador
 - `xmllint` (opcional) — habilita a validação contra os XSD antes de enviar
 
+### Como pacote
+
+```bash
+npm install gissonline-nfse        # no projeto
+npm install -g gissonline-nfse     # ou global, para usar o comando giss
+```
+
+O binário `giss` fica disponível no shell e carrega o `.env` do diretório atual:
+
+```bash
+giss ultimas
+giss emitir --tomador exemplo --valor 1500 --descricao "..." --confirmar
+```
+
+Completion para bash:
+
+```bash
+source node_modules/gissonline-nfse/completions/giss.bash
+# ou copie para /usr/local/etc/bash_completion.d/
+```
+
+### A partir do repositório
+
 ```bash
 npm install
 cp .env.example .env             # preencha as credenciais
 cp /caminho/do/certificado.pfx cert/    # a pasta já vem no repositório, vazia
+npm run giss -- ultimas          # equivalente a `giss ultimas`
 ```
+
+Scripts: `npm run build` (compila para `dist/`), `npm run typecheck`, `npm run giss`.
 
 As pastas `cert/` e `data/` são versionadas vazias (só com `.gitkeep`) para
 marcar onde os arquivos ficam — o conteúdo delas nunca entra no repositório.
@@ -130,7 +156,7 @@ Flags globais: `--env producao|homologacao`, `--json`, `--xml`, `--debug`.
 Como biblioteca:
 
 ```ts
-import { GissClient, ContactRepository, ProfileRepository, buildRps } from "./src/index.ts";
+import { GissClient, ContactRepository, ProfileRepository, buildRps } from "gissonline-nfse";
 
 const giss = new GissClient();
 

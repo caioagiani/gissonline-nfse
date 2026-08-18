@@ -1,4 +1,6 @@
-import { dirname } from "node:path";
+#!/usr/bin/env node
+import { existsSync } from "node:fs";
+import { dirname, resolve } from "node:path";
 import { parseArgs } from "node:util";
 import {
   loadPortalCredentials,
@@ -25,10 +27,13 @@ import { syncFromInvoices } from "../storage/invoice-sync.ts";
 import { buildRps, ProfileRepository } from "../storage/profile-repository.ts";
 import { validateAgainstSchema } from "../validation/schema-validator.ts";
 
+/** `giss ...` quando instalado; `npm run giss -- ...` dentro do repositório. */
+const INVOCATION = process.env["npm_lifecycle_event"] ? "npm run giss --" : "giss";
+
 const HELP = `
 giss — cliente dos Web Services GissOnline (NFS-e ABRASF 2.04 + LC 214/2025)
 
-Uso: npm run giss -- <comando> [opções]
+Uso: ${INVOCATION} <comando> [opções]
 
 CERTIFICADO
   cert [--exportar [--out DIR]]        Dados do certificado A1; --exportar grava os PEM
@@ -145,7 +150,23 @@ type CliValues = ReturnType<
   typeof parseArgs<{ options: typeof options; allowPositionals: true }>
 >["values"];
 
+/**
+ * Carrega o `.env` do diretório atual quando existe. Instalado como binário
+ * global não há `--env-file`, e as credenciais precisam vir de algum lugar;
+ * variáveis já definidas no ambiente têm precedência e não são sobrescritas.
+ */
+function loadDotEnv(): void {
+  const file = resolve(process.cwd(), ".env");
+  if (!existsSync(file)) return;
+  try {
+    process.loadEnvFile(file);
+  } catch {
+    // Node < 20.12 não tem loadEnvFile; nesse caso o .env é ignorado
+  }
+}
+
 async function main() {
+  loadDotEnv();
   const { values, positionals } = parseArgs({
     args: process.argv.slice(2),
     options,
