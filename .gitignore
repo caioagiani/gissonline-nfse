@@ -12,3 +12,4 @@ cert/*
 # Cadastro local e perfil fiscal: dados de terceiros e configuração da empresa.
 data/*
 !data/.gitkeep
+dist/

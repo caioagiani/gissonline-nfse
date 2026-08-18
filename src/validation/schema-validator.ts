@@ -1,7 +1,25 @@
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+
+/**
+ * Os XSD são distribuídos junto com o pacote. Resolvidos a partir do módulo,
+ * funcionam tanto rodando do repositório quanto instalados em node_modules;
+ * um diretório passado explicitamente sempre tem precedência.
+ */
+function resolveSchemaDirectory(directory: string): string {
+  const fromCwd = resolve(directory);
+  if (existsSync(fromCwd)) return fromCwd;
+
+  const here = dirname(fileURLToPath(import.meta.url));
+  for (const base of [join(here, "..", ".."), join(here, "..", "..", "..")]) {
+    const candidate = resolve(base, directory);
+    if (existsSync(candidate)) return candidate;
+  }
+  return fromCwd;
+}
 
 export interface ValidationResult {
   valid: boolean;
@@ -35,7 +53,7 @@ export function validateAgainstSchema(
 
   const run = spawnSync(
     "xmllint",
-    ["--noout", "--schema", resolve(schemaDirectory, schema), file],
+    ["--noout", "--schema", join(resolveSchemaDirectory(schemaDirectory), schema), file],
     { encoding: "utf8" },
   );
 
