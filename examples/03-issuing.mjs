@@ -73,20 +73,49 @@ try {
   console.log(`\nsem alíquota → ${error.message}`);
 }
 
-// Idempotência: o RPS 71677/A já virou a nota 573. Pedir de novo devolve a
-// nota existente em vez de emitir uma segunda.
-const outcome = await nfse.issueRps(
-  buildRps({ ...DEFAULT_PROFILE, rate: 3.07 }, {
-    taker,
-    rpsNumber: "71677",
-    serviceAmount: 908,
-    description: "mesma intenção de emissão",
-  }),
-);
-const existing = outcome.invoice;
-console.log(`\nRPS 71677 novamente → ${outcome.status}`);
-console.log(`  nota ${existing?.number} (${existing?.verificationCode})`);
-console.log("  nada foi enviado");
+// Idempotência: repetir um RPS que já virou nota devolve a nota existente em
+// vez de emitir uma segunda.
+//
+// A demonstração precisa de um RPS já usado, e qual é depende da conta. Por
+// isso o número sai do histórico: pedir `issueRps` para um número livre
+// emitiria uma nota de verdade, que é justamente o que um exemplo não pode
+// fazer na conta de quem o executa.
+const [recent] = (
+  await nfse.queryProvidedServices({
+    issuePeriod: { from: "2026-01-01", to: "2026-12-31" },
+  })
+).invoices.slice(-1);
+
+const usedRps = recent?.raw && findRps(recent.raw);
+if (!usedRps) {
+  console.log("\nsem nota no período para demonstrar a idempotência");
+} else {
+  const outcome = await nfse.issueRps(
+    buildRps({ ...DEFAULT_PROFILE, rate: 3.07 }, {
+      taker,
+      rpsNumber: usedRps.Numero,
+      series: usedRps.Serie,
+      serviceAmount: 100,
+      description: "mesma intenção de emissão",
+    }),
+  );
+  const existing = outcome.invoice;
+  const { Numero, Serie } = usedRps;
+  console.log(`\nRPS ${Numero}/${Serie} novamente → ${outcome.status}`);
+  console.log(`  nota ${existing?.number} (${existing?.verificationCode})`);
+  console.log("  nada foi enviado: o RPS já tinha virado essa nota");
+}
+
+/** O RPS que originou a nota, que a consulta devolve dentro de `raw`. */
+function findRps(node) {
+  if (!node || typeof node !== "object") return undefined;
+  if (node.IdentificacaoRps) return node.IdentificacaoRps;
+  for (const value of Object.values(node)) {
+    const found = findRps(value);
+    if (found) return found;
+  }
+  return undefined;
+}
 
 // Para emitir de verdade seria o mesmo `issueRps` com um número novo,
 // reservado por você antes do envio:

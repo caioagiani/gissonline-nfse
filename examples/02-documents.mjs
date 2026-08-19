@@ -27,9 +27,13 @@ const { nfse, config } = new GissClient(company);
 
 // O download é pelo id interno da nota — o atributo `Id` de `InfNfse` —,
 // não pelo número impresso. Por isso a consulta vem antes.
-const { invoices } = await nfse.queryProvidedServices({ nfseNumber: "573" });
-const [invoice] = invoices;
-if (!invoice?.internalId) throw new Error("nota não encontrada");
+// A última nota do ano, para o exemplo não depender de um número que só
+// existe nesta conta.
+const { invoices } = await nfse.queryProvidedServices({
+  issuePeriod: { from: "2026-01-01", to: "2026-12-31" },
+});
+const invoice = invoices.at(-1);
+if (!invoice?.internalId) throw new Error("nenhuma nota no período");
 
 console.log(`nota ${invoice.number}  id interno ${invoice.internalId}`);
 
@@ -46,6 +50,8 @@ console.log(`  nfse-${invoice.number}.xml  ${(xml.length / 1024).toFixed(1)} KB`
 // O XML do portal é o mesmo CompNfse que a consulta devolve, mas standalone:
 // os namespaces vão no próprio elemento em vez de herdados do envelope SOAP.
 // Se a cópia do envelope basta, ela sai da consulta e dispensa login no portal.
-const { xml: envelope } = await nfse.queryProvidedServices({ nfseNumber: "573" });
+const { xml: envelope } = await nfse.queryProvidedServices({
+  nfseNumber: invoice.number,
+});
 console.log(`\nXML do portal:   ${xml.length} bytes (standalone)`);
 console.log(`XML do envelope: ${envelope.length} bytes (via SOAP, sem portal)`);

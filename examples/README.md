@@ -16,10 +16,16 @@ node --env-file=.env examples/01-queries.mjs
 | [05-directory.mjs](05-directory.mjs) | Portal directory, CNPJ and postal code lookups | no |
 | [06-issuing-for-many.mjs](06-issuing-for-many.mjs) | Issuing for several companies, the way an application would | no — `DRY_RUN` on |
 
-**Nothing here issues, cancels or changes an invoice.** `03-issuing.mjs` builds
-and signs an RPS but only previews it; its single call to `issueRps` replays an
-RPS that already became invoice 573, precisely to show that repeating does not
-issue a second one. `06-issuing-for-many.mjs` ships with `DRY_RUN = true`.
+**Nothing here issues, cancels or changes an invoice**, in your account or in
+anyone else's. That last part took some care: `03-issuing.mjs` demonstrates
+idempotency by replaying an RPS that already became an invoice, and asking
+`issueRps` for a *free* number would issue a real one. So it reads the number
+out of your own history instead of hardcoding one — a fixed number that is
+taken here would be free somewhere else, and the example would bill a stranger.
+
+For the same reason no example hardcodes an invoice number: they all derive
+what they need from the account they run against. `06-issuing-for-many.mjs`
+ships with `DRY_RUN = true`.
 
 ## Configuration
 
