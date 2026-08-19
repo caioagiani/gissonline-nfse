@@ -22,7 +22,7 @@ const company = {
   certificatePassword: process.env.CERT_PASSWORD,
 };
 
-const giss = new GissClient(company);
+const { nfse } = new GissClient(company);
 
 // O tomador é um objeto puro: pode vir do seu banco, do cadastro local ou
 // do portal. O pacote não impõe onde os dados moram.
@@ -52,11 +52,14 @@ const rps = buildRps(
 );
 
 // `previewIssueNfse` assina e devolve o XML sem enviar nada.
-const xml = giss.nfse.previewIssueNfse(rps);
+const xml = nfse.previewIssueNfse(rps);
+const signatures = (xml.match(/<Signature/g) ?? []).length;
+const rateInXml = xml.match(/Aliquota>([^<]*)</)?.[1];
+
 console.log("RPS montado e assinado");
-console.log(`  assinaturas: ${(xml.match(/<Signature/g) ?? []).length}`);
-console.log(`  alíquota no XML: ${xml.match(/Aliquota>([^<]*)</)?.[1]}  ← 3,07% vai como fração`);
-console.log(`  bytes: ${xml.length}`);
+console.log(`  assinaturas: ${signatures}`);
+console.log(`  alíquota:    ${rateInXml}  ← 3,07% vai como fração`);
+console.log(`  bytes:       ${xml.length}`);
 
 // O que acontece sem alíquota, com o ISS exigível
 try {
@@ -67,7 +70,7 @@ try {
 
 // Idempotência: o RPS 71677/A já virou a nota 573. Pedir de novo devolve a
 // nota existente em vez de emitir uma segunda.
-const outcome = await giss.nfse.issueRps(
+const outcome = await nfse.issueRps(
   buildRps({ ...DEFAULT_PROFILE, rate: 3.07 }, {
     taker,
     rpsNumber: "71677",
@@ -75,11 +78,13 @@ const outcome = await giss.nfse.issueRps(
     description: "mesma intenção de emissão",
   }),
 );
+const existing = outcome.invoice;
 console.log(`\nRPS 71677 novamente → ${outcome.status}`);
-console.log(`  nota ${outcome.invoice?.number} (${outcome.invoice?.verificationCode}) — nada foi enviado`);
+console.log(`  nota ${existing?.number} (${existing?.verificationCode})`);
+console.log("  nada foi enviado");
 
 // Para emitir de verdade seria o mesmo `issueRps` com um número novo,
 // reservado por você antes do envio:
 //
-//   const outcome = await giss.nfse.issueRps(rps);
+//   const outcome = await nfse.issueRps(rps);
 //   if (outcome.status === "issued") console.log(outcome.invoice.number);

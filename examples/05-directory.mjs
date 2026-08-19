@@ -27,13 +27,14 @@ const company = {
   certificatePassword: process.env.CERT_PASSWORD,
 };
 
-const giss = new GissClient(company);
+// Só o `config` é usado aqui: o cadastro vive na API REST, não no Web Service.
+const { config } = new GissClient(company);
 
 // 1. O diretório do portal --------------------------------------------------
 // O Web Service não tem cadastro: sob o ABRASF os dados do tomador viajam
 // dentro de cada nota. O diretório que aparece no portal é uma API REST
 // separada, com login de CPF/senha.
-const portal = await PortalService.authenticate(loadPortalCredentials(giss.config));
+const portal = await PortalService.authenticate(loadPortalCredentials(config));
 console.log(`empresa: ${portal.session.legalName}`);
 
 const customers = await portal.list(1); // 1 = cliente, 2 = fornecedor
@@ -53,5 +54,6 @@ const zip = await lookupZip("01310-100");
 console.log(`\nCEP 01310-100: ${zip.street}, ${zip.district} — ${zip.city}/${zip.state}`);
 
 const cnpjData = await lookupCompany("60977243000106");
+const { city, state, cityCode, status } = cnpjData;
 console.log(`CNPJ 60.977.243/0001-06: ${cnpjData.legalName}`);
-console.log(`  ${cnpjData.city}/${cnpjData.state}  IBGE ${cnpjData.cityCode}  ${cnpjData.status}`);
+console.log(`  ${city}/${state}  IBGE ${cityCode}  ${status}`);

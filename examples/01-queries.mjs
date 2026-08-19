@@ -20,24 +20,22 @@ const company = {
   certificatePassword: process.env.CERT_PASSWORD,
 };
 
-const giss = new GissClient(company);
+// `nfse` e `nfsc` são os dois Web Services; `paginate` percorre as páginas.
+const { nfse, paginate } = new GissClient(company);
 
 // Não há login nem token em lugar nenhum: a identidade é o certificado A1,
 // apresentado no handshake TLS de cada chamada. Sem ele o serviço responde
 // `400 No required SSL certificate was sent` e não conversa.
 
-// `nfse` e `nfsc` são os dois Web Services publicados — serviços prestados e
-// serviços tomados —, com endpoints e namespaces XML próprios. Desestruturar
-// o serviço funciona e encurta a chamada:
+// Desestruturar o serviço funciona; desestruturar um método dele, não — os
+// métodos usam `this` para alcançar o certificado e o host. Se precisar de um
+// método solto: `giss.nfse.queryProvidedServices.bind(giss.nfse)`.
 //
-//   const { nfse } = giss;
-//   await nfse.queryProvidedServices(...);
-//
-// Desestruturar o método, não: eles usam `this` para alcançar o certificado e
-// o host. Para um método solto, `giss.nfse.queryProvidedServices.bind(giss.nfse)`.
+// `paginate` sobrevive porque não usa `this`: só chama a função que recebe.
+// Guarde o cliente inteiro se for precisar de `config` ou `certificate`.
 
 // 1. Por período de emissão -------------------------------------------------
-const july = await giss.nfse.queryProvidedServices({
+const july = await nfse.queryProvidedServices({
   issuePeriod: { from: "2026-07-01", to: "2026-07-31" },
 });
 console.log(`julho: ${july.invoices.length} nota(s)`);
@@ -49,8 +47,8 @@ for (const invoice of july.invoices) {
 }
 
 // 2. Uma nota específica ----------------------------------------------------
-const [invoice] = (await giss.nfse.queryProvidedServices({ nfseNumber: "573" }))
-  .invoices;
+const { invoices } = await nfse.queryProvidedServices({ nfseNumber: "573" });
+const [invoice] = invoices;
 if (invoice) {
   console.log(`\nnota ${invoice.number}`);
   console.log(`  verificação: ${invoice.verificationCode}`);
@@ -60,7 +58,7 @@ if (invoice) {
 }
 
 // 3. Por faixa de numeração -------------------------------------------------
-const range = await giss.nfse.queryNfseRange({
+const range = await nfse.queryNfseRange({
   firstNumber: "566",
   lastNumber: "573",
 });
@@ -68,16 +66,16 @@ console.log(`\nfaixa 566–573: ${range.invoices.length} nota(s)`);
 
 // 4. Pelo RPS que originou a nota -------------------------------------------
 // A resposta da consulta traz o RPS em `raw.IdentificacaoRps`.
-const byRps = await giss.nfse.findByRps({ number: "71677", series: "A", type: 1 });
-console.log(`\nRPS 71677/A → ${byRps ? `NFS-e ${byRps.number}` : "ainda não virou nota"}`);
+const byRps = await nfse.findByRps({ number: "71677", series: "A", type: 1 });
+console.log(`\nRPS 71677/A → ${byRps ? `NFS-e ${byRps.number}` : "sem nota ainda"}`);
 
 // 5. Paginação automática ---------------------------------------------------
 // O serviço devolve no máximo 50 por página; `paginate` percorre até o fim.
 let total = 0;
-for await (const page of giss.paginate((page) =>
-  giss.nfse.queryProvidedServices({
+for await (const page of paginate((n) =>
+  nfse.queryProvidedServices({
     issuePeriod: { from: "2026-01-01", to: "2026-12-31" },
-    page,
+    page: n,
   }),
 )) {
   total += page.invoices.length;

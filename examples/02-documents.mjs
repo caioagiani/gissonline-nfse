@@ -22,17 +22,18 @@ const company = {
   certificatePassword: process.env.CERT_PASSWORD,
 };
 
-const giss = new GissClient(company);
+// `config` vem junto porque o login do portal é montado a partir dele.
+const { nfse, config } = new GissClient(company);
 
 // O download é pelo id interno da nota — o atributo `Id` de `InfNfse` —,
 // não pelo número impresso. Por isso a consulta vem antes.
-const [invoice] = (await giss.nfse.queryProvidedServices({ nfseNumber: "573" }))
-  .invoices;
+const { invoices } = await nfse.queryProvidedServices({ nfseNumber: "573" });
+const [invoice] = invoices;
 if (!invoice?.internalId) throw new Error("nota não encontrada");
 
 console.log(`nota ${invoice.number}  id interno ${invoice.internalId}`);
 
-const portal = await PortalService.authenticate(loadPortalCredentials(giss.config));
+const portal = await PortalService.authenticate(loadPortalCredentials(config));
 
 const pdf = await portal.invoiceDocument(invoice.internalId);
 writeFileSync(`nfse-${invoice.number}.pdf`, pdf);
@@ -45,6 +46,6 @@ console.log(`  nfse-${invoice.number}.xml  ${(xml.length / 1024).toFixed(1)} KB`
 // O XML do portal é o mesmo CompNfse que a consulta devolve, mas standalone:
 // os namespaces vão no próprio elemento em vez de herdados do envelope SOAP.
 // Se a cópia do envelope basta, ela sai da consulta e dispensa login no portal.
-const envelope = (await giss.nfse.queryProvidedServices({ nfseNumber: "573" })).xml;
+const { xml: envelope } = await nfse.queryProvidedServices({ nfseNumber: "573" });
 console.log(`\nXML do portal:   ${xml.length} bytes (standalone)`);
 console.log(`XML do envelope: ${envelope.length} bytes (via SOAP, sem portal)`);

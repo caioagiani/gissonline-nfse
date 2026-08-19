@@ -44,10 +44,10 @@ const tenant = {
 // 3. A mesma empresa contra cidades diferentes ------------------------------
 // O código IBGE vem da cidade; passar `cityCode` explicitamente ainda vence.
 for (const city of ["suzano", "guarulhos", "santos"]) {
-  const giss = new GissClient({ ...tenant, city });
-  process.stdout.write(`\n${city} (${giss.config.cityCode}) `);
+  const { nfse, config } = new GissClient({ ...tenant, city });
+  process.stdout.write(`\n${city} (${config.cityCode}) `);
   try {
-    const { invoices } = await giss.nfse.queryProvidedServices({
+    const { invoices } = await nfse.queryProvidedServices({
       issuePeriod: { from: "2026-07-01", to: "2026-07-31" },
     });
     console.log(`→ ${invoices.length} nota(s)`);

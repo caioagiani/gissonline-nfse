@@ -68,14 +68,15 @@ const queue = [
 // ---------------------------------------------------------------------------
 for (const company of companies) {
   const certificate = loadCertificate(company.pfx, company.pfxPassword);
-  const giss = new GissClient({
+  const { nfse, config } = new GissClient({
+    environment: "producao",
     city: company.city,
     cnpj: company.cnpj,
     municipalRegistration: company.municipalRegistration,
     certificate,
   });
 
-  console.log(`\n${company.id} — ${giss.config.host}`);
+  console.log(`\n${company.id} — ${config.host}`);
 
   for (const item of queue.filter((i) => i.company === company.id)) {
     const rpsNumber = reserveRpsNumber(company.id); // reservado antes do envio
@@ -90,17 +91,18 @@ for (const company of companies) {
     );
 
     if (DRY_RUN) {
-      const xml = giss.nfse.previewIssueNfse(rps);
+      const xml = nfse.previewIssueNfse(rps);
+      const signatures = (xml.match(/<Signature/g) ?? []).length;
       console.log(
         `  RPS ${rpsNumber}  R$ ${item.amount.toFixed(2)}  ` +
-          `${(xml.match(/<Signature/g) ?? []).length} assinaturas  ${xml.length} bytes  (não enviado)`,
+          `${signatures} assinaturas  ${xml.length} bytes  (não enviado)`,
       );
       continue;
     }
 
     // `issueRps` consulta pelo RPS antes de enviar e de novo depois de esperar:
     // se este número já virou nota, ela é devolvida em vez de uma segunda.
-    const outcome = await giss.nfse.issueRps(rps);
+    const outcome = await nfse.issueRps(rps);
     switch (outcome.status) {
       case "issued":
         console.log(`  RPS ${rpsNumber} → NFS-e ${outcome.invoice.number}`);
@@ -113,9 +115,11 @@ for (const company of companies) {
         // depois com o MESMO número de RPS — é seguro justamente por isso.
         console.log(`  RPS ${rpsNumber} → processando, protocolo ${outcome.protocol}`);
         break;
-      case "rejected":
-        console.log(`  RPS ${rpsNumber} → recusado: ${outcome.warnings.map((w) => w.code).join(", ")}`);
+      case "rejected": {
+        const codes = outcome.warnings.map((w) => w.code).join(", ");
+        console.log(`  RPS ${rpsNumber} → recusado: ${codes}`);
         break;
+      }
     }
   }
 }
