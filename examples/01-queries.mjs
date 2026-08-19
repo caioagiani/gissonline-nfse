@@ -26,6 +26,16 @@ const giss = new GissClient(company);
 // apresentado no handshake TLS de cada chamada. Sem ele o serviço responde
 // `400 No required SSL certificate was sent` e não conversa.
 
+// `nfse` e `nfsc` são os dois Web Services publicados — serviços prestados e
+// serviços tomados —, com endpoints e namespaces XML próprios. Desestruturar
+// o serviço funciona e encurta a chamada:
+//
+//   const { nfse } = giss;
+//   await nfse.queryProvidedServices(...);
+//
+// Desestruturar o método, não: eles usam `this` para alcançar o certificado e
+// o host. Para um método solto, `giss.nfse.queryProvidedServices.bind(giss.nfse)`.
+
 // 1. Por período de emissão -------------------------------------------------
 const july = await giss.nfse.queryProvidedServices({
   issuePeriod: { from: "2026-07-01", to: "2026-07-31" },

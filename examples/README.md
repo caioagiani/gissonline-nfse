@@ -68,6 +68,26 @@ than an old build.
 From outside the repo, in a project that installed the package, the same files
 run unchanged.
 
+## Reaching the operations
+
+`nfse` and `nfsc` are the two published Web Services — services provided and
+services received — each with its own endpoint and XML namespace, so the
+namespace carries information rather than just grouping. Destructuring the
+service works:
+
+```js
+const { nfse, nfsc } = giss;
+await nfse.queryProvidedServices({ … });
+```
+
+Destructuring the method does not: the methods reach the certificate and the
+host through `this`. For a loose reference, bind it explicitly —
+`giss.nfse.queryProvidedServices.bind(giss.nfse)`.
+
+The methods live on the prototype, which is what keeps a client at ~1.5 KB —
+500 of them fit in 0.7 MB. Auto-binding every method would give each instance
+its own 18 functions, which matters when you build one client per company.
+
 ## What actually answers
 
 Checked against production on 2026-08-18:
