@@ -1,6 +1,11 @@
 /** API pública da biblioteca. */
 
-export { loadConfig, hostFor, loadPortalCredentials } from "./config/index.ts";
+export {
+  loadConfig,
+  hostFor,
+  loadPortalCredentials,
+  resolveCityCode,
+} from "./config/index.ts";
 export {
   MUNICIPALITIES,
   findMunicipality,
@@ -45,8 +50,11 @@ export type { IssueOutcome } from "./services/nfse-service.ts";
 export { NfscService } from "./services/nfsc-service.ts";
 export { PortalService, buildPortalParty } from "./services/portal-service.ts";
 export type {
+  AnyPortalCredentials,
   DocumentFormat,
+  MunicipalActivity,
   PartyRole,
+  PortalCertificateCredentials,
   PortalCredentials,
   PortalParty,
   PortalSession,

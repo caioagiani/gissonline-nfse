@@ -10,7 +10,7 @@
 | `GISS_CODIGO_MUNICIPIO` | IBGE code — optional for a [known city](municipalities.md), which supplies it |
 | `CERT_PATH` / `CERT_PASSWORD` | A1 certificate and its password |
 | `GISS_CNPJ` / `GISS_ISC_MUNICIPAL` | the provider |
-| `GISS_LOGIN` / `GISS_PASS` | portal login, only for the REST directory |
+| `GISS_LOGIN` / `GISS_PASS` | portal login — **optional**: without them the CLI logs into the portal with the certificate |
 
 Every one of these has a programmatic override, so an application that serves
 more than one company never needs a `.env` — see
@@ -69,6 +69,39 @@ const portal = await PortalService.authenticate(
   loadPortalCredentials(giss.config, { login: tenant.cpf, password: tenant.password }),
 );
 ```
+
+## Logging into the portal with the certificate
+
+The REST API accepts the **A1 certificate** in place of CPF and password. The portal
+publishes three login methods in `login/aplicacoes` — 1 password, 2 digital certificate,
+3 gov.br — and each city chooses which ones it enables. The second one is a
+challenge-response, so it works from Node with no browser extension:
+
+```ts
+const portal = await PortalService.authenticate({
+  certificate: giss.certificate,        // the same one that signs the RPS
+  cityCode: giss.config.cityCode,
+  cnpj: tenant.cnpj,
+});
+```
+
+`authenticate` takes either shape and the session remembers which one it was born
+with, so `renew()` after the ~8h expiry goes back the same way.
+
+For a multi-company product this is the difference between **one credential and two**.
+The A1 is already required to issue; with certificate login the portal needs nothing
+else — no CPF of a natural person, no password to store, rotate or watch expire, and
+onboarding a customer stops depending on a human having portal access. And since the
+certificate identifies the company, the choice of company is settled before
+`login/permissao` is even read.
+
+Two things to know. The certificate has to be linked to a portal user (ours is; the
+city must have method 2 enabled), and this is checked in Suzano only — if a city
+answers `403` on `login/certificado/nonce`, fall back to CPF and password.
+
+The CLI decides on its own: `GISS_LOGIN` and `GISS_PASS` when both are set, the
+certificate otherwise. So `giss portal-list`, `giss pdf` and `giss activities --company`
+run with no portal password in the environment.
 
 One caveat for a multi-company product: a CNPJ that is not registered in the
 homologation environment fails every call with `E361`, so a new customer's first

@@ -1,7 +1,10 @@
+import { createSign } from "node:crypto";
 import { PortalError } from "../domain/errors.ts";
 import type { Address } from "../domain/types.ts";
+import { findMunicipalityByCode } from "../config/municipalities.ts";
+import { loadCertificate, type CertificateInput } from "../infra/certificate.ts";
 import { requestBinary, requestJson } from "../infra/http-client.ts";
-import { digitsOnly } from "../infra/xml.ts";
+import { digitsOnly, isoDate } from "../infra/xml.ts";
 
 /**
  * Cliente da API REST que o portal GissOnline usa por trás.
@@ -13,8 +16,20 @@ import { digitsOnly } from "../infra/xml.ts";
  * Autentica por CPF/senha do portal, não pelo certificado A1.
  */
 
-/** Constante pública do bundle do portal (`portal/js/app.js`), não é segredo. */
-const APP_ID = "a320e7f8-a64b-7d39-44de-490fe85dc487";
+/**
+ * Constante pública do bundle do portal (`portal/js/app.js`), não é segredo —
+ * qualquer navegador que abre o site a envia.
+ *
+ * Cada cidade tem a sua (mapeadas em `MUNICIPALITIES`), e a de Suzano serve de
+ * padrão: as rotas públicas de atividade aceitaram-na em Guarulhos, Santos e
+ * Maceió, mas isso não é promessa — passe `appId` para uma cidade fora da lista.
+ */
+const DEFAULT_APP_ID = "a320e7f8-a64b-7d39-44de-490fe85dc487";
+
+/** O `APP_ID` da cidade, com o override do chamador na frente. */
+function appIdFor(cityCode: string | number, override?: string): string {
+  return override ?? findMunicipalityByCode(cityCode)?.appId ?? DEFAULT_APP_ID;
+}
 
 export interface PortalCredentials {
   /** CPF do usuário do portal */
@@ -24,7 +39,36 @@ export interface PortalCredentials {
   cityCode: string;
   /** CNPJ da empresa a selecionar; usa a primeira quando ausente */
   cnpj?: string;
+  /** `APP_ID` da cidade, quando ela não está em `MUNICIPALITIES` */
+  appId?: string;
 }
+
+/**
+ * Login pelo certificado A1 — o mesmo que assina os RPS —, sem CPF nem senha.
+ *
+ * O portal oferece três métodos (`login/aplicacoes`: 1 senha, 2 certificado,
+ * 3 gov.br) e a prefeitura escolhe quais habilita. O segundo é desafio-resposta
+ * e cabe inteiro no Node, sem a extensão de browser que o portal usa.
+ */
+export interface PortalCertificateCredentials {
+  /** Caminho do .pfx, o arquivo em memória, ou um `Certificate` já aberto */
+  certificate: CertificateInput;
+  /** Senha do .pfx; desnecessária quando o certificado já vem carregado */
+  certificatePassword?: string;
+  /** Código IBGE do município — é também o subdomínio da API */
+  cityCode: string;
+  /** CNPJ da empresa a selecionar; usa a primeira quando ausente */
+  cnpj?: string;
+  /** `APP_ID` da cidade, quando ela não está em `MUNICIPALITIES` */
+  appId?: string;
+}
+
+/** As duas formas de entrar no portal. */
+export type AnyPortalCredentials = PortalCredentials | PortalCertificateCredentials;
+
+const byCertificate = (
+  credentials: AnyPortalCredentials,
+): credentials is PortalCertificateCredentials => "certificate" in credentials;
 
 export interface PortalSession {
   token: string;
@@ -100,15 +144,154 @@ interface ApiResponse<T> {
 /** Formatos em que o portal entrega uma nota emitida. */
 export type DocumentFormat = "pdf" | "xml";
 
+/**
+ * Uma linha da tabela de atividades do município — a origem do
+ * `CodigoTributacaoMunicipio`, que o Web Service não expõe em lugar nenhum.
+ */
+export interface MunicipalActivity {
+  id: number;
+  /** Código IBGE do município dono da tabela */
+  cityCode: number;
+  /** O que vai em `CodigoTributacaoMunicipio`; o formato é decidido por cada prefeitura */
+  code: string;
+  description: string;
+  /** Item da LC 116 em que a atividade está enquadrada */
+  serviceListItem: string;
+  /** Alíquota municipal do ISS, em pontos percentuais */
+  rate?: number;
+  /** Início da vigência, como o portal devolve (DD/MM/AAAA) */
+  startsOn?: string;
+}
+
+interface RawActivity {
+  idAtividade: number;
+  idCliente: number;
+  codigo: string;
+  descricao: string;
+  codigoServico: string;
+  aliquota?: number;
+  inicio?: string;
+}
+
+/** Um item da LC 116: `1.09`, `01.09` ou, onde a cidade tirou o ponto, `1304`. */
+const SERVICE_LIST_ITEM = /^\d{1,4}(\.\d{1,2})?$/;
+
+/**
+ * As duas rotas de atividade discordam entre si: em
+ * `servicos/enquadrados/aliquotas` o backend troca `descricao` e
+ * `codigoServico` um pelo outro. Como o item da LC 116 é sempre numérico e a
+ * descrição nunca é, é o formato que decide qual campo é qual — a troca deixa
+ * de importar, e uma correção no servidor também não quebra nada.
+ */
+function toActivity(raw: RawActivity): MunicipalActivity {
+  const swapped = SERVICE_LIST_ITEM.test(raw.descricao?.trim() ?? "");
+  return {
+    id: raw.idAtividade,
+    cityCode: raw.idCliente,
+    code: raw.codigo,
+    description: (swapped ? raw.codigoServico : raw.descricao)?.trim(),
+    serviceListItem: (swapped ? raw.descricao : raw.codigoServico)?.trim(),
+    ...(raw.aliquota === undefined ? {} : { rate: raw.aliquota }),
+    ...(raw.inicio === undefined ? {} : { startsOn: raw.inicio }),
+  };
+}
+
+/** O que os dois métodos de login devolvem antes de escolher a empresa. */
+interface InitialToken {
+  access_token: string;
+  codigo_usuario: string;
+}
+
+/** Lê um campo do payload do JWT, sem validar a assinatura (é o servidor quem valida). */
+function tokenClaim(token: string, claim: string): string {
+  const payload = token.split(".")[1] ?? "";
+  const claims = JSON.parse(Buffer.from(payload, "base64url").toString()) as Record<
+    string,
+    unknown
+  >;
+  return String(claims[claim] ?? "");
+}
+
+/** Login por CPF e senha, como o formulário do portal. */
+async function passwordLogin(
+  base: string,
+  appId: string,
+  credentials: PortalCredentials,
+): Promise<InitialToken> {
+  return requestJson<InitialToken>(base, "/service-empresa/api/login/token", {
+    method: "POST",
+    headers: {
+      APP_ID: appId,
+      PARAM_USER: "CodCliente",
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body: new URLSearchParams({
+      grant_type: "password",
+      username: digitsOnly(credentials.login),
+      password: credentials.password,
+      tipoLogin: "0",
+      idParametroInicial: "2",
+    }).toString(),
+  });
+}
+
+/**
+ * Login pelo certificado digital, em dois passos: o servidor emite um nonce e
+ * aceita a assinatura dele feita com a chave privada do titular.
+ *
+ * Duas coisas que custaram um teste cada: o nonce chega em **base64 e é
+ * assinado como bytes** (assinar o texto responde `Nonce inválido ou
+ * expirado`), e ele é de **uso único** — cada tentativa precisa de um novo.
+ * O digest é SHA-256, como o `signData` do Web PKI que o portal chama no
+ * browser.
+ */
+async function certificateLogin(
+  base: string,
+  appId: string,
+  credentials: PortalCertificateCredentials,
+): Promise<InitialToken> {
+  const { privateKeyPem, certificateBase64 } = loadCertificate(
+    credentials.certificate,
+    credentials.certificatePassword,
+  );
+
+  const { conteudo: nonce } = await requestJson<ApiResponse<string>>(
+    base,
+    "/service-empresa/api/login/certificado/nonce",
+    { headers: { APP_ID: appId } },
+  );
+
+  const signer = createSign("sha256");
+  signer.update(Buffer.from(nonce, "base64"));
+  const signature = signer.sign(privateKeyPem, "base64");
+
+  const response = await requestJson<ApiResponse<{ access_token: string }>>(
+    base,
+    "/service-empresa/api/login/certificado/token",
+    {
+      method: "POST",
+      headers: {
+        APP_ID: appId,
+        PARAM_USER: "CodCliente",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ certificateBase64, signature, nonce }),
+    },
+  );
+
+  const token = response.conteudo.access_token;
+  return { access_token: token, codigo_usuario: tokenClaim(token, "CODIGO_USUARIO") };
+}
+
 export class PortalService {
   readonly base: string;
   #session: PortalSession;
-  readonly #credentials: PortalCredentials;
+  readonly #credentials: AnyPortalCredentials;
 
   private constructor(
     base: string,
     session: PortalSession,
-    credentials: PortalCredentials,
+    credentials: AnyPortalCredentials,
   ) {
     this.base = base;
     this.#session = session;
@@ -130,33 +313,22 @@ export class PortalService {
 
   /**
    * Autentica em três passos, como o portal faz:
-   * 1. usuário/senha devolve um token sem empresa;
+   * 1. senha **ou certificado** devolve um token sem empresa;
    * 2. `login/permissao` lista as empresas vinculadas;
    * 3. o token é trocado por outro já vinculado à empresa escolhida.
+   *
+   * Só o primeiro passo difere entre os dois métodos — daí em diante o
+   * caminho é o mesmo, e `renew` volta pelo método com que a sessão nasceu.
    */
   static async authenticate(
-    credentials: PortalCredentials,
+    credentials: AnyPortalCredentials,
   ): Promise<PortalService> {
     const base = `https://${credentials.cityCode}.giss.com.br`;
+    const appId = appIdFor(credentials.cityCode, credentials.appId);
 
-    const initial = await requestJson<{
-      access_token: string;
-      codigo_usuario: string;
-    }>(base, "/service-empresa/api/login/token", {
-      method: "POST",
-      headers: {
-        APP_ID,
-        PARAM_USER: "CodCliente",
-        "Content-Type": "application/x-www-form-urlencoded",
-      },
-      body: new URLSearchParams({
-        grant_type: "password",
-        username: digitsOnly(credentials.login),
-        password: credentials.password,
-        tipoLogin: "0",
-        idParametroInicial: "2",
-      }).toString(),
-    });
+    const initial = byCertificate(credentials)
+      ? await certificateLogin(base, appId, credentials)
+      : await passwordLogin(base, appId, credentials);
 
     const permissions = await requestJson<{
       conteudo: {
@@ -192,10 +364,10 @@ export class PortalService {
       {
         method: "POST",
         headers: {
-          APP_ID,
+          APP_ID: appId,
           PARAM_USER: "CodCliente",
           PARAM_LOGIN: target.clienteReferencia,
-          CODIGO_USUARIO: initial.codigo_usuario,
+          CODIGO_USUARIO: permissions.conteudo.codigoUsuario ?? initial.codigo_usuario,
           PARAM_PRIV: `empresa=${target.idEmpresa}`,
           "Content-Type": "application/x-www-form-urlencoded",
         },
@@ -309,6 +481,42 @@ export class PortalService {
       { method: "PUT", body: JSON.stringify(body) },
     );
     return response.conteudo;
+  }
+
+  /**
+   * Tabela de atividades do município — de onde sai o
+   * `CodigoTributacaoMunicipio` e o item da LC 116 correspondente.
+   *
+   * É rota pública: responde sem login, só com o `APP_ID`, e por isso é
+   * estática. O `idCliente` da prefeitura é o próprio código IBGE (conferido
+   * em Suzano, Guarulhos, Santos e Maceió).
+   *
+   * A alíquota que vem aqui é a **do município**. Optante do Simples Nacional
+   * recolhe pela do anexo, e copiar esta emitiria a nota com o imposto errado.
+   */
+  static async listActivities(
+    cityCode: string | number,
+    appId?: string,
+  ): Promise<MunicipalActivity[]> {
+    const response = await requestJson<ApiResponse<RawActivity[]>>(
+      `https://${cityCode}.giss.com.br`,
+      `/service-atividade/api/atividade/v2/lista-atividades/${cityCode}`,
+      { headers: { APP_ID: appIdFor(cityCode, appId) } },
+    );
+    return (response.conteudo ?? []).map(toActivity);
+  }
+
+  /**
+   * As atividades em que a empresa logada está enquadrada, com a alíquota
+   * vigente na data — o subconjunto curto que ela pode de fato usar numa nota,
+   * em vez das centenas ou milhares da tabela inteira.
+   */
+  async companyActivities(on: Date | string = new Date()): Promise<MunicipalActivity[]> {
+    const { clientId, companyId } = this.#session;
+    const response = await this.call<ApiResponse<RawActivity[]>>(
+      `/service-atividade/api/atividade/servicos/enquadrados/aliquotas/${clientId}/${companyId}/${isoDate(on)}`,
+    );
+    return (response.conteudo ?? []).map(toActivity);
   }
 
   /** Remove um cadastro (o portal chama de "anular"). */

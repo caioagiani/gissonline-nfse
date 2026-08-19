@@ -7,13 +7,15 @@ invoices (NFS-e) following the ABRASF 2.04 standard with the LC 214/2025 extensi
 environment variable; see [docs/municipalities.md](docs/municipalities.md).
 
 Covers all **16 operations** of the two published SOAP services — `nfse` (services provided)
-and `nfsc` (services received) — plus the portal REST API, the only way to manage the
-customer and supplier directory.
+and `nfsc` (services received) — plus the portal REST API, the only way to reach the
+customer and supplier directory and the municipal activity table.
 
 - Issue, cancel and replace invoices, single or in batches
 - Queries by period, competence, number range, RPS and protocol
+- The city activity table, where `CodigoTributacaoMunicipio` and its LC 116 item come from
 - Declaration of received services (supplier invoices)
 - XMLDSig signing with an A1 certificate, in the shape each operation requires
+- Portal login with that same certificate, so no CPF and password are needed
 - Validation against the official XSD before sending
 - No write operation fires without `--confirm`
 
@@ -54,18 +56,32 @@ their contents never enter the repository.
 
 ```bash
 giss latest                               # the most recent invoices
+giss activities --company                 # activity codes this company can use
 giss issue --customer acme --amount 1500 --description "Consulting"
 giss issue --customer acme --amount 1500 --description "Consulting" --confirm
 giss pdf --number 573                     # the invoice as a file
 ```
 
 ```ts
-import { GissClient } from "gissonline-nfse";
+import { GissClient, PortalService } from "gissonline-nfse";
 
-const giss = new GissClient();
-const { invoices } = await giss.nfse.queryProvidedServices({
+// `nfse` and `nfsc` are the two Web Services; `config` and `certificate` come
+// resolved. Destructuring a service is safe — destructuring a method is not.
+const { nfse, config, certificate } = new GissClient();
+
+const { invoices } = await nfse.queryProvidedServices({
   issuePeriod: { from: "2026-07-01", to: "2026-07-31" },
 });
+
+// CodigoTributacaoMunicipio and its LC 116 item, from the city's own table.
+// This route is public — no login, no certificate:
+const activities = await PortalService.listActivities(config.cityCode);
+// [{ code: "6319400", serviceListItem: "1.09", description: "Portais…", rate: 4 }, …]
+
+// Anything company-specific needs a session. The A1 that signs the RPS opens
+// the portal too, so no CPF and password are required:
+const portal = await PortalService.authenticate({ certificate, cityCode: config.cityCode });
+const mine = await portal.companyActivities();   // rate valid today, by default
 ```
 
 Nothing that writes fires without `--confirm`.

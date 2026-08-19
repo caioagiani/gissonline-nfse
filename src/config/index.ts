@@ -44,6 +44,26 @@ export function hostFor(environment: Environment, city: string): string {
   return `https://${host}.giss.com.br`;
 }
 
+/**
+ * Código IBGE do município, do ambiente ou da lista conhecida.
+ *
+ * Vive separado de `loadConfig` porque a tabela de atividades do portal só
+ * precisa do município — exigir certificado e inscrição para uma consulta
+ * pública seria pedir demais.
+ */
+export function resolveCityCode(
+  city = optional("GISS_MUNICIPIO", "suzano"),
+  code = read("GISS_CODIGO_MUNICIPIO"),
+): string {
+  const cityCode = code ?? findMunicipality(city)?.cityCode;
+  if (!cityCode) {
+    throw new Error(
+      `Informe GISS_CODIGO_MUNICIPIO: "${city}" não está na lista de municípios conhecidos (veja MUNICIPALITIES)`,
+    );
+  }
+  return cityCode;
+}
+
 export function loadConfig(overrides: Partial<GissConfig> = {}): GissConfig {
   const environment = (overrides.environment ??
     optional("GISS_ENV", "producao")) as Environment;
@@ -57,14 +77,7 @@ export function loadConfig(overrides: Partial<GissConfig> = {}): GissConfig {
   // Quando a cidade é uma das conhecidas, o código vem dela — antes, trocar
   // só `GISS_MUNICIPIO` deixava para trás o código de Suzano, e a nota saía
   // com o município errado sem nenhum aviso.
-  const known = findMunicipality(city);
-  const cityCode =
-    overrides.cityCode ?? read("GISS_CODIGO_MUNICIPIO") ?? known?.cityCode;
-  if (!cityCode) {
-    throw new Error(
-      `Informe GISS_CODIGO_MUNICIPIO: "${city}" não está na lista de municípios conhecidos (veja MUNICIPALITIES)`,
-    );
-  }
+  const cityCode = overrides.cityCode ?? resolveCityCode(city);
 
   return {
     environment,
@@ -83,7 +96,7 @@ export function loadConfig(overrides: Partial<GissConfig> = {}): GissConfig {
 
 /** Credenciais do portal web — usadas só pela API REST de cadastro. */
 export function loadPortalCredentials(
-  config: GissConfig,
+  config: Pick<GissConfig, "cityCode"> & Partial<Pick<GissConfig, "cnpj">>,
   overrides: { login?: string; password?: string } = {},
 ) {
   return {
