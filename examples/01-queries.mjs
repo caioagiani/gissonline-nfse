@@ -7,7 +7,26 @@
  */
 import { GissClient } from "gissonline-nfse";
 
+// Sem argumentos, o cliente lê `process.env` — e é o `--env-file` acima que
+// preenche isso, não o pacote: uma biblioteca que fosse ler arquivos do disco
+// sozinha atrapalharia quem já tem as variáveis vindas do ambiente.
 const giss = new GissClient();
+
+// Tudo aceita ser passado explicitamente, e aí nada é lido do ambiente. É esta
+// a forma que serve uma aplicação, onde cada empresa tem sua configuração:
+//
+//   const giss = new GissClient({
+//     environment: "producao",
+//     city: "suzano",              // o código IBGE vem daqui
+//     cnpj: "00000000000191",
+//     municipalRegistration: "12345",
+//     certificate: pfxBuffer,      // o .pfx em memória, sem tocar o disco
+//     certificatePassword: "…",
+//   });
+//
+// Ver 04-multi-company.mjs. Note que não há login nem token: a identidade é o
+// certificado A1, apresentado no handshake TLS de cada chamada. O Web Service
+// recusa a conexão sem ele (`400 No required SSL certificate was sent`).
 
 // 1. Por período de emissão -------------------------------------------------
 const july = await giss.nfse.queryProvidedServices({
