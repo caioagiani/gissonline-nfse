@@ -13,3 +13,7 @@ cert/*
 data/*
 !data/.gitkeep
 dist/
+
+# Arquivos gerados pelos exemplos
+nfse-*.pdf
+nfse-*.xml

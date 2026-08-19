@@ -74,6 +74,7 @@ Nothing that writes fires without `--confirm`.
 
 | | |
 | --- | --- |
+| [examples/](examples/) | Runnable scripts, all checked against production |
 | [docs/cli.md](docs/cli.md) | Every command, completion, documents and lookups |
 | [docs/municipalities.md](docs/municipalities.md) | The cities that publish the Web Service |
 | [docs/library.md](docs/library.md) | Using it as a package, and the 16 operations |
