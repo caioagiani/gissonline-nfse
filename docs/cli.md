@@ -37,6 +37,7 @@ giss xml --number 573 --out ~/notas       # writes ~/notas/nfse-573.xml
 # portal messages (Fale Conosco)
 giss messages                             # the ones you opened
 giss messages --id 20                     # one, with the auditor's reply
+giss messages --id 20 --attachment 16     # writes ./webnar giss.pdf
 giss message --subject S --text T --confirm
 
 # municipal activity table (CodigoTributacaoMunicipio)
@@ -119,7 +120,7 @@ The support channel of the portal, and the only one the API opens to a taxpayer:
 giss messages                          # everything you opened, newest last
 giss messages --unread                 # only replies you have not read
 giss messages --id 20                  # the message with its reply and attachments
-giss attachment --id 20 --file 16      # downloads an attachment by its id
+giss messages --id 20 --attachment 16  # downloads one of them, into ./ or --out
 giss message --subject "..." --text "..."            # shows what would be sent
 giss message --subject "..." --text "..." --confirm  # actually opens it
 ```

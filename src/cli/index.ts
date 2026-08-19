@@ -108,8 +108,8 @@ MUNICIPALITIES
 
 PORTAL MESSAGES (Fale Conosco)
   messages [--id N] [--unread]                      Messages you opened, or one with its reply
+           [--attachment N] [--out DIR]             Downloads an attachment of that message
   message --subject S --text T [--confirm]          Opens a message to the city hall
-  attachment --id N --file N [--out DIR]            Downloads an attachment
 
 MUNICIPAL ACTIVITIES (the source of CodigoTributacaoMunicipio)
   activities [term] [--item 1.09] [--city IBGE]     City activity table (no login)
@@ -172,7 +172,7 @@ const options = {
   company: { type: "boolean", default: false },
   date: { type: "string" },
   id: { type: "string" },
-  file: { type: "string" },
+  attachment: { type: "string" },
   subject: { type: "string" },
   text: { type: "string" },
   unread: { type: "boolean", default: false },
@@ -231,7 +231,7 @@ async function main() {
 
   // O Fale Conosco também vive no portal; o certificado só entra quando é ele
   // que abre a sessão.
-  if (command === "messages" || command === "message" || command === "attachment") {
+  if (command === "messages" || command === "message") {
     await runMessageCommand(command, values);
     return;
   }
@@ -770,26 +770,29 @@ async function runMessageCommand(command: string, values: CliValues): Promise<vo
     return;
   }
 
-  if (command === "attachment") {
-    if (!values.id || !values.file) throw new Error("Provide --id and --file");
-    const message = await portal.getMessage(Number(values.id));
-    const attachment = message.attachments.find((a) => a.id === Number(values.file));
-    if (!attachment) {
-      throw new Error(
-        `Message ${values.id} has no attachment ${values.file}. Available: ` +
-          (message.attachments.map((a) => `${a.id} (${a.name})`).join(", ") || "none"),
-      );
-    }
-    const file = await portal.messageAttachment(message.id, attachment.id);
-    const target = values.out ? resolve(values.out, attachment.name) : resolve(attachment.name);
-    mkdirSync(dirname(target), { recursive: true });
-    writeFileSync(target, file);
-    console.log(`${target}  (${(file.length / 1024).toFixed(1)} KB)`);
-    return;
-  }
-
   if (values.id) {
     const message = await portal.getMessage(Number(values.id));
+
+    // O anexo é uma faceta da mensagem, não um comando à parte: o `--id` já
+    // deu o contexto, e os ids dos arquivos saem na própria listagem dela.
+    if (values.attachment) {
+      const attachment = message.attachments.find((a) => a.id === Number(values.attachment));
+      if (!attachment) {
+        throw new Error(
+          `Message ${message.id} has no attachment ${values.attachment}. Available: ` +
+            (message.attachments.map((a) => `${a.id} (${a.name})`).join(", ") || "none"),
+        );
+      }
+      const file = await portal.messageAttachment(message.id, attachment.id);
+      const target = values.out
+        ? resolve(values.out, attachment.name)
+        : resolve(attachment.name);
+      mkdirSync(dirname(target), { recursive: true });
+      writeFileSync(target, file);
+      console.log(`${target}  (${(file.length / 1024).toFixed(1)} KB)`);
+      return;
+    }
+
     if (values.json) return void console.log(JSON.stringify(message, null, 2));
     printMessage(message);
     return;
@@ -832,7 +835,8 @@ function printMessage(message: PortalMessage): void {
   for (const attachment of message.attachments) {
     console.log(
       `\nAttachment ${attachment.id}: ${attachment.name}` +
-        `${attachment.fromAuditor ? " (from the auditor)" : ""}`,
+        `${attachment.fromAuditor ? " (from the auditor)" : ""}` +
+        `\n  ${INVOCATION} messages --id ${message.id} --attachment ${attachment.id}`,
     );
   }
 }
