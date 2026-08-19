@@ -1,3 +1,10 @@
+# [1.8.0](https://github.com/[secure]/gissonline-nfse/compare/v1.7.0...v1.8.0) (2026-08-19)
+
+
+### Features
+
+* **portal:** read and open Fale Conosco messages ([#20](https://github.com/[secure]/gissonline-nfse/issues/20)) ([cb6fc21](https://github.com/[secure]/gissonline-nfse/commit/cb6fc21b9d1b732624400cd0b9e74c367eea88ed))
+
 # [1.7.0](https://github.com/[secure]/gissonline-nfse/compare/v1.6.0...v1.7.0) (2026-08-19)
 
 
