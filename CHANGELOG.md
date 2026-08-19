@@ -1,3 +1,10 @@
+# [1.7.0](https://github.com/[secure]/gissonline-nfse/compare/v1.6.0...v1.7.0) (2026-08-19)
+
+
+### Features
+
+* **portal:** municipal activity table and certificate login ([#19](https://github.com/[secure]/gissonline-nfse/issues/19)) ([1707ec8](https://github.com/[secure]/gissonline-nfse/commit/1707ec84d34cbecde6871fcec5357c9da253a001))
+
 # [1.6.0](https://github.com/caioagiani/gissonline-nfse/compare/v1.5.0...v1.6.0) (2026-08-19)
 
 
