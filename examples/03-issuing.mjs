@@ -1,0 +1,110 @@
+/**
+ * Emissão — montagem, validação e idempotência.
+ *
+ *   node --env-file=.env examples/03-issuing.mjs
+ *
+ * **Nada é emitido aqui.** O RPS é montado, assinado e validado contra o XSD,
+ * mas só `issueRps` envia — e a única chamada a ele neste arquivo usa um RPS
+ * que já virou nota, justamente para mostrar que repetir não emite de novo.
+ */
+import { readFileSync } from "node:fs";
+import { GissClient, buildRps, DEFAULT_PROFILE } from "gissonline-nfse";
+
+// A configuração vai inteira no construtor — nada é lido do ambiente por
+// baixo. Numa aplicação estes valores vêm da tabela da empresa; aqui vêm do
+// `.env` só para o exemplo rodar.
+const company = {
+  environment: "producao",
+  city: "suzano",                                   // o código IBGE vem daqui
+  cnpj: process.env.GISS_CNPJ,
+  municipalRegistration: process.env.GISS_ISC_MUNICIPAL,
+  certificate: readFileSync(process.env.CERT_PATH), // o .pfx em memória
+  certificatePassword: process.env.CERT_PASSWORD,
+};
+
+const { nfse } = new GissClient(company);
+
+// O tomador é um objeto puro: pode vir do seu banco, do cadastro local ou
+// do portal. O pacote não impõe onde os dados moram.
+const taker = {
+  cnpj: "60977243000106",
+  legalName: "EXEMPLO LTDA",
+  address: {
+    street: "Avenida Paulista",
+    number: "1000",
+    district: "Bela Vista",
+    cityCode: "3550308",
+    state: "SP",
+    zipCode: "01310100",
+  },
+};
+
+// A alíquota não tem padrão: ela é de cada contribuinte, e um valor chutado
+// emitiria imposto errado. Sem ela, com o ISS exigível, `buildRps` recusa.
+const rps = buildRps(
+  { ...DEFAULT_PROFILE, rate: 3.07 },
+  {
+    taker,
+    rpsNumber: "90001",
+    serviceAmount: 1500,
+    description: "Desenvolvimento de software",
+  },
+);
+
+// `previewIssueNfse` assina e devolve o XML sem enviar nada.
+const xml = nfse.previewIssueNfse(rps);
+const signatures = (xml.match(/<Signature/g) ?? []).length;
+const rateInXml = xml.match(/Aliquota>([^<]*)</)?.[1];
+
+console.log("RPS montado e assinado");
+console.log(`  assinaturas: ${signatures}`);
+console.log(`  alíquota:    ${rateInXml}  ← 3,07% vai como fração`);
+console.log(`  bytes:       ${xml.length}`);
+
+// O que acontece sem alíquota, com o ISS exigível
+try {
+  buildRps(DEFAULT_PROFILE, {
+    taker,
+    rpsNumber: "90002",
+    serviceAmount: 10,
+    description: "sem alíquota no perfil",
+  });
+} catch (error) {
+  console.log(`\nsem alíquota → ${error.message}`);
+}
+
+// Idempotência: repetir um RPS que já virou nota devolve a nota existente em
+// vez de emitir uma segunda.
+//
+// A demonstração precisa de um RPS já usado, e qual é depende da conta. Por
+// isso o número sai do histórico: pedir `issueRps` para um número livre
+// emitiria uma nota de verdade, que é justamente o que um exemplo não pode
+// fazer na conta de quem o executa.
+const year = await nfse.queryProvidedServices({
+  issuePeriod: { from: "2026-01-01", to: "2026-12-31" },
+});
+const usedRps = year.invoices.filter((i) => i.rps).at(-1)?.rps;
+if (!usedRps) {
+  console.log("\nsem nota no período para demonstrar a idempotência");
+} else {
+  const outcome = await nfse.issueRps(
+    buildRps({ ...DEFAULT_PROFILE, rate: 3.07 }, {
+      taker,
+      rpsNumber: usedRps.number,
+      series: usedRps.series,
+      serviceAmount: 100,
+      description: "mesma intenção de emissão",
+    }),
+  );
+  const existing = outcome.invoice;
+  const { number, series } = usedRps;
+  console.log(`\nRPS ${number}/${series} novamente → ${outcome.status}`);
+  console.log(`  nota ${existing?.number} (${existing?.verificationCode})`);
+  console.log("  nada foi enviado: o RPS já tinha virado essa nota");
+}
+
+// Para emitir de verdade seria o mesmo `issueRps` com um número novo,
+// reservado por você antes do envio:
+//
+//   const outcome = await nfse.issueRps(rps);
+//   if (outcome.status === "issued") console.log(outcome.invoice.number);

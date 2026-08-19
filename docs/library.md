@@ -66,5 +66,25 @@ await writeFile("nfse-573.xml", await portal.invoiceDocument(invoice.internalId!
 | nfsc | ConsultarServicoCompradoPorProtocolo | `nfsc.queryPurchasedByProtocol` |
 | nfsc | ConsultarServicoCompradoPorNumero | `nfsc.queryPurchasedByNumber` |
 
+## What a queried invoice carries
+
+Beyond the printed number and the amounts, two fields exist because the service
+needs them back:
+
+| | |
+| --- | --- |
+| `internalId` | `InfNfse@Id` — what the portal's PDF and XML routes take, since the printed number does not work there |
+| `rps` | the RPS that produced the invoice, ready to hand back to `findByRps` |
+
+`rps` is absent on invoices typed into the portal by hand: those never went
+through an RPS. In this account only 4 of 20 invoices this year came from one,
+so check before assuming.
+
+```ts
+const { invoices } = await giss.nfse.queryProvidedServices({ nfseNumber: "574" });
+const { rps } = invoices[0];
+if (rps) await giss.nfse.findByRps(rps);   // no massaging needed
+```
+
 See [configuration.md](configuration.md) for serving several companies from one
 process, and [issuing.md](issuing.md) for what actually issues an invoice.
