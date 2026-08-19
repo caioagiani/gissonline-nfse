@@ -4,6 +4,7 @@ import { dirname, resolve } from "node:path";
 import { parseArgs } from "node:util";
 import {
   loadPortalCredentials,
+  resolveCityCode,
   type Environment,
   type GissConfig,
 } from "../config/index.ts";
@@ -103,6 +104,10 @@ LOOKUPS (BrasilAPI — convenience, not a source of truth)
 MUNICIPALITIES
   cities [--state SP]                               Cities known to publish the Web Service
 
+MUNICIPAL ACTIVITIES (the source of CodigoTributacaoMunicipio)
+  activities [term] [--item 1.09] [--city IBGE]     City activity table (no login)
+             [--company] [--date YYYY-MM-DD]        Only the ones your company is bound to
+
 TAX PROFILE
   profile [--save]                     Shows (or writes to data/profile.json) the defaults
 
@@ -157,6 +162,8 @@ const options = {
   city: { type: "string" },
   zip: { type: "string" },
   simples: { type: "string" },
+  company: { type: "boolean", default: false },
+  date: { type: "string" },
   save: { type: "boolean", default: false },
   "street-type": { type: "string" },
   mei: { type: "boolean", default: false },
@@ -202,6 +209,13 @@ async function main() {
 
   // Comandos de cadastro local e perfil não tocam a rede nem o certificado.
   if (await runLocalCommand(command, values, positionals)) return;
+
+  // A tabela de atividades vem do portal, não do Web Service: pede município,
+  // não certificado. Fica antes do cliente SOAP para não exigir o .pfx.
+  if (command === "activities") {
+    await runActivitiesCommand(values, positionals);
+    return;
+  }
 
   const client = new GissClient({
     environment: values.env as Environment | undefined,
@@ -677,6 +691,64 @@ function documentTarget(
 }
 
 /** Comandos que falam com a API REST do portal, não com o Web Service. */
+/**
+ * Lista a tabela de atividades do município, ou só as da empresa.
+ *
+ * O `CodigoTributacaoMunicipio` não existe no WSDL — nenhuma das 16 operações
+ * devolve tabela de apoio —, então a origem é a API REST do portal. A lista da
+ * cidade é pública; a da empresa exige o login do portal.
+ */
+async function runActivitiesCommand(
+  values: CliValues,
+  positionals: string[],
+): Promise<void> {
+  const cityCode = resolveCityCode(undefined, values.city);
+
+  const activities = values.company
+    ? await (
+        await PortalService.authenticate(
+          loadPortalCredentials({ cityCode, cnpj: process.env.GISS_CNPJ }),
+        )
+      ).companyActivities(values.date ?? new Date())
+    : await PortalService.listActivities(cityCode);
+
+  // O item da LC 116 muda de forma conforme a cidade: Suzano grava `1.09`,
+  // Guarulhos grava `101` para 1.01. Comparar só os dígitos faz `--item 1.09`
+  // valer nas duas.
+  const digits = (value: string) => value.replace(/\D/g, "").replace(/^0+/, "");
+  const term = positionals[1]?.toLowerCase();
+  const item = values.item ? digits(values.item) : undefined;
+  const found = activities.filter(
+    (activity) =>
+      (!term ||
+        activity.code.includes(term) ||
+        activity.description.toLowerCase().includes(term)) &&
+      (!item || digits(activity.serviceListItem) === item),
+  );
+
+  if (values.json) return void console.log(JSON.stringify(found, null, 2));
+
+  const width = Math.max(4, ...found.map((a) => a.code.length));
+  for (const activity of found) {
+    console.log(
+      [
+        activity.code.padEnd(width),
+        activity.serviceListItem.padEnd(6),
+        activity.rate === undefined ? "" : `${activity.rate.toFixed(2)}%`.padStart(7),
+        activity.description,
+      ]
+        .filter(Boolean)
+        .join("  "),
+    );
+  }
+
+  const scope = values.company ? "bound to the company" : `in city ${cityCode}`;
+  console.log(`\n${found.length} of ${activities.length} activity(ies) ${scope}`);
+  console.log(
+    "The rate above is the municipal one — under Simples Nacional the annex rate applies.",
+  );
+}
+
 async function runPortalCommand(
   command: string,
   values: CliValues,

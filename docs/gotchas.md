@@ -21,6 +21,14 @@ All found by testing against the live service:
 - **`tipos-servicos-comprados-v1_01.xsd` is an incomplete delta** (54 types against 191 in
   v1_00) and does not compile on its own, despite sharing the `targetNamespace`. See
   `docs/schemas-tomados/vigente/`.
+- **The activity table swaps two fields on one route.** In
+  `atividade/servicos/enquadrados/aliquotas` the backend fills `descricao` with the LC 116
+  item and `codigoServico` with the description — the other route gets them right.
+  `PortalService` decides by format (the item is always numeric), so both routes normalize
+  to the same shape.
+- **Every activity comes back `ativo: false`**, in all four cities checked, alongside an
+  `inicio` date. It looks like versioning by validity, not deactivation: filtering by
+  `ativo` leaves an empty list.
 - **Beware of `toISOString` on competence dates**: at night in São Paulo it rolls the day
   forward and changes the invoice's competence.
 

@@ -34,6 +34,10 @@ giss replace --number 569 --reason 1 --customer acme --amount 15000 --confirm
 giss pdf --number 573                     # writes ./nfse-573.pdf
 giss xml --number 573 --out ~/notas       # writes ~/notas/nfse-573.xml
 
+# municipal activity table (CodigoTributacaoMunicipio)
+giss activities --item 1.09
+giss activities --company
+
 # local directory
 giss customers --sync --from 2026-01-01 --to 2026-12-31
 giss suppliers
@@ -101,6 +105,44 @@ giss cities --state SP     # just one state
 
 Setting `GISS_MUNICIPIO` to the slug is enough — the IBGE code follows from it.
 See [municipalities.md](municipalities.md).
+
+## Municipal activities
+
+`CodigoTributacaoMunicipio` has no national table: each city keeps its own, and
+**neither Web Service publishes it** — the 16 operations issue, cancel, replace and
+query invoices, nothing else. The table lives in the portal REST API:
+
+```bash
+giss activities                     # the whole city table
+giss activities portais             # filter by code or description
+giss activities --item 1.09         # filter by LC 116 item
+giss activities --city 3518800      # another city, by IBGE code
+giss activities --company           # only what your company is bound to
+giss activities --company --date 2026-01-31
+```
+
+```
+6319400  1.09      4.00%  Portais, Provedores De Conteúdo E Outros Serviços De Informação Na Internet
+```
+
+The first column is what goes in `CodigoTributacaoMunicipio`, the second is the LC 116
+item it maps to — the two fields the invoice needs, resolved together.
+
+The city table is **public**: it answers without login, so `giss activities` needs no
+portal credentials and no certificate, only `GISS_MUNICIPIO` (or `--city`). Adding
+`--company` switches to the authenticated route and returns the short list the company
+can actually use — 4 activities against 964 in Suzano.
+
+Three things the live API taught us:
+
+- **The rate shown is the municipal one.** An optante do Simples Nacional pays the annex
+  rate instead: copying this column would issue the invoice with the wrong tax.
+- **The code format is decided by each city.** Suzano and Maceió use the 7-digit CNAE,
+  Guarulhos and Santos use 6-digit occupation codes, and old short codes (`76`, `77`)
+  survive in the same table.
+- **So is the item format.** Suzano writes `1.09`, Guarulhos writes `101` for 1.01 and
+  `100101` for a local sub-item. `--item` compares digits only, so `--item 1.09` works
+  in both.
 
 ## Lookups
 

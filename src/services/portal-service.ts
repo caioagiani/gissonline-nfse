@@ -1,7 +1,7 @@
 import { PortalError } from "../domain/errors.ts";
 import type { Address } from "../domain/types.ts";
 import { requestBinary, requestJson } from "../infra/http-client.ts";
-import { digitsOnly } from "../infra/xml.ts";
+import { digitsOnly, isoDate } from "../infra/xml.ts";
 
 /**
  * Cliente da API REST que o portal GissOnline usa por trás.
@@ -99,6 +99,58 @@ interface ApiResponse<T> {
 
 /** Formatos em que o portal entrega uma nota emitida. */
 export type DocumentFormat = "pdf" | "xml";
+
+/**
+ * Uma linha da tabela de atividades do município — a origem do
+ * `CodigoTributacaoMunicipio`, que o Web Service não expõe em lugar nenhum.
+ */
+export interface MunicipalActivity {
+  id: number;
+  /** Código IBGE do município dono da tabela */
+  cityCode: number;
+  /** O que vai em `CodigoTributacaoMunicipio`; o formato é decidido por cada prefeitura */
+  code: string;
+  description: string;
+  /** Item da LC 116 em que a atividade está enquadrada */
+  serviceListItem: string;
+  /** Alíquota municipal do ISS, em pontos percentuais */
+  rate?: number;
+  /** Início da vigência, como o portal devolve (DD/MM/AAAA) */
+  startsOn?: string;
+}
+
+interface RawActivity {
+  idAtividade: number;
+  idCliente: number;
+  codigo: string;
+  descricao: string;
+  codigoServico: string;
+  aliquota?: number;
+  inicio?: string;
+}
+
+/** Um item da LC 116: `1.09`, `01.09` ou, onde a cidade tirou o ponto, `1304`. */
+const SERVICE_LIST_ITEM = /^\d{1,4}(\.\d{1,2})?$/;
+
+/**
+ * As duas rotas de atividade discordam entre si: em
+ * `servicos/enquadrados/aliquotas` o backend troca `descricao` e
+ * `codigoServico` um pelo outro. Como o item da LC 116 é sempre numérico e a
+ * descrição nunca é, é o formato que decide qual campo é qual — a troca deixa
+ * de importar, e uma correção no servidor também não quebra nada.
+ */
+function toActivity(raw: RawActivity): MunicipalActivity {
+  const swapped = SERVICE_LIST_ITEM.test(raw.descricao?.trim() ?? "");
+  return {
+    id: raw.idAtividade,
+    cityCode: raw.idCliente,
+    code: raw.codigo,
+    description: (swapped ? raw.codigoServico : raw.descricao)?.trim(),
+    serviceListItem: (swapped ? raw.descricao : raw.codigoServico)?.trim(),
+    ...(raw.aliquota === undefined ? {} : { rate: raw.aliquota }),
+    ...(raw.inicio === undefined ? {} : { startsOn: raw.inicio }),
+  };
+}
 
 export class PortalService {
   readonly base: string;
@@ -309,6 +361,41 @@ export class PortalService {
       { method: "PUT", body: JSON.stringify(body) },
     );
     return response.conteudo;
+  }
+
+  /**
+   * Tabela de atividades do município — de onde sai o
+   * `CodigoTributacaoMunicipio` e o item da LC 116 correspondente.
+   *
+   * É rota pública: responde sem login, só com o `APP_ID`, e por isso é
+   * estática. O `idCliente` da prefeitura é o próprio código IBGE (conferido
+   * em Suzano, Guarulhos, Santos e Maceió).
+   *
+   * A alíquota que vem aqui é a **do município**. Optante do Simples Nacional
+   * recolhe pela do anexo, e copiar esta emitiria a nota com o imposto errado.
+   */
+  static async listActivities(
+    cityCode: string | number,
+  ): Promise<MunicipalActivity[]> {
+    const response = await requestJson<ApiResponse<RawActivity[]>>(
+      `https://${cityCode}.giss.com.br`,
+      `/service-atividade/api/atividade/v2/lista-atividades/${cityCode}`,
+      { headers: { APP_ID } },
+    );
+    return (response.conteudo ?? []).map(toActivity);
+  }
+
+  /**
+   * As atividades em que a empresa logada está enquadrada, com a alíquota
+   * vigente na data — o subconjunto curto que ela pode de fato usar numa nota,
+   * em vez das centenas ou milhares da tabela inteira.
+   */
+  async companyActivities(on: Date | string = new Date()): Promise<MunicipalActivity[]> {
+    const { clientId, companyId } = this.#session;
+    const response = await this.call<ApiResponse<RawActivity[]>>(
+      `/service-atividade/api/atividade/servicos/enquadrados/aliquotas/${clientId}/${companyId}/${isoDate(on)}`,
+    );
+    return (response.conteudo ?? []).map(toActivity);
   }
 
   /** Remove um cadastro (o portal chama de "anular"). */

@@ -7,11 +7,12 @@ invoices (NFS-e) following the ABRASF 2.04 standard with the LC 214/2025 extensi
 environment variable; see [docs/municipalities.md](docs/municipalities.md).
 
 Covers all **16 operations** of the two published SOAP services — `nfse` (services provided)
-and `nfsc` (services received) — plus the portal REST API, the only way to manage the
-customer and supplier directory.
+and `nfsc` (services received) — plus the portal REST API, the only way to reach the
+customer and supplier directory and the municipal activity table.
 
 - Issue, cancel and replace invoices, single or in batches
 - Queries by period, competence, number range, RPS and protocol
+- The city activity table, where `CodigoTributacaoMunicipio` and its LC 116 item come from
 - Declaration of received services (supplier invoices)
 - XMLDSig signing with an A1 certificate, in the shape each operation requires
 - Validation against the official XSD before sending
@@ -54,6 +55,7 @@ their contents never enter the repository.
 
 ```bash
 giss latest                               # the most recent invoices
+giss activities --company                 # activity codes this company can use
 giss issue --customer acme --amount 1500 --description "Consulting"
 giss issue --customer acme --amount 1500 --description "Consulting" --confirm
 giss pdf --number 573                     # the invoice as a file

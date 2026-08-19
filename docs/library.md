@@ -86,5 +86,20 @@ const { rps } = invoices[0];
 if (rps) await giss.nfse.findByRps(rps);   // no massaging needed
 ```
 
+Two more live in `PortalService`, because the Web Service has no equivalent —
+the activity table behind `CodigoTributacaoMunicipio`:
+
+```ts
+import { PortalService, resolveCityCode } from "gissonline-nfse";
+
+// public: no login, no certificate
+const all = await PortalService.listActivities(resolveCityCode("suzano"));
+
+// authenticated: only what this company is bound to, with the rate valid on the date
+const portal = await PortalService.authenticate(credentials);
+const mine = await portal.companyActivities(new Date());
+// [{ code: "6319400", serviceListItem: "1.09", description: "Portais…", rate: 4 }]
+```
+
 See [configuration.md](configuration.md) for serving several companies from one
 process, and [issuing.md](issuing.md) for what actually issues an invoice.
