@@ -66,3 +66,18 @@ What it does **not** prove is that the issuing rules match. Rates, service list
 items and required fields are configured per city hall, and that is exactly
 where Suzano cost us days — `E163`, `E165`, `cLocalidadeIncid`. Treat a new
 municipality as unverified until a real invoice comes out of it.
+
+## The portal `APP_ID`
+
+The REST API expects an `APP_ID` header, and it is **not the same everywhere**:
+each city's `portal/js/app.js` carries its own. `MUNICIPALITIES` maps the 30 that
+answered — Contagem and Salto refuse the bundle (`ECONNRESET`), so they have none
+and fall back to Suzano's, which the public activity routes accepted in Guarulhos,
+Santos and Maceió. `PortalService` picks it by IBGE code; pass `appId` to override.
+
+It is not one per city either: Guarujá, Maceió and Santo André share
+`c7d920e2-…`, which suggests one id per portal instance rather than per
+municipality.
+
+None of this is a secret — the value ships in a public JavaScript bundle that
+every visitor downloads.

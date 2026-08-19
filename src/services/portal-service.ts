@@ -1,6 +1,7 @@
 import { createSign } from "node:crypto";
 import { PortalError } from "../domain/errors.ts";
 import type { Address } from "../domain/types.ts";
+import { findMunicipalityByCode } from "../config/municipalities.ts";
 import { loadCertificate, type CertificateInput } from "../infra/certificate.ts";
 import { requestBinary, requestJson } from "../infra/http-client.ts";
 import { digitsOnly, isoDate } from "../infra/xml.ts";
@@ -15,8 +16,20 @@ import { digitsOnly, isoDate } from "../infra/xml.ts";
  * Autentica por CPF/senha do portal, não pelo certificado A1.
  */
 
-/** Constante pública do bundle do portal (`portal/js/app.js`), não é segredo. */
-const APP_ID = "a320e7f8-a64b-7d39-44de-490fe85dc487";
+/**
+ * Constante pública do bundle do portal (`portal/js/app.js`), não é segredo —
+ * qualquer navegador que abre o site a envia.
+ *
+ * Cada cidade tem a sua (mapeadas em `MUNICIPALITIES`), e a de Suzano serve de
+ * padrão: as rotas públicas de atividade aceitaram-na em Guarulhos, Santos e
+ * Maceió, mas isso não é promessa — passe `appId` para uma cidade fora da lista.
+ */
+const DEFAULT_APP_ID = "a320e7f8-a64b-7d39-44de-490fe85dc487";
+
+/** O `APP_ID` da cidade, com o override do chamador na frente. */
+function appIdFor(cityCode: string | number, override?: string): string {
+  return override ?? findMunicipalityByCode(cityCode)?.appId ?? DEFAULT_APP_ID;
+}
 
 export interface PortalCredentials {
   /** CPF do usuário do portal */
@@ -26,6 +39,8 @@ export interface PortalCredentials {
   cityCode: string;
   /** CNPJ da empresa a selecionar; usa a primeira quando ausente */
   cnpj?: string;
+  /** `APP_ID` da cidade, quando ela não está em `MUNICIPALITIES` */
+  appId?: string;
 }
 
 /**
@@ -44,6 +59,8 @@ export interface PortalCertificateCredentials {
   cityCode: string;
   /** CNPJ da empresa a selecionar; usa a primeira quando ausente */
   cnpj?: string;
+  /** `APP_ID` da cidade, quando ela não está em `MUNICIPALITIES` */
+  appId?: string;
 }
 
 /** As duas formas de entrar no portal. */
@@ -198,12 +215,13 @@ function tokenClaim(token: string, claim: string): string {
 /** Login por CPF e senha, como o formulário do portal. */
 async function passwordLogin(
   base: string,
+  appId: string,
   credentials: PortalCredentials,
 ): Promise<InitialToken> {
   return requestJson<InitialToken>(base, "/service-empresa/api/login/token", {
     method: "POST",
     headers: {
-      APP_ID,
+      APP_ID: appId,
       PARAM_USER: "CodCliente",
       "Content-Type": "application/x-www-form-urlencoded",
     },
@@ -229,6 +247,7 @@ async function passwordLogin(
  */
 async function certificateLogin(
   base: string,
+  appId: string,
   credentials: PortalCertificateCredentials,
 ): Promise<InitialToken> {
   const { privateKeyPem, certificateBase64 } = loadCertificate(
@@ -239,7 +258,7 @@ async function certificateLogin(
   const { conteudo: nonce } = await requestJson<ApiResponse<string>>(
     base,
     "/service-empresa/api/login/certificado/nonce",
-    { headers: { APP_ID } },
+    { headers: { APP_ID: appId } },
   );
 
   const signer = createSign("sha256");
@@ -251,7 +270,11 @@ async function certificateLogin(
     "/service-empresa/api/login/certificado/token",
     {
       method: "POST",
-      headers: { APP_ID, PARAM_USER: "CodCliente", "Content-Type": "application/json" },
+      headers: {
+        APP_ID: appId,
+        PARAM_USER: "CodCliente",
+        "Content-Type": "application/json",
+      },
       body: JSON.stringify({ certificateBase64, signature, nonce }),
     },
   );
@@ -301,10 +324,11 @@ export class PortalService {
     credentials: AnyPortalCredentials,
   ): Promise<PortalService> {
     const base = `https://${credentials.cityCode}.giss.com.br`;
+    const appId = appIdFor(credentials.cityCode, credentials.appId);
 
     const initial = byCertificate(credentials)
-      ? await certificateLogin(base, credentials)
-      : await passwordLogin(base, credentials);
+      ? await certificateLogin(base, appId, credentials)
+      : await passwordLogin(base, appId, credentials);
 
     const permissions = await requestJson<{
       conteudo: {
@@ -340,7 +364,7 @@ export class PortalService {
       {
         method: "POST",
         headers: {
-          APP_ID,
+          APP_ID: appId,
           PARAM_USER: "CodCliente",
           PARAM_LOGIN: target.clienteReferencia,
           CODIGO_USUARIO: permissions.conteudo.codigoUsuario ?? initial.codigo_usuario,
@@ -472,11 +496,12 @@ export class PortalService {
    */
   static async listActivities(
     cityCode: string | number,
+    appId?: string,
   ): Promise<MunicipalActivity[]> {
     const response = await requestJson<ApiResponse<RawActivity[]>>(
       `https://${cityCode}.giss.com.br`,
       `/service-atividade/api/atividade/v2/lista-atividades/${cityCode}`,
-      { headers: { APP_ID } },
+      { headers: { APP_ID: appIdFor(cityCode, appId) } },
     );
     return (response.conteudo ?? []).map(toActivity);
   }
