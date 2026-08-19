@@ -63,7 +63,12 @@ console.log(`  bytes:       ${xml.length}`);
 
 // O que acontece sem alíquota, com o ISS exigível
 try {
-  buildRps(DEFAULT_PROFILE, { taker, rpsNumber: "90002", serviceAmount: 10, description: "x" });
+  buildRps(DEFAULT_PROFILE, {
+    taker,
+    rpsNumber: "90002",
+    serviceAmount: 10,
+    description: "sem alíquota no perfil",
+  });
 } catch (error) {
   console.log(`\nsem alíquota → ${error.message}`);
 }

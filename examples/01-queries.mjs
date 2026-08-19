@@ -40,10 +40,9 @@ const july = await nfse.queryProvidedServices({
 });
 console.log(`julho: ${july.invoices.length} nota(s)`);
 for (const invoice of july.invoices) {
-  console.log(
-    `  ${invoice.number}  ${invoice.issueDate?.slice(0, 10)}  ` +
-      `R$ ${invoice.serviceAmount}  ${invoice.taker?.legalName ?? ""}`,
-  );
+  const date = invoice.issueDate?.slice(0, 10);
+  const taker = invoice.taker?.legalName ?? "";
+  console.log(`  ${invoice.number}  ${date}  R$ ${invoice.serviceAmount}  ${taker}`);
 }
 
 // 2. Uma nota específica ----------------------------------------------------

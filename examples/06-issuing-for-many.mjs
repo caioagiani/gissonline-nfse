@@ -8,7 +8,12 @@
  * numeração, que é o que separa emitir de emitir duas vezes.
  */
 import { readFileSync } from "node:fs";
-import { GissClient, buildRps, loadCertificate, DEFAULT_PROFILE } from "gissonline-nfse";
+import {
+  GissClient,
+  buildRps,
+  loadCertificate,
+  DEFAULT_PROFILE,
+} from "gissonline-nfse";
 
 const DRY_RUN = true;
 
@@ -93,10 +98,9 @@ for (const company of companies) {
     if (DRY_RUN) {
       const xml = nfse.previewIssueNfse(rps);
       const signatures = (xml.match(/<Signature/g) ?? []).length;
-      console.log(
-        `  RPS ${rpsNumber}  R$ ${item.amount.toFixed(2)}  ` +
-          `${signatures} assinaturas  ${xml.length} bytes  (não enviado)`,
-      );
+      const amount = item.amount.toFixed(2);
+      console.log(`  RPS ${rpsNumber}  R$ ${amount}  ${signatures} assinaturas`);
+      console.log(`      ${xml.length} bytes, não enviado`);
       continue;
     }
 
@@ -113,7 +117,8 @@ for (const company of companies) {
       case "pending":
         // O lote foi aceito e ainda processa. Guarde o protocolo e repita
         // depois com o MESMO número de RPS — é seguro justamente por isso.
-        console.log(`  RPS ${rpsNumber} → processando, protocolo ${outcome.protocol}`);
+        console.log(`  RPS ${rpsNumber} → processando`);
+        console.log(`      protocolo ${outcome.protocol}`);
         break;
       case "rejected": {
         const codes = outcome.warnings.map((w) => w.code).join(", ");

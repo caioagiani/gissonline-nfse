@@ -51,7 +51,8 @@ console.log(`\nbusca por CNPJ: ${found ? found.razaoSocial : "não cadastrado"}`
 // Nenhum serviço do GissOnline resolve CNPJ ou CEP. Estes helpers são
 // conveniência para preencher um cadastro — nunca fonte da verdade.
 const zip = await lookupZip("01310-100");
-console.log(`\nCEP 01310-100: ${zip.street}, ${zip.district} — ${zip.city}/${zip.state}`);
+console.log(`\nCEP 01310-100: ${zip.street}, ${zip.district}`);
+console.log(`  ${zip.city}/${zip.state}`);
 
 const cnpjData = await lookupCompany("60977243000106");
 const { city, state, cityCode, status } = cnpjData;

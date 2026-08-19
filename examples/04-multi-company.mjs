@@ -52,7 +52,8 @@ for (const city of ["suzano", "guarulhos", "santos"]) {
     });
     console.log(`→ ${invoices.length} nota(s)`);
   } catch (error) {
-    const code = error instanceof GissError ? error.messages[0]?.message : error.message;
+    const code =
+      error instanceof GissError ? error.messages[0]?.message : error.message;
     console.log(`→ ${code}`);
     if (code === "E361") {
       console.log("   a empresa não tem inscrição municipal aqui — o resto do");
