@@ -34,6 +34,12 @@ giss replace --number 569 --reason 1 --customer acme --amount 15000 --confirm
 giss pdf --number 573                     # writes ./nfse-573.pdf
 giss xml --number 573 --out ~/notas       # writes ~/notas/nfse-573.xml
 
+# portal messages (Fale Conosco)
+giss messages                             # the ones you opened
+giss messages --id 20                     # one, with the auditor's reply
+giss messages --id 20 --attachment 16     # writes ./webnar giss.pdf
+giss message --subject S --text T --confirm
+
 # municipal activity table (CodigoTributacaoMunicipio)
 giss activities --item 1.09
 giss activities --company
@@ -105,6 +111,37 @@ giss cities --state SP     # just one state
 
 Setting `GISS_MUNICIPIO` to the slug is enough — the IBGE code follows from it.
 See [municipalities.md](municipalities.md).
+
+## Portal messages (Fale Conosco)
+
+The support channel of the portal, and the only one the API opens to a taxpayer:
+
+```bash
+giss messages                          # everything you opened, newest last
+giss messages --unread                 # only replies you have not read
+giss messages --id 20                  # the message with its reply and attachments
+giss messages --id 20 --attachment 16  # downloads one of them, into ./ or --out
+giss message --subject "..." --text "..."            # shows what would be sent
+giss message --subject "..." --text "..." --confirm  # actually opens it
+```
+
+```
+   20  2026-04-16  answered   Cancelar NFS-e
+  935  2026-08-14  waiting    Erro A01 na emissão de NFS-e via Web Service
+
+7 message(s) — 0 unread
+```
+
+A message is a question and, at most, **one** reply from an auditor — not a thread. The
+listing is **per user**, not per company: messages opened with the same CPF for another
+company show up here too.
+
+`message` writes, so it needs `--confirm` like an issue does — there is a person on the
+other end who will read it.
+
+The other support module, the tax authority's own ticket system
+(`service-declaracao/api/solicitacao-de-servicos/`), answers `Access Denied` to a taxpayer
+session. It is staff-side and not reachable from here.
 
 ## Municipal activities
 

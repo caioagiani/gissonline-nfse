@@ -283,6 +283,88 @@ async function certificateLogin(
   return { access_token: token, codigo_usuario: tokenClaim(token, "CODIGO_USUARIO") };
 }
 
+/** Um anexo de uma mensagem do Fale Conosco. */
+export interface PortalMessageAttachment {
+  id: number;
+  name: string;
+  /** Verdadeiro quando o arquivo veio do auditor, não do contribuinte */
+  fromAuditor: boolean;
+}
+
+/**
+ * Uma mensagem do Fale Conosco do portal.
+ *
+ * Não é um ticket com histórico: cada registro é uma pergunta e, quando muito,
+ * **uma** resposta do auditor. Por isso o tipo tem `answer` e não uma lista de
+ * mensagens — é o que o backend guarda.
+ */
+export interface PortalMessage {
+  id: number;
+  subject: string;
+  body: string;
+  /** ISO local, como o portal grava (sem fuso) */
+  sentAt: string;
+  read: boolean;
+  answered: boolean;
+  answer?: string;
+  answeredAt?: string;
+  /** Nome do auditor que respondeu */
+  auditor?: string;
+  contact: { name?: string; phone?: string; email?: string };
+  attachments: PortalMessageAttachment[];
+}
+
+/** O que se envia para abrir uma mensagem. */
+export interface NewPortalMessage {
+  subject: string;
+  body: string;
+  /**
+   * Contato para retorno. O portal preenche com os dados do usuário logado —
+   * a API não os deduz sozinha, então passe-os se a prefeitura os cobrar.
+   */
+  contact?: { name?: string; phone?: string; email?: string };
+}
+
+interface RawMessage {
+  id: number;
+  titulo: string;
+  mensagem: string;
+  dataDeEnvio: string;
+  lida?: boolean;
+  respondida?: boolean;
+  resposta?: string;
+  dataDeResposta?: string;
+  nomeAuditor?: string;
+  nomeContato?: string;
+  telefoneContato?: string;
+  emailContato?: string;
+  anexos?: Array<{ id: number; nomesArquivos: string; ehAnexoAuditor?: boolean }>;
+}
+
+function toMessage(raw: RawMessage): PortalMessage {
+  return {
+    id: raw.id,
+    subject: raw.titulo,
+    body: raw.mensagem,
+    sentAt: raw.dataDeEnvio,
+    read: raw.lida ?? false,
+    answered: raw.respondida ?? false,
+    ...(raw.resposta === undefined ? {} : { answer: raw.resposta }),
+    ...(raw.dataDeResposta === undefined ? {} : { answeredAt: raw.dataDeResposta }),
+    ...(raw.nomeAuditor === undefined ? {} : { auditor: raw.nomeAuditor }),
+    contact: {
+      ...(raw.nomeContato === undefined ? {} : { name: raw.nomeContato }),
+      ...(raw.telefoneContato === undefined ? {} : { phone: raw.telefoneContato }),
+      ...(raw.emailContato === undefined ? {} : { email: raw.emailContato }),
+    },
+    attachments: (raw.anexos ?? []).map((a) => ({
+      id: a.id,
+      name: a.nomesArquivos,
+      fromAuditor: a.ehAnexoAuditor ?? false,
+    })),
+  };
+}
+
 export class PortalService {
   readonly base: string;
   #session: PortalSession;
@@ -546,6 +628,81 @@ export class PortalService {
         `/service-relatorio/api/relatorio/${format}/${this.#session.clientId}/nota/${internalId}`,
         { headers },
         `application/${format}`,
+      ),
+    );
+  }
+
+  /**
+   * Mensagens do Fale Conosco abertas por este usuário.
+   *
+   * É o canal de atendimento do portal, e o único que a API expõe ao
+   * contribuinte: o módulo de chamados do fisco
+   * (`service-declaracao/api/solicitacao-de-servicos/`) responde
+   * `Access Denied` — travestido de HTTP 500 — para quem entra como empresa.
+   *
+   * A listagem é por usuário, não por empresa: mensagens abertas com o mesmo
+   * CPF em outra empresa aparecem aqui.
+   */
+  async listMessages(): Promise<PortalMessage[]> {
+    const response = await this.call<ApiResponse<RawMessage[]>>(
+      `/service-empresa/api/fale-conosco/listar-por-usuario/${this.#session.userCode}`,
+    );
+    return (response.conteudo ?? []).map(toMessage);
+  }
+
+  /** Uma mensagem com a resposta do auditor e os anexos dos dois lados. */
+  async getMessage(id: number): Promise<PortalMessage> {
+    const response = await this.call<ApiResponse<RawMessage>>(
+      `/service-empresa/api/fale-conosco/buscar/${id}`,
+    );
+    return toMessage(response.conteudo);
+  }
+
+  /** Quantas mensagens respondidas ainda não foram lidas. */
+  async unreadMessages(): Promise<number> {
+    const response = await this.call<ApiResponse<number>>(
+      `/service-empresa/api/fale-conosco/contar-nao-lidas/${this.#session.userCode}`,
+    );
+    return response.conteudo ?? 0;
+  }
+
+  /** Marca uma mensagem como lida, como abrir a resposta no portal faria. */
+  async markMessageAsRead(id: number): Promise<void> {
+    await this.call(`/service-empresa/api/fale-conosco/marcar-como-lida/${id}`, {
+      method: "PUT",
+    });
+  }
+
+  /**
+   * Abre uma mensagem para a prefeitura.
+   *
+   * Escreve — do outro lado há um auditor que vai ler. O CLI só dispara com
+   * `--confirm`, pelo mesmo motivo que uma emissão.
+   */
+  async sendMessage(message: NewPortalMessage): Promise<void> {
+    await this.call("/service-empresa/api/fale-conosco/", {
+      method: "POST",
+      body: JSON.stringify({
+        idCliente: this.#session.clientId,
+        usuario: { id: Number(this.#session.userCode) },
+        empresa: { idEmpresa: this.#session.companyId },
+        titulo: message.subject,
+        mensagem: message.body,
+        ...(message.contact?.name ? { nomeContato: message.contact.name } : {}),
+        ...(message.contact?.phone ? { telefoneContato: message.contact.phone } : {}),
+        ...(message.contact?.email ? { emailContato: message.contact.email } : {}),
+      }),
+    });
+  }
+
+  /** Baixa um anexo de uma mensagem — o do auditor ou o que você enviou. */
+  async messageAttachment(messageId: number, attachmentId: number): Promise<Buffer> {
+    return this.withSession((headers) =>
+      requestBinary(
+        this.base,
+        `/service-empresa/api/fale-conosco/download?idMensagem=${messageId}&idAnexo=${attachmentId}`,
+        { headers },
+        "application/octet-stream",
       ),
     );
   }

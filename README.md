@@ -16,6 +16,7 @@ customer and supplier directory and the municipal activity table.
 - Declaration of received services (supplier invoices)
 - XMLDSig signing with an A1 certificate, in the shape each operation requires
 - Portal login with that same certificate, so no CPF and password are needed
+- Fale Conosco messages: read the replies from the city hall, and open new ones
 - Validation against the official XSD before sending
 - No write operation fires without `--confirm`
 

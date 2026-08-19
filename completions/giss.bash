@@ -10,7 +10,7 @@ _giss_completions() {
 purchased-protocol purchased-number issue cancel replace customers \
 suppliers customer-add supplier-add customer-rm supplier-rm \
 portal-list portal-add portal-rm portal-import pdf xml zip cnpj cities \
-activities profile"
+activities messages message profile"
 
   global_opts="--env --json --xml --debug --help"
 
@@ -52,6 +52,8 @@ activities profile"
     pdf|xml)         opts="--number --out" ;;
     cities)          opts="--state" ;;
     activities)      opts="--item --city --company --date" ;;
+    messages)        opts="--id --unread --attachment --out --city" ;;
+    message)         opts="--subject --text --city --confirm" ;;
     profile)         opts="--save" ;;
     *)               opts="" ;;
   esac

@@ -21,6 +21,10 @@ All found by testing against the live service:
 - **`tipos-servicos-comprados-v1_01.xsd` is an incomplete delta** (54 types against 191 in
   v1_00) and does not compile on its own, despite sharing the `targetNamespace`. See
   `docs/schemas-tomados/vigente/`.
+- **The portal answers HTTP 500 for permission denied.** The body says "o sistema está
+  indisponível" and carries a Java stacktrace whose real cause is
+  `AuthorizationDeniedException`. Retrying will not help — that is what
+  `service-declaracao/api/solicitacao-de-servicos/` does to a taxpayer session.
 - **The `APP_ID` is per city, not global.** Each portal bundle carries its own; three
   cities even share one. `MUNICIPALITIES` maps them — see
   [municipalities.md](municipalities.md#the-portal-app_id).

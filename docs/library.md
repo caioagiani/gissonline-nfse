@@ -110,5 +110,14 @@ const mine = await portal.companyActivities(new Date());
 // [{ code: "6319400", serviceListItem: "1.09", description: "Portais…", rate: 4 }]
 ```
 
+And the Fale Conosco messages, the portal's support channel:
+
+```ts
+const messages = await portal.listMessages();          // per user, not per company
+const one = await portal.getMessage(20);               // with the auditor's reply
+const pdf = await portal.messageAttachment(20, 16);    // Buffer
+await portal.sendMessage({ subject: "…", body: "…" }); // writes — a person reads it
+```
+
 See [configuration.md](configuration.md) for serving several companies from one
 process, and [issuing.md](issuing.md) for what actually issues an invoice.

@@ -40,6 +40,8 @@ _giss() {
     'xml:Download the invoice XML'
     'cities:Cities known to publish the Web Service'
     'activities:Municipal activity table (CodigoTributacaoMunicipio)'
+    'messages:Fale Conosco messages you opened'
+    'message:Open a message to the city hall'
     'zip:Look up a postal code (BrasilAPI)'
     'cnpj:Look up a company by CNPJ (BrasilAPI)'
     'profile:Show or save the tax profile defaults'
@@ -148,6 +150,15 @@ _giss() {
           ;;
         cities)
           _arguments $global_opts '--state[Filter by state]:uf:(AL GO MG PE PR SP)'
+          ;;
+        messages)
+          _arguments $global_opts '--id[Message id]:id:' '--unread[Only unanswered replies]' \
+            '--attachment[Attachment id to download]:id:' '--out[Target directory]:directory:_files -/' \
+            '--city[City IBGE code]:code:'
+          ;;
+        message)
+          _arguments $global_opts '--subject[Subject]:text:' '--text[Message body]:text:' \
+            '--city[City IBGE code]:code:' '--confirm[Actually send it]'
           ;;
         activities)
           _arguments $global_opts '--item[LC 116 item]:item:' '--city[City IBGE code]:code:' \
