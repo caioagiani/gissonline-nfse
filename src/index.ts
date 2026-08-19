@@ -50,9 +50,11 @@ export type { IssueOutcome } from "./services/nfse-service.ts";
 export { NfscService } from "./services/nfsc-service.ts";
 export { PortalService, buildPortalParty } from "./services/portal-service.ts";
 export type {
+  AnyPortalCredentials,
   DocumentFormat,
   MunicipalActivity,
   PartyRole,
+  PortalCertificateCredentials,
   PortalCredentials,
   PortalParty,
   PortalSession,

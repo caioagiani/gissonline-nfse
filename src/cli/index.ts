@@ -10,7 +10,7 @@ import {
 } from "../config/index.ts";
 import { GissError, PortalError } from "../domain/errors.ts";
 import type { Address, CancellationCode, Rps } from "../domain/types.ts";
-import { exportPem } from "../infra/certificate.ts";
+import { exportPem, type Certificate } from "../infra/certificate.ts";
 import { isoDate } from "../infra/xml.ts";
 import type { Nfse, QueryResult } from "../messages/parser.ts";
 import { GissClient } from "../services/giss-client.ts";
@@ -22,6 +22,7 @@ import {
 import {
   buildPortalParty,
   PortalService,
+  type AnyPortalCredentials,
   type DocumentFormat,
   type PartyRole,
 } from "../services/portal-service.ts";
@@ -503,7 +504,9 @@ async function main() {
         throw new Error(`Invoice ${values.number} has no internal id to download`);
       }
 
-      const portal = await PortalService.authenticate(loadPortalCredentials(client.config));
+      const portal = await PortalService.authenticate(
+        portalCredentials(client.config, client.certificate),
+      );
       const file = await portal.invoiceDocument(invoice.internalId, command);
       const target = documentTarget(values.out, invoice.number, command);
       mkdirSync(dirname(target), { recursive: true });
@@ -692,6 +695,37 @@ function documentTarget(
 
 /** Comandos que falam com a API REST do portal, não com o Web Service. */
 /**
+ * Como entrar no portal: CPF e senha quando estão no ambiente, senão o próprio
+ * A1 — o mesmo certificado que assina os RPS também abre o REST, o que dispensa
+ * guardar a senha de uma pessoa física para um processo automatizado.
+ *
+ * A ordem preserva o comportamento de quem já tem `GISS_LOGIN`/`GISS_PASS`
+ * configurados. Passe o certificado já carregado quando houver um: reabrir o
+ * PKCS#12 é a parte cara.
+ */
+function portalCredentials(
+  config: { cityCode: string; cnpj?: string },
+  certificate?: Certificate,
+): AnyPortalCredentials {
+  if (process.env.GISS_LOGIN && process.env.GISS_PASS) {
+    return loadPortalCredentials(config);
+  }
+
+  const source = certificate ?? process.env.CERT_PATH;
+  if (!source) {
+    throw new Error(
+      "The portal needs GISS_LOGIN and GISS_PASS, or CERT_PATH to log in with the certificate",
+    );
+  }
+  return {
+    certificate: source,
+    certificatePassword: process.env.CERT_PASSWORD,
+    cityCode: config.cityCode,
+    cnpj: config.cnpj,
+  };
+}
+
+/**
  * Lista a tabela de atividades do município, ou só as da empresa.
  *
  * O `CodigoTributacaoMunicipio` não existe no WSDL — nenhuma das 16 operações
@@ -707,7 +741,7 @@ async function runActivitiesCommand(
   const activities = values.company
     ? await (
         await PortalService.authenticate(
-          loadPortalCredentials({ cityCode, cnpj: process.env.GISS_CNPJ }),
+          portalCredentials({ cityCode, cnpj: process.env.GISS_CNPJ }),
         )
       ).companyActivities(values.date ?? new Date())
     : await PortalService.listActivities(cityCode);
@@ -757,7 +791,7 @@ async function runPortalCommand(
   // eslint-disable-next-line no-param-reassign -- --lookup enriches the input
   const role = (values.type ? Number(values.type) : 1) as PartyRole;
   const label = role === 1 ? "customer" : "supplier";
-  const portal = await PortalService.authenticate(loadPortalCredentials(config));
+  const portal = await PortalService.authenticate(portalCredentials(config));
 
   if (command === "portal-list") {
     const parties = await portal.list(role);

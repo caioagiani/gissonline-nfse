@@ -181,7 +181,7 @@ giss portal-import                # brings the portal directory into the local o
 
 | | SOAP (`/service-ws/`) | REST (`service-empresa/api/`) |
 | --- | --- | --- |
-| Authentication | A1 certificate (mTLS) | JWT from CPF/password login |
+| Authentication | A1 certificate (mTLS) | JWT, from CPF/password **or from the A1** |
 | Base | `https://ws-<city>.giss.com.br` | `https://<IBGE code>.giss.com.br` |
 | Party directory | does not exist | `cliente-fornecedor/` (CRUD) |
 | Invoice issuing | yes | — |
@@ -190,6 +190,10 @@ The REST login takes three steps: `POST login/token` with `grant_type=password`,
 `GET login/permissao` to list the linked companies, then `POST login/token` with
 `grant_type=refresh_token` and the `PARAM_LOGIN`, `CODIGO_USUARIO` and
 `PARAM_PRIV: empresa=<id>` headers.
+
+The first step also accepts the **A1 certificate** instead of CPF and password, which is
+what the CLI uses when `GISS_LOGIN`/`GISS_PASS` are absent — see
+[configuration.md](configuration.md#logging-into-the-portal-with-the-certificate).
 
 **It is an internal API with no public contract — it can change without notice.**
 

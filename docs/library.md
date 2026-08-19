@@ -86,6 +86,15 @@ const { rps } = invoices[0];
 if (rps) await giss.nfse.findByRps(rps);   // no massaging needed
 ```
 
+`PortalService.authenticate` takes CPF and password, or the certificate:
+
+```ts
+const portal = await PortalService.authenticate({
+  certificate: giss.certificate,
+  cityCode: giss.config.cityCode,
+});
+```
+
 Two more live in `PortalService`, because the Web Service has no equivalent —
 the activity table behind `CodigoTributacaoMunicipio`:
 

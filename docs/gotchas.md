@@ -21,6 +21,9 @@ All found by testing against the live service:
 - **`tipos-servicos-comprados-v1_01.xsd` is an incomplete delta** (54 types against 191 in
   v1_00) and does not compile on its own, despite sharing the `targetNamespace`. See
   `docs/schemas-tomados/vigente/`.
+- **The certificate login signs the nonce as bytes.** `login/certificado/nonce` answers
+  base64; signing that text answers `Nonce inválido ou expirado`. Decode it first, sign
+  with SHA-256, and get a fresh nonce per attempt — it is single-use.
 - **The activity table swaps two fields on one route.** In
   `atividade/servicos/enquadrados/aliquotas` the backend fills `descricao` with the LC 116
   item and `codigoServico` with the description — the other route gets them right.

@@ -15,6 +15,7 @@ customer and supplier directory and the municipal activity table.
 - The city activity table, where `CodigoTributacaoMunicipio` and its LC 116 item come from
 - Declaration of received services (supplier invoices)
 - XMLDSig signing with an A1 certificate, in the shape each operation requires
+- Portal login with that same certificate, so no CPF and password are needed
 - Validation against the official XSD before sending
 - No write operation fires without `--confirm`
 
