@@ -60,6 +60,7 @@ export type {
   Party,
   ProtocolResult,
   QueryResult,
+  RpsIdentification,
 } from "./messages/parser.ts";
 
 export { ContactRepository, taxIdOf } from "./storage/contact-repository.ts";

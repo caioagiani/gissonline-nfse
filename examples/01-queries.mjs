@@ -65,20 +65,20 @@ const range = await nfse.queryNfseRange({ firstNumber: first, lastNumber: last }
 console.log(`\nfaixa ${first}–${last}: ${range.invoices.length} nota(s)`);
 
 // 4. Pelo RPS que originou a nota -------------------------------------------
-// A consulta devolve o RPS de origem em `raw.IdentificacaoRps` — mas só nas
-// notas emitidas pelo Web Service: as feitas à mão no portal não têm RPS.
+// Cada nota traz o RPS que a originou em `invoice.rps` — mas só as emitidas
+// pelo Web Service: as lançadas à mão no portal não passam por RPS nenhum.
 // `findByRps` faz o caminho inverso, e responde `undefined` quando o número
 // ainda não virou nota.
 const year = await nfse.queryProvidedServices({
   issuePeriod: { from: "2026-01-01", to: "2026-12-31" },
 });
-const fromRps = year.invoices.map((i) => [i, findRps(i.raw)]).filter(([, r]) => r);
+const fromRps = year.invoices.filter((i) => i.rps);
 
 console.log(`\n${fromRps.length} de ${year.invoices.length} notas vieram de RPS`);
-if (fromRps.length > 0) {
-  const [, rps] = fromRps.at(-1);
-  const byRps = await nfse.findByRps({ number: rps.Numero, series: rps.Serie });
-  console.log(`  RPS ${rps.Numero}/${rps.Serie} → NFS-e ${byRps?.number}`);
+const { rps } = fromRps.at(-1) ?? {};
+if (rps) {
+  const byRps = await nfse.findByRps(rps);
+  console.log(`  RPS ${rps.number}/${rps.series} → NFS-e ${byRps?.number}`);
 }
 
 // 5. Paginação automática ---------------------------------------------------
@@ -93,14 +93,3 @@ for await (const page of paginate((n) =>
   total += page.invoices.length;
 }
 console.log(`\n2026 inteiro: ${total} nota(s)`);
-
-/** O RPS que originou a nota, aninhado dentro de `raw`. */
-function findRps(node) {
-  if (!node || typeof node !== "object") return undefined;
-  if (node.IdentificacaoRps) return node.IdentificacaoRps;
-  for (const value of Object.values(node)) {
-    const found = findRps(value);
-    if (found) return found;
-  }
-  return undefined;
-}

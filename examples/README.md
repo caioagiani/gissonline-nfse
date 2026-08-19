@@ -24,7 +24,8 @@ out of your own history instead of hardcoding one — a fixed number that is
 taken here would be free somewhere else, and the example would bill a stranger.
 
 For the same reason no example hardcodes an invoice number: they all derive
-what they need from the account they run against. `06-issuing-for-many.mjs`
+what they need from the account they run against, reading the RPS from
+`invoice.rps`. `06-issuing-for-many.mjs`
 ships with `DRY_RUN = true`.
 
 ## Configuration

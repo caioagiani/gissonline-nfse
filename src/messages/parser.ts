@@ -20,10 +20,23 @@ export interface Party {
   cityCode?: string;
 }
 
+/** O RPS que originou uma NFS-e. */
+export interface RpsIdentification {
+  number: string;
+  series: string;
+  /** 1 = RPS, 2 = nota fiscal conjugada, 3 = cupom */
+  type?: 1 | 2 | 3;
+}
+
 export interface Nfse {
   number: string;
   /** Id interno (`InfNfse@Id`), que as rotas de download do portal exigem */
   internalId?: string;
+  /**
+   * RPS que originou a nota. Ausente nas notas lançadas direto no portal, que
+   * não passam por RPS nenhum — só as emitidas pelo Web Service o têm.
+   */
+  rps?: RpsIdentification;
   verificationCode: string;
   issueDate: string;
   competenceDate?: string;
@@ -166,6 +179,30 @@ function extractMessages(node: unknown, key: string): ServiceMessage[] {
   });
 }
 
+/**
+ * O `IdentificacaoRps` fica aninhado em profundidade variável conforme a
+ * operação, então é procurado em vez de acessado por caminho fixo.
+ */
+function extractRps(node: unknown): RpsIdentification | undefined {
+  const found = findAll(node, "IdentificacaoRps")[0] as
+    | Record<string, unknown>
+    | undefined;
+  if (!found) return undefined;
+
+  const number = asText(found["Numero"]);
+  const series = asText(found["Serie"]);
+  if (!number || !series) return undefined;
+
+  // O XML traz o tipo como texto, mas a entrada de `findByRps` o quer como
+  // número — converter aqui deixa `findByRps(invoice.rps)` compilar direto.
+  const type = Number(asText(found["Tipo"]));
+  return {
+    number,
+    series,
+    ...(type === 1 || type === 2 || type === 3 ? { type } : {}),
+  };
+}
+
 function extractParty(node: unknown): Party {
   const record = (node ?? {}) as Record<string, unknown>;
   const taxId = (findAll(record, "CpfCnpj")[0] ?? {}) as Record<string, unknown>;
@@ -189,6 +226,7 @@ function extractInvoices(node: unknown): Nfse[] {
     return {
       number: asText(info["Numero"]) ?? "",
       internalId: asText(info["@Id"]),
+      rps: extractRps(record),
       verificationCode: asText(info["CodigoVerificacao"]) ?? "",
       issueDate: asText(info["DataEmissao"]) ?? "",
       competenceDate: asText(findAll(info, "Competencia")[0]),
