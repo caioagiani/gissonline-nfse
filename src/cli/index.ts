@@ -24,6 +24,7 @@ import {
   PortalService,
   type AnyPortalCredentials,
   type DocumentFormat,
+  type PortalMessage,
   type PartyRole,
 } from "../services/portal-service.ts";
 import { MUNICIPALITIES } from "../config/municipalities.ts";
@@ -105,6 +106,11 @@ LOOKUPS (BrasilAPI — convenience, not a source of truth)
 MUNICIPALITIES
   cities [--state SP]                               Cities known to publish the Web Service
 
+PORTAL MESSAGES (Fale Conosco)
+  messages [--id N] [--unread]                      Messages you opened, or one with its reply
+  message --subject S --text T [--confirm]          Opens a message to the city hall
+  attachment --id N --file N [--out DIR]            Downloads an attachment
+
 MUNICIPAL ACTIVITIES (the source of CodigoTributacaoMunicipio)
   activities [term] [--item 1.09] [--city IBGE]     City activity table (no login)
              [--company] [--date YYYY-MM-DD]        Only the ones your company is bound to
@@ -165,6 +171,11 @@ const options = {
   simples: { type: "string" },
   company: { type: "boolean", default: false },
   date: { type: "string" },
+  id: { type: "string" },
+  file: { type: "string" },
+  subject: { type: "string" },
+  text: { type: "string" },
+  unread: { type: "boolean", default: false },
   save: { type: "boolean", default: false },
   "street-type": { type: "string" },
   mei: { type: "boolean", default: false },
@@ -215,6 +226,13 @@ async function main() {
   // não certificado. Fica antes do cliente SOAP para não exigir o .pfx.
   if (command === "activities") {
     await runActivitiesCommand(values, positionals);
+    return;
+  }
+
+  // O Fale Conosco também vive no portal; o certificado só entra quando é ele
+  // que abre a sessão.
+  if (command === "messages" || command === "message" || command === "attachment") {
+    await runMessageCommand(command, values);
     return;
   }
 
@@ -723,6 +741,100 @@ function portalCredentials(
     cityCode: config.cityCode,
     cnpj: config.cnpj,
   };
+}
+
+/**
+ * Fale Conosco: lista, abre e baixa anexos das mensagens trocadas com a
+ * prefeitura. É o canal de atendimento que a API expõe ao contribuinte — o
+ * módulo de chamados do fisco nega acesso a quem entra como empresa.
+ */
+async function runMessageCommand(command: string, values: CliValues): Promise<void> {
+  const cityCode = resolveCityCode(undefined, values.city);
+  const portal = await PortalService.authenticate(
+    portalCredentials({ cityCode, cnpj: process.env.GISS_CNPJ }),
+  );
+
+  if (command === "message") {
+    if (!values.subject || !values.text) {
+      throw new Error("Provide --subject and --text");
+    }
+    if (!values.confirm) {
+      console.log(`Subject: ${values.subject}`);
+      console.log(`Message: ${values.text}`);
+      console.log(`To:      ${portal.session.legalName} → city ${cityCode}`);
+      console.log("\nNothing was sent. Repeat with --confirm to open it.");
+      return;
+    }
+    await portal.sendMessage({ subject: values.subject, body: values.text });
+    console.log("Message sent.");
+    return;
+  }
+
+  if (command === "attachment") {
+    if (!values.id || !values.file) throw new Error("Provide --id and --file");
+    const message = await portal.getMessage(Number(values.id));
+    const attachment = message.attachments.find((a) => a.id === Number(values.file));
+    if (!attachment) {
+      throw new Error(
+        `Message ${values.id} has no attachment ${values.file}. Available: ` +
+          (message.attachments.map((a) => `${a.id} (${a.name})`).join(", ") || "none"),
+      );
+    }
+    const file = await portal.messageAttachment(message.id, attachment.id);
+    const target = values.out ? resolve(values.out, attachment.name) : resolve(attachment.name);
+    mkdirSync(dirname(target), { recursive: true });
+    writeFileSync(target, file);
+    console.log(`${target}  (${(file.length / 1024).toFixed(1)} KB)`);
+    return;
+  }
+
+  if (values.id) {
+    const message = await portal.getMessage(Number(values.id));
+    if (values.json) return void console.log(JSON.stringify(message, null, 2));
+    printMessage(message);
+    return;
+  }
+
+  const messages = await portal.listMessages();
+  const shown = values.unread ? messages.filter((m) => m.answered && !m.read) : messages;
+  if (values.json) return void console.log(JSON.stringify(shown, null, 2));
+
+  for (const message of shown) {
+    const status = message.answered ? (message.read ? "answered" : "NEW REPLY") : "waiting";
+    console.log(
+      [
+        String(message.id).padStart(5),
+        message.sentAt.slice(0, 10),
+        status.padEnd(9),
+        message.subject,
+      ].join("  "),
+    );
+  }
+  console.log(`\n${shown.length} message(s) — ${await portal.unreadMessages()} unread`);
+  const first = shown[0];
+  if (first) console.log(`See one with: ${INVOCATION} messages --id ${first.id}`);
+}
+
+/** Uma mensagem inteira, com a resposta do auditor quando existe. */
+function printMessage(message: PortalMessage): void {
+  console.log(`#${message.id}  ${message.subject}`);
+  console.log(`Sent:  ${message.sentAt.slice(0, 19).replace("T", " ")}`);
+  console.log(`\n${message.body}`);
+  if (message.answer) {
+    console.log(
+      `\n--- reply${message.auditor ? ` from ${message.auditor}` : ""}` +
+        `${message.answeredAt ? ` on ${message.answeredAt.slice(0, 10)}` : ""} ---`,
+    );
+    console.log(message.answer);
+  } else {
+    console.log("\n(no reply yet)");
+  }
+  for (const attachment of message.attachments) {
+    console.log(
+      `\nAttachment ${attachment.id}: ${attachment.name}` +
+        `${attachment.fromAuditor ? " (from the auditor)" : ""}`,
+    );
+  }
 }
 
 /**
