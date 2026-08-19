@@ -7,9 +7,22 @@
  * mas só `issueRps` envia — e a única chamada a ele neste arquivo usa um RPS
  * que já virou nota, justamente para mostrar que repetir não emite de novo.
  */
+import { readFileSync } from "node:fs";
 import { GissClient, buildRps, DEFAULT_PROFILE } from "gissonline-nfse";
 
-const giss = new GissClient();
+// A configuração vai inteira no construtor — nada é lido do ambiente por
+// baixo. Numa aplicação estes valores vêm da tabela da empresa; aqui vêm do
+// `.env` só para o exemplo rodar.
+const company = {
+  environment: "producao",
+  city: "suzano",                                   // o código IBGE vem daqui
+  cnpj: process.env.GISS_CNPJ,
+  municipalRegistration: process.env.GISS_ISC_MUNICIPAL,
+  certificate: readFileSync(process.env.CERT_PATH), // o .pfx em memória
+  certificatePassword: process.env.CERT_PASSWORD,
+};
+
+const giss = new GissClient(company);
 
 // O tomador é um objeto puro: pode vir do seu banco, do cadastro local ou
 // do portal. O pacote não impõe onde os dados moram.

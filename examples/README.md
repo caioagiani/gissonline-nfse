@@ -21,33 +21,38 @@ and signs an RPS but only previews it; its single call to `issueRps` replays an
 RPS that already became invoice 573, precisely to show that repeating does not
 issue a second one. `06-issuing-for-many.mjs` ships with `DRY_RUN = true`.
 
-## Configuration: the two shapes
+## Configuration
 
-`new GissClient()` with no arguments reads `process.env` — and it is
-`--env-file` that fills that in, not the package. The library never reads a
-file on its own; only the `giss` CLI does, through `process.loadEnvFile()`.
-
-Everything can be passed explicitly instead, and then nothing comes from the
-environment:
+Every example passes the configuration in full, because that is what an
+application does:
 
 ```js
-new GissClient({
+const giss = new GissClient({
   environment: "producao",
-  city: "suzano",              // the IBGE code follows from it
-  cnpj: "00000000000191",
-  municipalRegistration: "12345",
-  certificate: pfxBuffer,      // the .pfx in memory, never on disk
-  certificatePassword: "…",
+  city: "suzano",                                   // the IBGE code follows from it
+  cnpj: process.env.GISS_CNPJ,
+  municipalRegistration: process.env.GISS_ISC_MUNICIPAL,
+  certificate: readFileSync(process.env.CERT_PATH), // the .pfx in memory
+  certificatePassword: process.env.CERT_PASSWORD,
 });
 ```
 
-That is the shape an application wants, and what
-[04-multi-company.mjs](04-multi-company.mjs) and
-[06-issuing-for-many.mjs](06-issuing-for-many.mjs) use.
+Nothing is read from the environment underneath — the values come from `.env`
+here only so the examples run. In a real application they come from the
+company's row, and the `.pfx` is decrypted from its column into memory, never
+written to disk. With a certificate already loaded through `loadCertificate`,
+`certificatePassword` is not needed either: it only ever existed to open the
+file.
 
-There is no login and no token anywhere in this: identity **is** the A1
-certificate, presented in the TLS handshake of every call — the service
-answers `400 No required SSL certificate was sent` without it. The one
+`new GissClient()` with no arguments also works — it reads `process.env`, and
+it is `--env-file` that fills that in, not the package. The library never reads
+a file on its own; only the `giss` CLI does, through `process.loadEnvFile()`.
+It is convenient for a terminal and wrong for a server, so no example uses it.
+
+There is no login and no token in any of this: identity **is** the A1
+certificate, presented in the TLS handshake of every call — the service answers
+`400 No required SSL certificate was sent` without it, and `GISS_CNPJ`
+authenticates nothing, it only fills the provider field inside the XML. The one
 exception is the portal REST API (`PortalService`), which does log in with
 CPF/password for the directory and the PDF/XML downloads.
 

@@ -7,10 +7,22 @@
  * SOAP, e a representação impressa é do portal. Por isso estes downloads usam
  * a API REST, que pede login de CPF/senha além do certificado.
  */
-import { writeFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import { GissClient, PortalService, loadPortalCredentials } from "gissonline-nfse";
 
-const giss = new GissClient();
+// A configuração vai inteira no construtor — nada é lido do ambiente por
+// baixo. Numa aplicação estes valores vêm da tabela da empresa; aqui vêm do
+// `.env` só para o exemplo rodar.
+const company = {
+  environment: "producao",
+  city: "suzano",                                   // o código IBGE vem daqui
+  cnpj: process.env.GISS_CNPJ,
+  municipalRegistration: process.env.GISS_ISC_MUNICIPAL,
+  certificate: readFileSync(process.env.CERT_PATH), // o .pfx em memória
+  certificatePassword: process.env.CERT_PASSWORD,
+};
+
+const giss = new GissClient(company);
 
 // O download é pelo id interno da nota — o atributo `Id` de `InfNfse` —,
 // não pelo número impresso. Por isso a consulta vem antes.

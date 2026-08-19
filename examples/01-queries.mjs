@@ -5,28 +5,26 @@
  *
  * Só lê. Nada aqui emite, cancela ou altera nota.
  */
+import { readFileSync } from "node:fs";
 import { GissClient } from "gissonline-nfse";
 
-// Sem argumentos, o cliente lê `process.env` — e é o `--env-file` acima que
-// preenche isso, não o pacote: uma biblioteca que fosse ler arquivos do disco
-// sozinha atrapalharia quem já tem as variáveis vindas do ambiente.
-const giss = new GissClient();
+// A configuração vai inteira no construtor — nada é lido do ambiente por
+// baixo. Numa aplicação estes valores vêm da tabela da empresa; aqui vêm do
+// `.env` só para o exemplo rodar.
+const company = {
+  environment: "producao",
+  city: "suzano",                                   // o código IBGE vem daqui
+  cnpj: process.env.GISS_CNPJ,
+  municipalRegistration: process.env.GISS_ISC_MUNICIPAL,
+  certificate: readFileSync(process.env.CERT_PATH), // o .pfx em memória
+  certificatePassword: process.env.CERT_PASSWORD,
+};
 
-// Tudo aceita ser passado explicitamente, e aí nada é lido do ambiente. É esta
-// a forma que serve uma aplicação, onde cada empresa tem sua configuração:
-//
-//   const giss = new GissClient({
-//     environment: "producao",
-//     city: "suzano",              // o código IBGE vem daqui
-//     cnpj: "00000000000191",
-//     municipalRegistration: "12345",
-//     certificate: pfxBuffer,      // o .pfx em memória, sem tocar o disco
-//     certificatePassword: "…",
-//   });
-//
-// Ver 04-multi-company.mjs. Note que não há login nem token: a identidade é o
-// certificado A1, apresentado no handshake TLS de cada chamada. O Web Service
-// recusa a conexão sem ele (`400 No required SSL certificate was sent`).
+const giss = new GissClient(company);
+
+// Não há login nem token em lugar nenhum: a identidade é o certificado A1,
+// apresentado no handshake TLS de cada chamada. Sem ele o serviço responde
+// `400 No required SSL certificate was sent` e não conversa.
 
 // 1. Por período de emissão -------------------------------------------------
 const july = await giss.nfse.queryProvidedServices({

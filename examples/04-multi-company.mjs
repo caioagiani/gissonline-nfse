@@ -33,9 +33,12 @@ console.log(`  válido até ${certificate.validTo.toISOString().slice(0, 10)}`);
 // que é a parte cara. Vale dentro de um lote; guardar muitas chaves privadas
 // vivas por muito tempo troca 4% de latência por risco desproporcional.
 const tenant = {
+  environment: "producao",
   cnpj: process.env.GISS_CNPJ,
   municipalRegistration: process.env.GISS_ISC_MUNICIPAL,
   certificate,
+  // sem `certificatePassword`: com o certificado já carregado ele não é
+  // necessário, porque a senha só existia para abrir o arquivo
 };
 
 // 3. A mesma empresa contra cidades diferentes ------------------------------
