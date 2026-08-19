@@ -65,23 +65,23 @@ giss pdf --number 573                     # the invoice as a file
 ```ts
 import { GissClient, PortalService } from "gissonline-nfse";
 
-const giss = new GissClient();
-const { invoices } = await giss.nfse.queryProvidedServices({
+// `nfse` and `nfsc` are the two Web Services; `config` and `certificate` come
+// resolved. Destructuring a service is safe — destructuring a method is not.
+const { nfse, config, certificate } = new GissClient();
+
+const { invoices } = await nfse.queryProvidedServices({
   issuePeriod: { from: "2026-07-01", to: "2026-07-31" },
 });
 
 // CodigoTributacaoMunicipio and its LC 116 item, from the city's own table.
 // This route is public — no login, no certificate:
-const activities = await PortalService.listActivities(giss.config.cityCode);
+const activities = await PortalService.listActivities(config.cityCode);
 // [{ code: "6319400", serviceListItem: "1.09", description: "Portais…", rate: 4 }, …]
 
 // Anything company-specific needs a session. The A1 that signs the RPS opens
 // the portal too, so no CPF and password are required:
-const portal = await PortalService.authenticate({
-  certificate: giss.certificate,
-  cityCode: giss.config.cityCode,
-});
-const mine = await portal.companyActivities();   // only what this company may use
+const portal = await PortalService.authenticate({ certificate, cityCode: config.cityCode });
+const mine = await portal.companyActivities();   // rate valid today, by default
 ```
 
 Nothing that writes fires without `--confirm`.
