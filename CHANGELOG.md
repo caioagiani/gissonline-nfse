@@ -1,3 +1,10 @@
+# [1.6.0](https://github.com/caioagiani/gissonline-nfse/compare/v1.5.0...v1.6.0) (2026-08-19)
+
+
+### Features
+
+* expose invoice.rps and the lookup helpers, with runnable examples ([#18](https://github.com/caioagiani/gissonline-nfse/issues/18)) ([92c9401](https://github.com/caioagiani/gissonline-nfse/commit/92c9401fcb084eb1f5ccf26daedea9e7d459d879))
+
 # [1.5.0](https://github.com/caioagiani/gissonline-nfse/compare/v1.4.1...v1.5.0) (2026-08-18)
 
 
