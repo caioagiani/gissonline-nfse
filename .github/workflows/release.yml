@@ -54,6 +54,11 @@ jobs:
         run: npx semantic-release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Without these, the release commit is authored by semantic-release-bot.
+          GIT_AUTHOR_NAME: caioagiani
+          GIT_AUTHOR_EMAIL: agianicaio@gmail.com
+          GIT_COMMITTER_NAME: caioagiani
+          GIT_COMMITTER_EMAIL: agianicaio@gmail.com
 
       - name: Did the version change?
         id: check
