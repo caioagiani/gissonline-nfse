@@ -75,6 +75,7 @@ chore(deps): bump xml-crypto to 6.1.2
 ```bash
 npm run typecheck
 npm run build
+npm test               # needs xmllint to check the XML against the XSD
 npm run commitlint     # checks your commits against origin/main
 ```
 

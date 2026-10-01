@@ -24,6 +24,8 @@ jobs:
           for f in docs/schemas/*.xsd docs/schemas-tomados/vigente/*.xsd; do
             xmllint --noout "$f" || exit 1
           done
+      - name: Test (XML checked against the bundled XSD)
+        run: npm test
       - name: Check the CLI runs
         run: node dist/cli/index.js --help | grep -q "Usage:"
       - name: Check the package contents

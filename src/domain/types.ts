@@ -39,8 +39,23 @@ export interface ServiceTaker {
   /** Número de identificação fiscal, para tomador no exterior */
   nif?: string;
   legalName: string;
+  /** Endereço no Brasil. Exclusivo com `foreignAddress` — o XSD aceita um ou outro. */
   address?: Address;
+  /** Endereço no exterior, para tomador estrangeiro */
+  foreignAddress?: ForeignAddress;
   contact?: Contact;
+}
+
+/** `tcEnderecoExterior` — no XSD os cinco campos são obrigatórios. */
+export interface ForeignAddress {
+  /** Código do país com 4 dígitos, ex.: "0840" (Estados Unidos) */
+  countryCode: string;
+  /** Logradouro, número e complemento numa linha só */
+  fullAddress: string;
+  postalCode: string;
+  city: string;
+  /** Estado, província ou região */
+  region: string;
 }
 
 /** Prestador na declaração de serviços tomados — o fornecedor. */
@@ -161,6 +176,38 @@ export interface Service {
   nonTaxabilityId?: string;
   incidenceCityCode?: string | number;
   processNumber?: string;
+  /** Exportação/importação de serviço — o grupo `comExt` */
+  foreignTrade?: ForeignTrade;
+}
+
+/**
+ * `TCComExterior`. Códigos como strings: o XSD os enumera com zero à esquerda
+ * (`"01"` nos mecanismos de fomento), e um número perderia o zero.
+ */
+export interface ForeignTrade {
+  /**
+   * `mdPrestacao`: 0 = desconhecido, 1 = transfronteiriço, 2 = consumo no Brasil,
+   * 3 = presença comercial no exterior, 4 = movimento temporário de pessoas físicas
+   */
+  serviceMode: "0" | "1" | "2" | "3" | "4";
+  /** `vincPrest`: 0 = sem vínculo, 1 a 6 = tipo de vínculo, 9 = desconhecido */
+  relationship: "0" | "1" | "2" | "3" | "4" | "5" | "6" | "9";
+  /** `tpMoeda`: código BACEN da moeda com 3 dígitos, ex.: "220" (dólar) */
+  currency: string;
+  /** `vServMoeda`: valor do serviço na moeda de `currency` */
+  foreignAmount: number;
+  /** `mecAFComexP`: mecanismo de fomento do prestador, "00" a "08" ("01" = nenhum) */
+  providerSupport: string;
+  /** `mecAFComexT`: mecanismo de fomento do tomador, "00" a "26" ("01" = nenhum) */
+  takerSupport: string;
+  /** `movTempBens`: 0 = desconhecido, 1 = não, 2 = vinculada a DI, 3 = vinculada a RE */
+  temporaryGoods: "0" | "1" | "2" | "3";
+  /** `nDI`: número da Declaração de Importação */
+  importDeclaration?: string;
+  /** `nRE`: número do Registro de Exportação */
+  exportRegistration?: string;
+  /** `mdic`: 0 = não compartilhar com o MDIC, 1 = compartilhar */
+  shareWithMdic: "0" | "1";
 }
 
 export interface RpsIdentification {
