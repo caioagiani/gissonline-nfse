@@ -187,7 +187,7 @@ export interface Service {
 export interface ForeignTrade {
   /**
    * `mdPrestacao`: 0 = desconhecido, 1 = transfronteiriço, 2 = consumo no Brasil,
-   * 3 = presença comercial no exterior, 4 = movimento temporário de pessoas físicas
+   * 3 = movimento temporário de pessoas físicas, 4 = consumo no exterior
    */
   serviceMode: "0" | "1" | "2" | "3" | "4";
   /** `vincPrest`: 0 = sem vínculo, 1 a 6 = tipo de vínculo, 9 = desconhecido */
@@ -200,7 +200,7 @@ export interface ForeignTrade {
   providerSupport: string;
   /** `mecAFComexT`: mecanismo de fomento do tomador, "00" a "26" ("01" = nenhum) */
   takerSupport: string;
-  /** `movTempBens`: 0 = desconhecido, 1 = não, 2 = vinculada a DI, 3 = vinculada a RE */
+  /** `movTempBens`: 0 = desconhecido, 1 = não, 2 = vinculada a declaração de importação, 3 = vinculada a declaração de exportação */
   temporaryGoods: "0" | "1" | "2" | "3";
   /** `nDI`: número da Declaração de Importação */
   importDeclaration?: string;
