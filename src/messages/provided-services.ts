@@ -2,6 +2,8 @@ import type {
   Amounts,
   CancellationRequest,
   DateRange,
+  ForeignAddress,
+  ForeignTrade,
   Intermediary,
   PartyIdentification,
   Rps,
@@ -182,16 +184,47 @@ function serviceGroup(service: Service): string {
     element(`${T}:IdentifNaoExigibilidade`, service.nonTaxabilityId),
     element(`${T}:MunicipioIncidencia`, service.incidenceCityCode),
     element(`${T}:NumeroProcesso`, service.processNumber),
+    service.foreignTrade ? foreignTradeGroup(service.foreignTrade) : "",
+  ]);
+}
+
+function foreignTradeGroup(trade: ForeignTrade): string {
+  return requiredGroup(`${T}:comExt`, [
+    element(`${T}:mdPrestacao`, trade.serviceMode),
+    element(`${T}:vincPrest`, trade.relationship),
+    element(`${T}:tpMoeda`, trade.currency),
+    element(`${T}:vServMoeda`, amount(trade.foreignAmount)),
+    element(`${T}:mecAFComexP`, trade.providerSupport),
+    element(`${T}:mecAFComexT`, trade.takerSupport),
+    element(`${T}:movTempBens`, trade.temporaryGoods),
+    element(`${T}:nDI`, trade.importDeclaration),
+    element(`${T}:nRE`, trade.exportRegistration),
+    element(`${T}:mdic`, trade.shareWithMdic),
   ]);
 }
 
 function takerGroup(taker: ServiceTaker): string {
+  // `Endereco` e `EnderecoExterior` são um xsd:choice: enviar os dois invalida o XML.
+  if (taker.address && taker.foreignAddress) {
+    throw new Error("Informe address ou foreignAddress do tomador, não os dois");
+  }
   return requiredGroup(`${T}:TomadorServico`, [
     taker.cnpj || taker.cpf ? partyGroup(`${T}:IdentificacaoTomador`, taker) : "",
     element(`${T}:NifTomador`, taker.nif),
     element(`${T}:RazaoSocial`, taker.legalName),
     taker.address ? addressGroup(taker.address) : "",
+    taker.foreignAddress ? foreignAddressGroup(taker.foreignAddress) : "",
     taker.contact ? contactGroup(taker.contact) : "",
+  ]);
+}
+
+function foreignAddressGroup(address: ForeignAddress): string {
+  return requiredGroup(`${T}:EnderecoExterior`, [
+    element(`${T}:CodigoPais`, address.countryCode),
+    element(`${T}:EnderecoCompletoExterior`, address.fullAddress),
+    element(`${T}:cEndPost`, address.postalCode),
+    element(`${T}:xCidade`, address.city),
+    element(`${T}:xEstProvReg`, address.region),
   ]);
 }
 

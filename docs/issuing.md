@@ -41,6 +41,49 @@ buildRps(profile, { taker, serviceAmount: 100, description: "…", rate: 3.07 })
 // or set `rate` once in the profile
 ```
 
+## Exporting a service
+
+An export needs three things the domestic invoice does not: the service located
+abroad, the taker's foreign address and the `comExt` group (LC 214/2025).
+
+```ts
+const rps = {
+  // ...
+  service: {
+    // ...
+    cityCode: "9999999",   // abroad; with the provider's city the service answers E310
+    countryCode: "0840",
+    issTaxability: 4,      // export
+    incidenceCityCode: "3518800",
+    foreignTrade: {
+      serviceMode: "1",    // cross-border
+      relationship: "0",
+      currency: "220",     // BACEN code, US dollar
+      foreignAmount: 300,
+      providerSupport: "01",
+      takerSupport: "01",
+      temporaryGoods: "1",
+      shareWithMdic: "0",
+    },
+  },
+  taker: {
+    nif: "123456789",
+    legalName: "Acme Inc.",
+    foreignAddress: {
+      countryCode: "0840",
+      fullAddress: "100 Congress Ave Suite 200",
+      postalCode: "78701",
+      city: "Austin",
+      region: "TX",
+    },
+  },
+};
+```
+
+`address` and `foreignAddress` are a choice in the XSD: the builder refuses an
+RPS that carries both. The codes in `foreignTrade` are strings because the XSD
+enumerates them with leading zeros.
+
 ## Issuing without issuing twice
 
 Because the batch is asynchronous, there is a window between "sent" and "the
