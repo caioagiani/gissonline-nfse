@@ -1,3 +1,10 @@
+# [1.9.0](https://github.com/[secure]/gissonline-nfse/compare/v1.8.0...v1.9.0) (2026-10-02)
+
+
+### Features
+
+* **nfse:** issue service exports with comExt and the foreign address ([#21](https://github.com/[secure]/gissonline-nfse/issues/21)) ([8652a0c](https://github.com/[secure]/gissonline-nfse/commit/8652a0c9cffb638f83c725f8ff436e7f2fae3953))
+
 # [1.8.0](https://github.com/[secure]/gissonline-nfse/compare/v1.7.0...v1.8.0) (2026-08-19)
 
 
