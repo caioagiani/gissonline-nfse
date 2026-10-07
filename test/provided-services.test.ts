@@ -1,8 +1,12 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { Rps } from "../src/domain/types.ts";
-import { sendRpsBatchRequest } from "../src/messages/provided-services.ts";
+import {
+  generateNfseRequest,
+  sendRpsBatchRequest,
+} from "../src/messages/provided-services.ts";
 import { validateAgainstSchema } from "../src/validation/schema-validator.ts";
+import { PROVIDER_CNPJ, sampleRps } from "./helpers.ts";
 
 const provider = { cnpj: "11222333000181", municipalRegistration: "123456" };
 
@@ -102,3 +106,19 @@ test("address and foreignAddress together are refused", () => {
   };
   assert.throws(() => build(rps), /address ou foreignAddress/);
 });
+
+const suzano = { cnpj: PROVIDER_CNPJ, municipalRegistration: "53624" };
+
+test("OutrasRetencoes fica de fora quando zerada: Suzano recusa a tag com E370", () => {
+  const xml = generateNfseRequest(sampleRps(), suzano, "2.04");
+  assert.doesNotMatch(xml, /OutrasRetencoes/);
+  // os vizinhos obrigatórios continuam lá
+  assert.match(xml, /ValorCsll>0\.00</);
+  assert.match(xml, /ValTotTributos>0\.00</);
+});
+
+test("OutrasRetencoes vai quando há valor", () => {
+  const xml = generateNfseRequest(sampleRps({ otherWithholdings: 12.5 }), suzano, "2.04");
+  assert.match(xml, /OutrasRetencoes>12\.50</);
+});
+
