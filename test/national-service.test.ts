@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
-import { NationalError } from "../src/domain/errors.ts";
+import { NationalError, NfseError, NotSupportedError, TransportError } from "../src/domain/errors.ts";
 import { packXml, unpackXml } from "../src/infra/national-client.ts";
 import { createXmlSigner } from "../src/infra/xml-signer.ts";
 import { NATIONAL_HOSTS, NationalService } from "../src/services/national-service.ts";
@@ -14,7 +14,7 @@ import {
   type RecordedCall,
 } from "./helpers.ts";
 
-const NFSE_XML = readFileSync(new URL("./fixtures/nfse-nacional.xml", import.meta.url), "utf8");
+const NFSE_XML = readFileSync(new URL("./fixtures/national-nfse.xml", import.meta.url), "utf8");
 const ACCESS_KEY = "35525021237969249000110000000000058126100000000001";
 const DPS_ID = "DPS355250223796924900011000001000000000000007";
 const { sefin, adn } = NATIONAL_HOSTS.homologacao;
@@ -270,3 +270,91 @@ describe("NationalService.distribution", () => {
     assert.deepEqual(await national.distribution(500), []);
   });
 });
+
+describe("NationalService.issue — falhas no envio", () => {
+  const lost = () => {
+    throw new TransportError("POST /SefinNacional/nfse (nacional): falha de rede", {
+      outcomeUnknown: true,
+    });
+  };
+
+  it("resposta perdida, nota existe: devolve como reconciliada", async () => {
+    let lookups = 0;
+    const { national } = service({
+      [`${sefin}/dps/`]: () =>
+        ++lookups === 1 ? notFound() : { json: { chaveAcesso: ACCESS_KEY } },
+      [`${sefin}/nfse/${ACCESS_KEY}`]: () => ({ json: { nfseXmlGZipB64: packXml(NFSE_XML) } }),
+      [`${sefin}/nfse`]: lost,
+    });
+    const outcome = await national.issue(sampleRps(), issueOptions);
+    assert.equal(outcome.status, "reconciled");
+    assert.equal(outcome.nfse.accessKey, ACCESS_KEY);
+  });
+
+  it("resposta perdida, SEFIN confirma que não há nota: erro sem incerteza", async () => {
+    const { national } = service({ [`${sefin}/dps/`]: notFound, [`${sefin}/nfse`]: lost });
+    await assert.rejects(national.issue(sampleRps(), issueOptions), (error) => {
+      assert.ok(error instanceof TransportError);
+      assert.equal(error.outcomeUnknown, false);
+      assert.equal(error.retryable, true);
+      assert.equal(error.details["dpsId"], DPS_ID);
+      return true;
+    });
+  });
+
+  it("resposta perdida e consulta também falha: segue incerto", async () => {
+    let lookups = 0;
+    const { national } = service({
+      [`${sefin}/dps/`]: () => {
+        if (++lookups === 1) return notFound();
+        throw new TransportError("consulta caiu");
+      },
+      [`${sefin}/nfse`]: lost,
+    });
+    await assert.rejects(national.issue(sampleRps(), issueOptions), (error) => {
+      assert.ok(error instanceof NfseError);
+      assert.equal(error.outcomeUnknown, true);
+      assert.equal(error.details["dpsId"], DPS_ID);
+      return true;
+    });
+  });
+
+  it("503 no envio também confere a DPS antes de desistir", async () => {
+    let lookups = 0;
+    const { national } = service({
+      [`${sefin}/dps/`]: () =>
+        ++lookups === 1 ? notFound() : { json: { chaveAcesso: ACCESS_KEY } },
+      [`${sefin}/nfse/${ACCESS_KEY}`]: () => ({ json: { nfseXmlGZipB64: packXml(NFSE_XML) } }),
+      [`${sefin}/nfse`]: () => ({ status: 503, body: Buffer.from("<html>503</html>") }),
+    });
+    assert.equal((await national.issue(sampleRps(), issueOptions)).status, "reconciled");
+  });
+
+  it("recusa de regra não reconcilia, e leva o id da DPS", async () => {
+    let lookups = 0;
+    const { national } = service({
+      [`${sefin}/dps/`]: () => (lookups++, notFound()),
+      [`${sefin}/nfse`]: () => ({
+        status: 400,
+        json: { erros: [{ Codigo: "E0039", Descricao: "não parametrizado" }] },
+      }),
+    });
+    await assert.rejects(national.issue(sampleRps(), issueOptions), (error) => {
+      assert.ok(error instanceof NationalError);
+      assert.equal(error.code, "REJECTED");
+      assert.equal(error.retryable, false);
+      assert.equal(error.outcomeUnknown, false);
+      assert.equal(error.details["dpsId"], DPS_ID);
+      return true;
+    });
+    assert.equal(lookups, 1);
+  });
+
+  it("recursos ainda não montados falham antes de qualquer envio", async () => {
+    const { national, calls } = service({});
+    const foreign = sampleRps({ taker: { nif: "123", legalName: "Acme Inc." } });
+    await assert.rejects(national.issue(foreign, issueOptions), NotSupportedError);
+    assert.equal(calls.length, 0);
+  });
+});
+

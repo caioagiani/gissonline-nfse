@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { readFileSync } from "node:fs";
+import { NotSupportedError, ValidationError } from "../src/domain/errors.ts";
 import {
   brasiliaDateTime,
   buildCancellationEvent,
@@ -231,7 +232,7 @@ describe("buildCancellationEvent", () => {
 });
 
 describe("parseNationalNfse", () => {
-  const xml = readFileSync(new URL("./fixtures/nfse-nacional.xml", import.meta.url), "utf8");
+  const xml = readFileSync(new URL("./fixtures/national-nfse.xml", import.meta.url), "utf8");
   const nfse = parseNationalNfse(xml);
 
   it("lê chave, número e situação", () => {
@@ -265,3 +266,56 @@ describe("parseNationalNfse", () => {
     assert.equal(empty.serviceAmount, undefined);
   });
 });
+
+describe("buildDps — o que ainda não é suportado", () => {
+  const unsupported: [string, Parameters<typeof sampleRps>[0], RegExp][] = [
+    ["tomador com NIF", { taker: { nif: "123", legalName: "Acme" } }, /tomador no exterior/],
+    [
+      "tomador com endereço no exterior",
+      {
+        taker: {
+          legalName: "Acme",
+          foreignAddress: { countryCode: "0840", fullAddress: "100 Main St" },
+        } as never,
+      },
+      /tomador no exterior/,
+    ],
+  ];
+  for (const [name, input, pattern] of unsupported) {
+    it(`${name}: NotSupportedError`, () => {
+      assert.throws(
+        () => buildDps(sampleRps(input), context),
+        (error: unknown) => error instanceof NotSupportedError && pattern.test(error.message),
+      );
+    });
+  }
+
+  it("intermediário, obra, substituição e comExt também", () => {
+    const base = sampleRps();
+    const cases = [
+      { ...base, intermediary: { legalName: "X", cnpj: "1", cityCode: SUZANO } },
+      { ...base, construction: { workCode: "1" } },
+      { ...base, replacedRps: { number: 1, series: "A" } },
+      { ...base, service: { ...base.service, foreignTrade: {} as never } },
+    ];
+    for (const rps of cases) {
+      assert.throws(() => buildDps(rps, context), NotSupportedError);
+    }
+  });
+
+  it("lista tudo o que falta de uma vez", () => {
+    const base = sampleRps({ taker: { nif: "1", legalName: "Acme" } });
+    assert.throws(
+      () => buildDps({ ...base, construction: { workCode: "1" } }, context),
+      (error: unknown) =>
+        error instanceof NotSupportedError &&
+        Array.isArray(error.details["unsupported"]) &&
+        (error.details["unsupported"] as string[]).length === 2,
+    );
+  });
+
+  it("erros de entrada são ValidationError", () => {
+    assert.throws(() => nationalTaxCode("x"), ValidationError);
+  });
+});
+
