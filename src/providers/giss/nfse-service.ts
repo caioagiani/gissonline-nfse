@@ -58,6 +58,8 @@ export interface NfseServiceOptions {
   cityCode: string | number;
   version: string;
   debug?: boolean;
+  /** Substitui o transporte SOAP — para testes, ou para passar por um proxy */
+  transport?: typeof callSoap;
 }
 
 interface PeriodFilter {
@@ -400,14 +402,14 @@ export class NfseService {
     data: string,
     policy: SignaturePolicy = { name: "raiz", apply: (xml, s) => s.sign(xml) },
   ): Promise<string> {
-    const { host, certificate, signer, version, debug } = this.#options;
+    const { host, certificate, signer, version, debug, transport = callSoap } = this.#options;
     const signed = policy.apply(data, signer);
 
     if (debug) {
       console.error(`\n--- ${operation} (${policy.name}) envio ---\n${signed}`);
     }
 
-    const response = await callSoap(operation, signed, {
+    const response = await transport(operation, signed, {
       host,
       service: "nfse" satisfies SoapService,
       certificate,
