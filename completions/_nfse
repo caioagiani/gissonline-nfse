@@ -50,6 +50,7 @@ _nfse() {
     'national-pdf:Download the DANFSe'
     'national-xml:Download the national invoice XML'
     'national-docs:Invoices and events where your CNPJ appears'
+    'danfse:DANFSe from a saved national XML (offline)'
   )
 
   global_opts=(
@@ -179,6 +180,11 @@ _nfse() {
           ;;
         national-docs)
           _arguments $global_opts '--from[Start after this NSU]:nsu:'
+          ;;
+        danfse)
+          _arguments $global_opts '*--event[Event XML of the invoice]:event:_files -g "*.xml"' \
+            '--status[Watermark]:status:(cancelled replaced)' \
+            '--out[Target directory or file]:target:_files' '1:invoice XML:_files -g "*.xml"'
           ;;
         profile)
           _arguments $global_opts '--save[Write to data/profile.json]'

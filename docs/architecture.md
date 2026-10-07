@@ -62,7 +62,7 @@ official manuals and XSD.
 
 ## Dependencies
 
-Five runtime dependencies, each doing one job:
+Six runtime dependencies, each doing one job:
 
 | Package | Used for |
 | --- | --- |
@@ -70,11 +70,12 @@ Five runtime dependencies, each doing one job:
 | `fast-xml-parser` | reading every service response |
 | `node-forge` | opening the `.pfx` (PKCS#12) into a PEM key and certificate |
 | `pdf-lib` | drawing the DANFSe |
+| `@pdf-lib/fontkit` | embedding the DANFSe font (Liberation Sans, `assets/fonts`) |
 | `qrcode-generator` | the DANFSe QR Code |
 
 `npm run audit:runtime` audits exactly what an install of the package receives — a
 lockfile built from `dependencies` alone — and fails on any high or critical advisory.
-CI and the release run it. Advisories that were assessed and do not reach the library
+CI runs it as its own `audit` check, and the release runs it too. Advisories that were assessed and do not reach the library
 are listed, with the reason, in `scripts/audit-runtime.mjs`:
 
 - **`node-forge` GHSA-86w9-cpqp-85rv** (RSA PKCS#1 v1.5 signature verification). The

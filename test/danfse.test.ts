@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
-import { PDFDocument } from "pdf-lib";
+import { PDFDict, PDFDocument, PDFName } from "pdf-lib";
 import { ValidationError } from "../src/domain/errors.ts";
 import { buildDanfseData, clip, danfseStatus } from "../src/providers/nacional/danfse/danfse-data.ts";
 import { renderDanfse } from "../src/providers/nacional/danfse/danfse-pdf.ts";
@@ -213,6 +213,27 @@ describe("DANFSe — PDF", () => {
     ).replace("<xInfComp>Pedido interno 42</xInfComp>", `<xInfComp>${"informação ".repeat(250)}</xInfComp>`);
     const pdf = await PDFDocument.load(await renderDanfse(long, { status: "cancelled" }));
     assert.equal(pdf.getPageCount(), 1);
+  });
+
+  it("fontes embutidas (Liberation Sans), não as padrão do leitor", async () => {
+    const pdf = await PDFDocument.load(await renderDanfse(FULL));
+    const fontFiles = pdf.context
+      .enumerateIndirectObjects()
+      .filter(([, object]) => object instanceof PDFDict && object.has(PDFName.of("FontFile2")));
+    assert.equal(fontFiles.length, 2);
+  });
+
+  it("marca d'água a partir do XML dos eventos, sem rede", async () => {
+    // A marca d'água é o único desenho com transparência (um ExtGState).
+    // Comparar tamanhos não serve: o nome da fonte subset leva um sufixo aleatório.
+    const hasWatermark = async (options: Parameters<typeof renderDanfse>[1]) => {
+      const pdf = await PDFDocument.load(await renderDanfse(FULL, options));
+      const states = pdf.getPage(0).node.Resources()?.lookupMaybe(PDFName.of("ExtGState"), PDFDict);
+      return (states?.keys().length ?? 0) > 0;
+    };
+    assert.equal(await hasWatermark({ events: [fixture("national-event-replaced.xml")] }), true);
+    assert.equal(await hasWatermark({ events: [] }), false);
+    assert.equal(await hasWatermark({}), false);
   });
 
   it("nota mínima e todas as marcas d'água", async () => {

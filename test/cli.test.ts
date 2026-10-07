@@ -39,6 +39,26 @@ describe("CLI — erros", () => {
     assert.match(result.stderr, /Check \.env/);
   });
 
+  it("danfse: PDF a partir do XML salvo, sem configuração nem certificado", () => {
+    const out = mkdtempSync(join(tmpdir(), "nfse-danfse-"));
+    const result = run(
+      "danfse",
+      resolve("test/fixtures/national-nfse-full.xml"),
+      "--event",
+      resolve("test/fixtures/national-event-replaced.xml"),
+      "--out",
+      out,
+    );
+    assert.equal(result.status, 0, result.stderr);
+    const file = join(out, "nfse-35525022237969249000110000000000060026100000000009.pdf");
+    assert.equal(readFileSync(file).subarray(0, 5).toString(), "%PDF-");
+    assert.match(result.stdout, /KB\)/);
+
+    assert.equal(run("danfse").status, 1);
+    const badStatus = run("danfse", resolve("test/fixtures/national-nfse-full.xml"), "--status", "x");
+    assert.match(badStatus.stderr, /--status must be cancelled or replaced/);
+  });
+
   it("certificado inexistente: código CERTIFICATE", () => {
     const env = { CERT_PATH: "/nao/existe.pfx", CERT_PASSWORD: "x", GISS_CNPJ: "1", GISS_ISC_MUNICIPAL: "1" };
     const withCert = spawnSync(process.execPath, [cli, "latest"], {

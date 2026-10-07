@@ -48,6 +48,7 @@ nfse national-docs [--from NSU]           # invoices and events where your CNPJ 
 nfse national-get --key K                 # one invoice by its 50-digit access key
 nfse national-pdf --key K [--out DIR]     # the DANFSe, generated locally (see below)
 nfse national-xml --key K [--out DIR]
+nfse danfse nfse.xml [--event FILE]... [--out DIR|FILE]   # offline, from a saved XML
 
 nfse issue --issuer nacional --customer acme --amount 1500 --description "…"
 nfse issue --issuer nacional --customer acme --amount 1500 --description "…" --dps 7 --confirm
@@ -92,12 +93,18 @@ decide the watermark — `SUBSTITUÍDA` for `105102`, `CANCELADA` for `101101`, 
 `305101` — so a PDF never comes out clean for an invoice that no longer stands. That ADN
 route only reaches invoices where the certificate's CNPJ appears.
 
-With the XML already in hand, render it directly:
+With the XML already in hand (the project that integrates the library usually keeps
+it), render it without going to the network or loading the certificate. Pass the event
+XMLs and the watermark follows from them, as in `national.pdf`; `status` overrides:
 
 ```ts
 import { renderDanfse } from "nfse-br";
-const pdf = await renderDanfse(xml, { status: "cancelled" }); // Uint8Array
+const pdf = await renderDanfse(xml, { events: [cancellationXml] }); // Uint8Array
+const forced = await renderDanfse(xml, { status: "cancelled" });
 ```
+
+The CLI does the same with `nfse danfse nfse.xml [--event FILE]... [--status ...]`, with
+no `.env` and no certificate.
 
 What follows the note to the letter: the Annex I layout and the 2.4.5 positions, A4
 portrait on one page, 0.5 pt dividers and a 1 pt border, 5% grey shading, the QR Code
@@ -122,10 +129,12 @@ fixed the official quirks we copy:
 - the description takes only the room its text needs; the rest goes to the additional
   information.
 
-One unavoidable difference: the note names Arial and Microsoft Sans Serif, which are
-proprietary and cannot be embedded. The PDF uses Helvetica, the standard PDF font with the
-same metrics as Arial. Characters outside its encoding (an emoji in a description) print
-as `?`.
+Fonts: the note names Arial and Microsoft Sans Serif, which are proprietary. The PDF
+embeds Liberation Sans instead (SIL OFL 1.1, shipped in `assets/fonts` with its licence).
+It has the same metrics as Arial, so the layout does not move, and it is subset to the
+characters used, like the official PDF. Embedded, it looks the same in every reader; with
+the standard Helvetica, some readers dropped the bold labels. A character the font lacks
+(an emoji in a description) prints as `?`.
 
 ## Not verified yet
 

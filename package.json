@@ -36,6 +36,7 @@
     "completion:zsh": "node -e \"process.stdout.write(require('node:fs').readFileSync(new URL('completions/_nfse', 'file://' + process.cwd() + '/'), 'utf8'))\""
   },
   "dependencies": {
+    "@pdf-lib/fontkit": "^1.1.1",
     "fast-xml-parser": "^5.11.2",
     "node-forge": "^1.3.1",
     "pdf-lib": "^1.17.1",
@@ -82,6 +83,7 @@
   "files": [
     "dist",
     "schemas",
+    "assets",
     "completions",
     "README.md",
     "LICENSE"

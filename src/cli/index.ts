@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { parseArgs } from "node:util";
 import {
@@ -27,6 +27,7 @@ import {
 } from "../providers/nacional/messages.ts";
 import type { Nfse, QueryResult } from "../providers/giss/messages/parser.ts";
 import { NfseClient } from "../client.ts";
+import { renderDanfse } from "../providers/nacional/danfse/danfse-pdf.ts";
 import {
   lookupParty,
   lookupZip,
@@ -133,6 +134,8 @@ NATIONAL ISSUER (Sistema Nacional NFS-e — mandatory for Simples from 2026-11-0
   national-pdf --key K [--out DIR|FILE]             DANFSe (the national PDF)
   national-xml --key K [--out DIR|FILE]             Invoice XML
   national-docs [--from NSU]                        Invoices and events where your CNPJ appears
+  danfse <nfse.xml> [--event FILE]... [--out DIR|FILE]  DANFSe from a saved XML (offline)
+         [--status cancelled|replaced]              Watermark; otherwise taken from the events
   With NFSE_EMISSOR=nacional (or --issuer nacional), issue and cancel go
   through the national API: issue takes [--dps N] to make a retry safe, and
   cancel takes --key K --reason 1|2|9 --text "15 to 255 characters".
@@ -183,6 +186,8 @@ const options = {
   inss: { type: "string" },
   "income-tax": { type: "string" },
   reason: { type: "string" },
+  event: { type: "string", multiple: true },
+  status: { type: "string" },
   confirm: { type: "boolean", default: false },
   sync: { type: "boolean", default: false },
   "tax-id": { type: "string" },
@@ -943,6 +948,26 @@ async function runLocalCommand(
       if (found.email) console.log(`  email:     ${found.email}`);
       if (found.phone) console.log(`  phone:     ${found.phone}`);
       console.log(`\n  ${INVOCATION} customer-add --tax-id ${found.taxId} --lookup`);
+      return true;
+    }
+
+    case "danfse": {
+      // Offline: o PDF sai do XML que o projeto já guardou, sem certificado.
+      const file = positionals[1];
+      if (!file) throw new Error(`Usage: ${INVOCATION} danfse <nfse.xml> [--event FILE]... [--out DIR|FILE]`);
+      const status = values.status;
+      if (status !== undefined && status !== "cancelled" && status !== "replaced") {
+        throw new Error("--status must be cancelled or replaced");
+      }
+      const xml = readFileSync(file, "utf8");
+      const pdf = Buffer.from(
+        await renderDanfse(xml, { status, events: (values.event ?? []).map((path) => readFileSync(path, "utf8")) }),
+      );
+      const accessKey = /Id="NFS(\d{50})"/.exec(xml)?.[1] ?? "danfse";
+      const target = documentTarget(values.out, accessKey, "pdf");
+      mkdirSync(dirname(target), { recursive: true });
+      writeFileSync(target, pdf);
+      console.log(`${target}  (${(pdf.length / 1024).toFixed(1)} KB)`);
       return true;
     }
 

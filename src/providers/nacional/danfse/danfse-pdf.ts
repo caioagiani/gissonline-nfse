@@ -1,6 +1,11 @@
-import { degrees, PDFDocument, rgb, StandardFonts, type PDFFont, type PDFPage } from "pdf-lib";
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import fontkit from "@pdf-lib/fontkit";
+import { degrees, PDFDocument, rgb, type PDFFont, type PDFPage } from "pdf-lib";
 import qrcode from "qrcode-generator";
-import { buildDanfseData, type DanfseData, type DanfseParty, type DanfseStatus } from "./danfse-data.ts";
+import { parseNationalEvent } from "../messages.ts";
+import { buildDanfseData, danfseStatus, type DanfseData, type DanfseParty, type DanfseStatus } from "./danfse-data.ts";
 import { NFSE_LOGO_PNG } from "./logo.ts";
 
 /**
@@ -10,13 +15,19 @@ import { NFSE_LOGO_PNG } from "./logo.ts";
  * gerava.
  *
  * Medidas em centímetros, como na tabela do item 2.4.5. As fontes Arial e
- * Microsoft Sans Serif são proprietárias e não podem ser embutidas; a
- * Helvetica, padrão do PDF, tem as mesmas métricas da Arial.
+ * Microsoft Sans Serif são proprietárias; no lugar vai a Liberation Sans
+ * (SIL OFL), com as mesmas métricas da Arial, embutida só com os caracteres
+ * usados. Assim o PDF sai igual em qualquer leitor, como o oficial.
  */
 
 export interface DanfseOptions {
   /** Marca d'água "CANCELADA" ou "SUBSTITUÍDA" (item 2.5). Vem dos eventos da nota. */
   status?: DanfseStatus;
+  /**
+   * XML dos eventos da nota, como o ADN entrega. Sem `status`, a marca d'água
+   * sai deles: quem guarda as notas e os eventos gera o PDF sem ir à rede.
+   */
+  events?: string[];
 }
 
 const CM = 72 / 2.54;
@@ -43,8 +54,21 @@ interface Fonts {
   bold: PDFFont;
 }
 
+/** `assets/fonts` na raiz do pacote: a mesma distância de `src/` e de `dist/`. */
+const FONT_DIRECTORY = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "..", "assets", "fonts");
+let fontFiles: { regular: Uint8Array; bold: Uint8Array } | undefined;
+
+function loadFontFiles(): { regular: Uint8Array; bold: Uint8Array } {
+  fontFiles ??= {
+    regular: readFileSync(join(FONT_DIRECTORY, "LiberationSans-Regular.ttf")),
+    bold: readFileSync(join(FONT_DIRECTORY, "LiberationSans-Bold.ttf")),
+  };
+  return fontFiles;
+}
+
 export async function renderDanfse(xml: string, options: DanfseOptions = {}): Promise<Uint8Array> {
-  return drawDanfse(buildDanfseData(xml, options.status));
+  const status = options.status ?? danfseStatus((options.events ?? []).map(parseNationalEvent));
+  return drawDanfse(buildDanfseData(xml, status));
 }
 
 export async function drawDanfse(data: DanfseData): Promise<Uint8Array> {
@@ -55,9 +79,11 @@ export async function drawDanfse(data: DanfseData): Promise<Uint8Array> {
   pdf.setCreator("nfse-br");
 
   const page = pdf.addPage([PAGE.width * CM, PAGE.height * CM]);
+  pdf.registerFontkit(fontkit);
+  const files = loadFontFiles();
   const fonts: Fonts = {
-    regular: await pdf.embedFont(StandardFonts.Helvetica),
-    bold: await pdf.embedFont(StandardFonts.HelveticaBold),
+    regular: await pdf.embedFont(files.regular, { subset: true }),
+    bold: await pdf.embedFont(files.bold, { subset: true }),
   };
   const canvas = new Canvas(page, fonts);
   const logo = await pdf.embedPng(NFSE_LOGO_PNG);
@@ -347,6 +373,7 @@ class Canvas {
   readonly page: PDFPage;
   readonly fonts: Fonts;
   readonly #safe = new Map<string, string>();
+  readonly #glyphs = new Map<PDFFont, Set<number>>();
 
   constructor(page: PDFPage, fonts: Fonts) {
     this.page = page;
@@ -358,22 +385,20 @@ class Canvas {
   }
 
   /**
-   * As fontes padrão do PDF só codificam WinAnsi. Acentos do português estão
-   * lá; um caractere fora dela (emoji, ideograma) vira "?" em vez de quebrar.
+   * Caractere que a fonte não tem (emoji, ideograma) vira "?", em vez de uma
+   * caixa vazia no PDF.
    */
   safe(text: string, font: PDFFont): string {
-    const key = text;
+    const key = `${font.name}\u0000${text}`;
     const cached = this.#safe.get(key);
     if (cached !== undefined) return cached;
+    let glyphs = this.#glyphs.get(font);
+    if (!glyphs) {
+      glyphs = new Set(font.getCharacterSet());
+      this.#glyphs.set(font, glyphs);
+    }
     const result = [...text.normalize("NFC").replace(/[\r\n\t]+/g, " ")]
-      .map((char) => {
-        try {
-          font.encodeText(char);
-          return char;
-        } catch {
-          return "?";
-        }
-      })
+      .map((char) => (glyphs.has(char.codePointAt(0) ?? 0) ? char : "?"))
       .join("");
     this.#safe.set(key, result);
     return result;

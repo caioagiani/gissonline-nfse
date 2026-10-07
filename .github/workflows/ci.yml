@@ -21,7 +21,16 @@ jobs:
         run: node dist/cli/index.js --help | grep -q "Usage:"
       - name: Check the package contents
         run: npm pack --dry-run
-      # Só as dependências que o pacote leva; alerta alto ou crítico derruba o build.
+
+  # Check próprio no PR: só as dependências que o pacote leva; alerta alto ou
+  # crítico fora da lista aceita em scripts/audit-runtime.mjs derruba o check.
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
       - name: Audit runtime dependencies
         run: npm run audit:runtime
 
