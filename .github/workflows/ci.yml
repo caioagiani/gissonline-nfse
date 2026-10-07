@@ -22,20 +22,15 @@ jobs:
       - name: Check the package contents
         run: npm pack --dry-run
 
-  # Fora do build, para aparecer como check próprio no PR. Roda nas duas
-  # versões de Node em que o repositório executa .ts sem compilar.
+  # Fora do build, para aparecer como check próprio no PR. Na menor versão
+  # suportada (engines), que é a que tem mais chance de faltar algo.
   test:
-    name: test (node ${{ matrix.node }})
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        node: [22, 24]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: ${{ matrix.node }}
+          node-version: 22
           cache: npm
       - run: npm ci
       # Sem xmllint, os testes que validam contra os XSD seriam pulados.

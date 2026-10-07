@@ -31,8 +31,8 @@ the only way to reach the customer and supplier directory and the municipal acti
 
 ## Requirements
 
-- Node 20+ to use the published package; 24+ to run from the repository without a build,
-  since `.ts` files execute natively
+- Node 22+. Running from the repository without a build needs 22.18+, where `.ts` files
+  execute natively
 - A1 ICP-Brasil digital certificate (`.pfx`) for the provider
 - `xmllint` (optional) — enables XSD validation before sending
 

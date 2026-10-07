@@ -61,7 +61,7 @@
     "url": "https://github.com/caioagiani/nfse-br/issues"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   },
   "bin": {
     "nfse": "dist/cli/index.js",
