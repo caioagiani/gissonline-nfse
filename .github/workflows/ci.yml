@@ -17,7 +17,28 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm run build
-      # xmllint valida os XSD que acompanham o pacote
+      - name: Check the CLI runs
+        run: node dist/cli/index.js --help | grep -q "Usage:"
+      - name: Check the package contents
+        run: npm pack --dry-run
+
+  # Fora do build, para aparecer como check próprio no PR. Roda nas duas
+  # versões de Node em que o repositório executa .ts sem compilar.
+  test:
+    name: test (node ${{ matrix.node }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [22, 24]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+      - run: npm ci
+      # Sem xmllint, os testes que validam contra os XSD seriam pulados.
       - run: sudo apt-get install -y --no-install-recommends libxml2-utils
       - name: Validate bundled schemas
         run: |
@@ -26,7 +47,3 @@ jobs:
           done
       - name: Test (XML checked against the bundled XSD)
         run: npm test
-      - name: Check the CLI runs
-        run: node dist/cli/index.js --help | grep -q "Usage:"
-      - name: Check the package contents
-        run: npm pack --dry-run
