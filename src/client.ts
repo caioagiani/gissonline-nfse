@@ -11,7 +11,7 @@ import { NfscService } from "./providers/giss/nfsc-service.ts";
 import { NationalService } from "./providers/nacional/national-service.ts";
 import { NfseService } from "./providers/giss/nfse-service.ts";
 
-export interface GissClientOptions extends Partial<GissConfig> {
+export interface NfseClientOptions extends Partial<GissConfig> {
   /**
    * Certificado a usar, no lugar de `certificatePath`: o caminho do .pfx, o
    * arquivo em memória, ou um `Certificate` já carregado. A última forma evita
@@ -33,7 +33,7 @@ export interface GissClientOptions extends Partial<GissConfig> {
 /** Marca a config quando o certificado não veio de um arquivo. */
 const MEMORY_CERTIFICATE = "<in-memory>";
 
-export class GissClient {
+export class NfseClient {
   readonly config: GissConfig;
   readonly certificate: Certificate;
   readonly nfse: NfseService;
@@ -41,7 +41,7 @@ export class GissClient {
   /** Sistema Nacional NFS-e — mesmo certificado, assinatura SHA-256 */
   readonly national: NationalService;
 
-  constructor(options: GissClientOptions = {}) {
+  constructor(options: NfseClientOptions = {}) {
     const { debug = false, certificate, ...overrides } = options;
 
     // `CERT_PATH` e `CERT_PASSWORD` só existem para abrir o arquivo: quando o
@@ -107,3 +107,9 @@ export class GissClient {
     }
   }
 }
+
+/** Nome anterior a 2.0, quando o cliente só falava com o GissOnline. */
+export const GissClient = NfseClient;
+export type GissClient = NfseClient;
+/** Nome anterior a 2.0. */
+export type GissClientOptions = NfseClientOptions;

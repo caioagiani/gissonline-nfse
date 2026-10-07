@@ -1,14 +1,14 @@
-#compdef giss
-# Zsh completion for the giss CLI.
+#compdef nfse giss
+# Zsh completion for the nfse CLI (and its giss alias).
 #
 #   mkdir -p ~/.zsh/completions
-#   cp completions/_giss ~/.zsh/completions/
+#   cp completions/_nfse ~/.zsh/completions/
 #   # in ~/.zshrc, before `compinit`:
 #   fpath=(~/.zsh/completions $fpath)
 #
 # With oh-my-zsh, ~/.oh-my-zsh/completions is already on fpath.
 
-_giss() {
+_nfse() {
   local -a commands global_opts
   local context state line
 
@@ -191,4 +191,4 @@ _giss() {
   esac
 }
 
-_giss "$@"
+_nfse "$@"

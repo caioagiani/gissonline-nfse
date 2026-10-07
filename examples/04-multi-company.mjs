@@ -8,12 +8,12 @@
  */
 import { readFileSync } from "node:fs";
 import {
-  GissClient,
+  NfseClient,
   GissError,
   MUNICIPALITIES,
   findMunicipality,
   loadCertificate,
-} from "gissonline-nfse";
+} from "nfse-br";
 
 // 1. Os municípios que publicam o Web Service ------------------------------
 console.log(`${MUNICIPALITIES.length} municípios conhecidos`);
@@ -44,7 +44,7 @@ const tenant = {
 // 3. A mesma empresa contra cidades diferentes ------------------------------
 // O código IBGE vem da cidade; passar `cityCode` explicitamente ainda vence.
 for (const city of ["suzano", "guarulhos", "santos"]) {
-  const { nfse, config } = new GissClient({ ...tenant, city });
+  const { nfse, config } = new NfseClient({ ...tenant, city });
   process.stdout.write(`\n${city} (${config.cityCode}) `);
   try {
     const { invoices } = await nfse.queryProvidedServices({

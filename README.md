@@ -1,14 +1,20 @@
-# gissonline-nfse
+# nfse-br
 
-Node/TypeScript client for the **GissOnline** Web Services — Brazilian municipal service
-invoices (NFS-e) following the ABRASF 2.04 standard with the LC 214/2025 extensions
-(NT SE/CGNFS-e nº 007). Works with every city that runs GissOnline — **32 of them**,
-24 in São Paulo, including Guarulhos, Santos and Santo André. The city is one
-environment variable; see [docs/municipalities.md](docs/municipalities.md).
+Node/TypeScript client and CLI for Brazilian service invoices (NFS-e), with two issuing
+systems behind one certificate and one command line:
 
-Covers all **16 operations** of the two published SOAP services — `nfse` (services provided)
-and `nfsc` (services received) — plus the portal REST API, the only way to reach the
-customer and supplier directory and the municipal activity table.
+- **GissOnline**: the Web Services of **32 cities** (24 in São Paulo, including Guarulhos,
+  Santos and Santo André). It follows ABRASF 2.04 with the LC 214/2025 extensions
+  (NT SE/CGNFS-e nº 007). The city is one environment variable; see
+  [docs/municipalities.md](docs/municipalities.md).
+- **Sistema Nacional NFS-e**: the national issuer (SEFIN + ADN). It is mandatory for the
+  Simples Nacional from 2026-11-01; see [docs/national.md](docs/national.md).
+
+Formerly `gissonline-nfse`. The `giss` command and `GissClient` still work as aliases.
+
+On GissOnline it covers all **16 operations** of the two published SOAP services: `nfse`
+(services provided) and `nfsc` (services received). It also covers the portal REST API,
+the only way to reach the customer and supplier directory and the municipal activity table.
 
 - Issue, cancel and replace invoices, single or in batches
 - Queries by period, competence, number range, RPS and protocol
@@ -18,8 +24,9 @@ customer and supplier directory and the municipal activity table.
 - Portal login with that same certificate, so no CPF and password are needed
 - Fale Conosco messages: read the replies from the city hall, and open new ones
 - Validation against the official XSD before sending
-- The **national issuer** (Sistema Nacional NFS-e) with the same certificate — mandatory
-  for Simples Nacional from 2026-11-01; see [docs/national.md](docs/national.md)
+- National issuer: issue, cancel, query, DANFSe and the distribution of every invoice
+  where your CNPJ appears
+- Typed errors that say whether a retry is safe; see [docs/errors.md](docs/errors.md)
 - No write operation fires without `--confirm`
 
 ## Requirements
@@ -34,11 +41,11 @@ customer and supplier directory and the municipal activity table.
 ### As a package
 
 ```bash
-npm install gissonline-nfse        # in a project
-npm install -g gissonline-nfse     # or globally, for the giss command
+npm install nfse-br        # in a project
+npm install -g nfse-br     # or globally, for the nfse command
 ```
 
-The `giss` binary becomes available in the shell and reads the `.env` of the current
+The `nfse` binary (with `giss` kept as an alias) becomes available in the shell and reads the `.env` of the current
 directory. Shell completion for bash and zsh is described in [docs/cli.md](docs/cli.md#shell-completion).
 
 ### From the repository
@@ -47,10 +54,10 @@ directory. Shell completion for bash and zsh is described in [docs/cli.md](docs/
 npm install
 cp .env.example .env                    # fill in the credentials
 cp /path/to/certificate.pfx cert/       # the folder ships empty
-npm run giss -- latest                  # same as `giss latest`
+npm run nfse -- latest                  # same as `nfse latest`
 ```
 
-Scripts: `npm run build` (compiles to `dist/`), `npm run typecheck`, `npm run giss`.
+Scripts: `npm run build` (compiles to `dist/`), `npm run typecheck`, `npm run nfse`.
 
 `cert/` and `data/` are versioned empty (just a `.gitkeep`) to mark where the files go —
 their contents never enter the repository.
@@ -58,19 +65,19 @@ their contents never enter the repository.
 ## Quick start
 
 ```bash
-giss latest                               # the most recent invoices
-giss activities --company                 # activity codes this company can use
-giss issue --customer acme --amount 1500 --description "Consulting"
-giss issue --customer acme --amount 1500 --description "Consulting" --confirm
-giss pdf --number 573                     # the invoice as a file
+nfse latest                               # the most recent invoices
+nfse activities --company                 # activity codes this company can use
+nfse issue --customer acme --amount 1500 --description "Consulting"
+nfse issue --customer acme --amount 1500 --description "Consulting" --confirm
+nfse pdf --number 573                     # the invoice as a file
 ```
 
 ```ts
-import { GissClient, PortalService } from "gissonline-nfse";
+import { NfseClient, PortalService } from "nfse-br";
 
 // `nfse` and `nfsc` are the two Web Services; `config` and `certificate` come
 // resolved. Destructuring a service is safe — destructuring a method is not.
-const { nfse, config, certificate } = new GissClient();
+const { nfse, config, certificate } = new NfseClient();
 
 const { invoices } = await nfse.queryProvidedServices({
   issuePeriod: { from: "2026-07-01", to: "2026-07-31" },
@@ -105,10 +112,11 @@ Nothing that writes fires without `--confirm`.
 | [docs/architecture.md](docs/architecture.md) | Layers, patterns, mTLS, SOAP and the signature |
 
 Under `docs/`: technical manuals (Services Provided v1.6, Services Received/CST v2.5,
-PIS/COFINS/CSLL v1.0), XSD schemas, XML samples and the errors and alerts spreadsheet.
+PIS/COFINS/CSLL v1.0), XML samples and the errors and alerts spreadsheet. The XSD live
+in `schemas/`, one folder per provider.
 Source: <https://suzano.giss.com.br/giss-ajuda/desenvolvedores.html>.
 
-`docs/schemas-tomados/vigente/` carries the services-received XSD with the `tipos` v1_01
+`schemas/giss/tomados/vigente/` carries the services-received XSD with the `tipos` v1_01
 merged over v1_00 — necessary because the published v1_01 is a delta that does not compile
 on its own. The originals stay untouched in the directory above.
 

@@ -51,8 +51,8 @@ export type {
   SoapService,
 } from "./providers/giss/soap-client.ts";
 
-export { GissClient } from "./client.ts";
-export type { GissClientOptions } from "./client.ts";
+export { NfseClient, GissClient } from "./client.ts";
+export type { NfseClientOptions, GissClientOptions } from "./client.ts";
 export {
   lookupZip,
   lookupCompany,
@@ -125,5 +125,8 @@ export {
 export type { IssueInput, IssuingProfile } from "./storage/profile-repository.ts";
 export { syncFromInvoices } from "./storage/invoice-sync.ts";
 
-export { validateAgainstSchema } from "./validation/schema-validator.ts";
+export {
+  SCHEMA_DIRECTORIES,
+  validateAgainstSchema,
+} from "./validation/schema-validator.ts";
 export type { ValidationResult } from "./validation/schema-validator.ts";

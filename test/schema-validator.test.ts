@@ -3,11 +3,11 @@ import { spawnSync } from "node:child_process";
 import { describe, it } from "node:test";
 import { buildDps, buildCancellationEvent } from "../src/providers/nacional/messages.ts";
 import { createXmlSigner } from "../src/infra/xml-signer.ts";
-import { validateAgainstSchema } from "../src/validation/schema-validator.ts";
+import { SCHEMA_DIRECTORIES, validateAgainstSchema } from "../src/validation/schema-validator.ts";
 import { PROVIDER_CNPJ, SUZANO, sampleRps, testCertificate } from "./helpers.ts";
 
 const hasXmllint = !spawnSync("xmllint", ["--version"], { stdio: "ignore" }).error;
-const NATIONAL = "docs/schemas-nacional";
+const NATIONAL = SCHEMA_DIRECTORIES.national;
 
 const context = {
   environment: 2 as const,

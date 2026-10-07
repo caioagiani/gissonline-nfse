@@ -15,6 +15,9 @@ export default {
       [
         "nfse", // services provided
         "nfsc", // services received
+        "giss", // GissOnline provider as a whole
+        "nacional", // Sistema Nacional NFS-e provider
+        "schemas",
         "portal", // portal REST API
         "cli",
         "domain",

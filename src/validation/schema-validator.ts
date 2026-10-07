@@ -21,6 +21,19 @@ function resolveSchemaDirectory(directory: string): string {
   return fromCwd;
 }
 
+/**
+ * Um diretório por provedor e serviço. Cada provedor novo ganha o seu em
+ * `schemas/<provedor>/`, sem tocar nos outros.
+ */
+export const SCHEMA_DIRECTORIES = {
+  /** GissOnline, serviços prestados (ABRASF 2.04) */
+  gissProvided: "schemas/giss/prestados",
+  /** GissOnline, serviços tomados — `vigente/` junta os tipos v1_01 sobre v1_00 */
+  gissTaken: "schemas/giss/tomados/vigente",
+  /** Sistema Nacional NFS-e, leiaute 1.01 */
+  national: "schemas/nacional",
+} as const;
+
 export interface ValidationResult {
   valid: boolean;
   errors: string[];
@@ -46,7 +59,7 @@ const KNOWN_DIVERGENCES: RegExp[] = [
 export function validateAgainstSchema(
   xml: string,
   schema: string,
-  schemaDirectory = "docs/schemas",
+  schemaDirectory: string = SCHEMA_DIRECTORIES.gissProvided,
 ): ValidationResult | null {
   const available = spawnSync("xmllint", ["--version"], { stdio: "ignore" });
   if (available.error) return null;

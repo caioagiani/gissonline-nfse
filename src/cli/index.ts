@@ -24,7 +24,7 @@ import {
   type NationalNfse,
 } from "../providers/nacional/messages.ts";
 import type { Nfse, QueryResult } from "../providers/giss/messages/parser.ts";
-import { GissClient } from "../client.ts";
+import { NfseClient } from "../client.ts";
 import {
   lookupParty,
   lookupZip,
@@ -46,13 +46,16 @@ import {
 } from "../storage/contact-repository.ts";
 import { syncFromInvoices } from "../storage/invoice-sync.ts";
 import { buildRps, ProfileRepository } from "../storage/profile-repository.ts";
-import { validateAgainstSchema } from "../validation/schema-validator.ts";
+import {
+  SCHEMA_DIRECTORIES,
+  validateAgainstSchema,
+} from "../validation/schema-validator.ts";
 
-/** `giss ...` quando instalado; `npm run giss -- ...` dentro do repositório. */
-const INVOCATION = process.env["npm_lifecycle_event"] ? "npm run giss --" : "giss";
+/** `nfse ...` quando instalado (`giss` segue como apelido); `npm run nfse -- ...` no repositório. */
+const INVOCATION = process.env["npm_lifecycle_event"] ? "npm run nfse --" : "nfse";
 
 const HELP = `
-giss — GissOnline NFS-e Web Services client (ABRASF 2.04 + LC 214/2025)
+nfse — Brazilian NFS-e client: GissOnline (ABRASF 2.04) and the Sistema Nacional NFS-e
 
 Usage: ${INVOCATION} <command> [options]
 
@@ -261,7 +264,7 @@ async function main() {
     return;
   }
 
-  const client = new GissClient({
+  const client = new NfseClient({
     environment: values.env as Environment | undefined,
     issuer: values.issuer as Issuer | undefined,
     debug: values.debug,
@@ -647,7 +650,7 @@ const NATIONAL_REASONS: Record<string, string> = {
 async function runNationalCommand(
   command: string,
   values: CliValues,
-  client: GissClient,
+  client: NfseClient,
 ): Promise<boolean> {
   const { national, config } = client;
   const viaNational = config.issuer === "nacional";
@@ -742,7 +745,7 @@ async function runNationalCommand(
         if (values.xml) return void console.log(preview), true;
         console.log(issueSummary(values, rps));
         console.log(`DPS:           ${number} series ${issueOptions.series} (national issuer)`);
-        printValidation(preview, "DPS_v1.01.xsd", "docs/schemas-nacional");
+        printValidation(preview, "DPS_v1.01.xsd", SCHEMA_DIRECTORIES.national);
         console.log("\nNothing was sent. Repeat with --confirm to actually issue.");
         return true;
       }
@@ -882,7 +885,7 @@ async function runLocalCommand(
 
     case "zip": {
       const code = positionals[1] ?? values.zip;
-      if (!code) throw new Error("Provide the postal code: giss zip 01310-100");
+      if (!code) throw new Error(`Provide the postal code: ${INVOCATION} zip 01310-100`);
       const found = await lookupZip(code);
       if (values.json) return void console.log(JSON.stringify(found, null, 2)), true;
       console.log(`  zip:      ${found.zipCode}`);
@@ -894,7 +897,7 @@ async function runLocalCommand(
 
     case "cnpj": {
       const taxId = positionals[1] ?? values["tax-id"];
-      if (!taxId) throw new Error("Provide the CNPJ: giss cnpj 00000000000191");
+      if (!taxId) throw new Error(`Provide the CNPJ: ${INVOCATION} cnpj 00000000000191`);
       const found = await lookupParty(taxId);
       if (values.json) return void console.log(JSON.stringify(found, null, 2)), true;
       console.log(`  name:      ${found.legalName}`);
@@ -907,7 +910,7 @@ async function runLocalCommand(
       console.log(`  zip:       ${found.zipCode ?? "—"}`);
       if (found.email) console.log(`  email:     ${found.email}`);
       if (found.phone) console.log(`  phone:     ${found.phone}`);
-      console.log(`\n  giss customer-add --tax-id ${found.taxId} --lookup`);
+      console.log(`\n  ${INVOCATION} customer-add --tax-id ${found.taxId} --lookup`);
       return true;
     }
 

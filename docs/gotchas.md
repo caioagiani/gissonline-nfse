@@ -10,7 +10,7 @@ All found by testing against the live service:
   optional, so the client leaves it out unless there is a value.
 - **The national issuer depends on the city, not on the taxpayer.** A DPS that is valid in
   every other respect is refused with `E0039` until the city sets
-  `aderenteEmissorNacional`. `giss national-status` reads that flag. See
+  `aderenteEmissorNacional`. `nfse national-status` reads that flag. See
   [national.md](national.md).
 - **The national XSD rejects every `serie`.** Its pattern is `^0{0,4}\d{1,5}$`, and in XSD
   `^` and `$` are literal characters, not anchors. The validator lists it as a known
@@ -34,7 +34,7 @@ All found by testing against the live service:
   detects and fixes it.
 - **`tipos-servicos-comprados-v1_01.xsd` is an incomplete delta** (54 types against 191 in
   v1_00) and does not compile on its own, despite sharing the `targetNamespace`. See
-  `docs/schemas-tomados/vigente/`.
+  `schemas/giss/tomados/vigente/`.
 - **The portal answers HTTP 500 for permission denied.** The body says "o sistema está
   indisponível" and carries a Java stacktrace whose real cause is
   `AuthorizationDeniedException`. Retrying will not help — that is what

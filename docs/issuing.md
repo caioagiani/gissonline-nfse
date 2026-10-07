@@ -97,7 +97,7 @@ after waiting, so a repeat returns the invoice already issued instead of making
 a second one:
 
 ```ts
-const outcome = await giss.nfse.issueRps(rps);   // rps.identification.number required
+const outcome = await client.nfse.issueRps(rps);   // rps.identification.number required
 
 switch (outcome.status) {
   case "issued":         // it was created now

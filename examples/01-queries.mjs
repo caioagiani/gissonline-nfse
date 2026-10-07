@@ -6,7 +6,7 @@
  * Só lê. Nada aqui emite, cancela ou altera nota.
  */
 import { readFileSync } from "node:fs";
-import { GissClient } from "gissonline-nfse";
+import { NfseClient } from "nfse-br";
 
 // A configuração vai inteira no construtor — nada é lido do ambiente por
 // baixo. Numa aplicação estes valores vêm da tabela da empresa; aqui vêm do
@@ -21,7 +21,7 @@ const company = {
 };
 
 // `nfse` e `nfsc` são os dois Web Services; `paginate` percorre as páginas.
-const { nfse, paginate } = new GissClient(company);
+const { nfse, paginate } = new NfseClient(company);
 
 // Não há login nem token em lugar nenhum: a identidade é o certificado A1,
 // apresentado no handshake TLS de cada chamada. Sem ele o serviço responde
@@ -29,7 +29,7 @@ const { nfse, paginate } = new GissClient(company);
 
 // Desestruturar o serviço funciona; desestruturar um método dele, não — os
 // métodos usam `this` para alcançar o certificado e o host. Se precisar de um
-// método solto: `giss.nfse.queryProvidedServices.bind(giss.nfse)`.
+// método solto: `client.nfse.queryProvidedServices.bind(client.nfse)`.
 //
 // `paginate` sobrevive porque não usa `this`: só chama a função que recebe.
 // Guarde o cliente inteiro se for precisar de `config` ou `certificate`.

@@ -21,7 +21,7 @@ import {
  */
 export const NATIONAL_NAMESPACE = "http://www.sped.fazenda.gov.br/nfse";
 export const NATIONAL_VERSION = "1.01";
-const APPLICATION = "gissonline-nfse";
+const APPLICATION = "nfse-br";
 
 /** 1 = produção, 2 = produção restrita (o "homologação" do nacional). */
 export type NationalEnvironment = 1 | 2;
