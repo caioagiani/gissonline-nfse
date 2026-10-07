@@ -24,11 +24,11 @@ and no environment variable is read. The certificate accepts a path, the `.pfx`
 already in memory, or an instance you loaded earlier:
 
 ```ts
-import { GissClient, loadCertificate } from "gissonline-nfse";
+import { NfseClient, loadCertificate } from "nfse-br";
 
 const pfx = await decryptStoredCertificate(tenantId);   // never touches disk
 
-const giss = new GissClient({
+const client = new NfseClient({
   environment: "producao",
   city: "suzano",
   cityCode: "3552502",
@@ -46,7 +46,7 @@ Reusing a parsed certificate is a separate concern:
 ```ts
 const certificate = loadCertificate(pfx, password);     // parse once
 for (const rps of batch) {
-  const giss = new GissClient({ ...tenantConfig, certificate });
+  const client = new NfseClient({ ...tenantConfig, certificate });
 }
 ```
 
@@ -67,7 +67,7 @@ with its own CPF:
 
 ```ts
 const portal = await PortalService.authenticate(
-  loadPortalCredentials(giss.config, { login: tenant.cpf, password: tenant.password }),
+  loadPortalCredentials(client.config, { login: tenant.cpf, password: tenant.password }),
 );
 ```
 
@@ -80,8 +80,8 @@ challenge-response, so it works from Node with no browser extension:
 
 ```ts
 const portal = await PortalService.authenticate({
-  certificate: giss.certificate,        // the same one that signs the RPS
-  cityCode: giss.config.cityCode,
+  certificate: client.certificate,        // the same one that signs the RPS
+  cityCode: client.config.cityCode,
   cnpj: tenant.cnpj,
 });
 ```
@@ -101,7 +101,7 @@ city must have method 2 enabled), and this is checked in Suzano only — if a ci
 answers `403` on `login/certificado/nonce`, fall back to CPF and password.
 
 The CLI decides on its own: `GISS_LOGIN` and `GISS_PASS` when both are set, the
-certificate otherwise. So `giss portal-list`, `giss pdf` and `giss activities --company`
+certificate otherwise. So `nfse portal-list`, `nfse pdf` and `nfse activities --company`
 run with no portal password in the environment.
 
 One caveat for a multi-company product: a CNPJ that is not registered in the
@@ -115,7 +115,7 @@ the package can work around.
 `src/storage/profile-repository.ts` holds the values repeated on every issue (LC 116 item,
 CNAE, NBS, city, ISS taxability, PIS/COFINS, IBS/CBS). The defaults come from a real
 invoice already accepted by the city hall, with the formats corrected for sending.
-`giss profile --save` writes them to `data/profile.json` for editing.
+`nfse profile --save` writes them to `data/profile.json` for editing.
 
 **Check them with your accountant before issuing** — the defaults describe a Simples
 Nacional provider, ISS not withheld, service item 01.04.

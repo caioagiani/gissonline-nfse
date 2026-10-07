@@ -1,5 +1,5 @@
 import type { Address } from "../domain/types.ts";
-import type { Nfse } from "../messages/parser.ts";
+import type { Nfse } from "../providers/giss/messages/parser.ts";
 import type { ContactRepository, ContactRole } from "./contact-repository.ts";
 
 /**

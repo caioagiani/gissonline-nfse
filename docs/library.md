@@ -3,24 +3,24 @@
 ```ts
 import { writeFile } from "node:fs/promises";
 import {
-  GissClient,
+  NfseClient,
   ContactRepository,
   ProfileRepository,
   PortalService,
   buildRps,
   loadPortalCredentials,
-} from "gissonline-nfse";
+} from "nfse-br";
 
-const giss = new GissClient();
+const client = new NfseClient();
 
 // query
-const { invoices } = await giss.nfse.queryProvidedServices({
+const { invoices } = await client.nfse.queryProvidedServices({
   issuePeriod: { from: "2026-07-01", to: "2026-07-31" },
 });
 
 // automatic pagination
-for await (const page of giss.paginate((page) =>
-  giss.nfse.queryProvidedServices({ issuePeriod: { from, to }, page }),
+for await (const page of client.paginate((page) =>
+  client.nfse.queryProvidedServices({ issuePeriod: { from, to }, page }),
 )) {
   console.log(page.invoices.length);
 }
@@ -35,12 +35,12 @@ const rps = buildRps(new ProfileRepository().load(), {
   description: "Software development",
 });
 
-giss.nfse.previewIssueNfse(rps);   // signed XML, not sent
-await giss.nfse.sendRpsBatch({ batchNumber: 1, rps: [rps] });
+client.nfse.previewIssueNfse(rps);   // signed XML, not sent
+await client.nfse.sendRpsBatch({ batchNumber: 1, rps: [rps] });
 
 // documents — through the portal, the Web Service issues no files
-const portal = await PortalService.authenticate(loadPortalCredentials(giss.config));
-const [invoice] = (await giss.nfse.queryProvidedServices({ nfseNumber: "573" })).invoices;
+const portal = await PortalService.authenticate(loadPortalCredentials(client.config));
+const [invoice] = (await client.nfse.queryProvidedServices({ nfseNumber: "573" })).invoices;
 await writeFile("nfse-573.pdf", await portal.invoiceDocument(invoice.internalId!));
 await writeFile("nfse-573.xml", await portal.invoiceDocument(invoice.internalId!, "xml"));
 ```
@@ -81,17 +81,17 @@ through an RPS. In this account only 4 of 20 invoices this year came from one,
 so check before assuming.
 
 ```ts
-const { invoices } = await giss.nfse.queryProvidedServices({ nfseNumber: "574" });
+const { invoices } = await client.nfse.queryProvidedServices({ nfseNumber: "574" });
 const { rps } = invoices[0];
-if (rps) await giss.nfse.findByRps(rps);   // no massaging needed
+if (rps) await client.nfse.findByRps(rps);   // no massaging needed
 ```
 
 `PortalService.authenticate` takes CPF and password, or the certificate:
 
 ```ts
 const portal = await PortalService.authenticate({
-  certificate: giss.certificate,
-  cityCode: giss.config.cityCode,
+  certificate: client.certificate,
+  cityCode: client.config.cityCode,
 });
 ```
 
@@ -99,7 +99,7 @@ Two more live in `PortalService`, because the Web Service has no equivalent —
 the activity table behind `CodigoTributacaoMunicipio`:
 
 ```ts
-import { PortalService, resolveCityCode } from "gissonline-nfse";
+import { PortalService, resolveCityCode } from "nfse-br";
 
 // public: no login, no certificate
 const all = await PortalService.listActivities(resolveCityCode("suzano"));

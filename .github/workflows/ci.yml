@@ -21,7 +21,7 @@ jobs:
       - run: sudo apt-get install -y --no-install-recommends libxml2-utils
       - name: Validate bundled schemas
         run: |
-          for f in docs/schemas/*.xsd docs/schemas-tomados/vigente/*.xsd docs/schemas-nacional/DPS_v1.01.xsd docs/schemas-nacional/pedRegEvento_v1.01.xsd; do
+          for f in schemas/giss/prestados/*.xsd schemas/giss/tomados/vigente/*.xsd schemas/nacional/DPS_v1.01.xsd schemas/nacional/pedRegEvento_v1.01.xsd; do
             xmllint --noout "$f" || exit 1
           done
       # depois do xmllint: parte dos testes valida o XML contra os XSD

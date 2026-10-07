@@ -1,10 +1,13 @@
 {
-  "name": "gissonline-nfse",
+  "name": "nfse-br",
   "version": "1.8.0",
   "type": "module",
-  "description": "Node/TypeScript client for the GissOnline Web Services (Brazilian municipal service invoices, NFS-e ABRASF 2.04 + LC 214/2025): issuing, cancelling, replacing, queries and the customer directory",
+  "description": "Node/TypeScript client and CLI for Brazilian NFS-e: GissOnline Web Services (ABRASF 2.04 + LC 214/2025, 32 cities) and the Sistema Nacional NFS-e — issuing, cancelling, queries and the customer directory",
   "keywords": [
     "nfse",
+    "nfse-nacional",
+    "sefin",
+    "dps",
     "gissonline",
     "abrasf",
     "nota-fiscal",
@@ -14,6 +17,7 @@
     "icp-brasil",
     "certificado-digital",
     "lc-214-2025",
+    "simples-nacional",
     "brazil",
     "tax",
     "cli"
@@ -26,7 +30,8 @@
     "prepack": "npm run build",
     "prepare": "husky || true",
     "commitlint": "commitlint --from origin/main --to HEAD",
-    "completion:zsh": "node -e \"process.stdout.write(require('node:fs').readFileSync(new URL('completions/_giss', 'file://' + process.cwd() + '/'), 'utf8'))\""
+    "completion:zsh": "node -e \"process.stdout.write(require('node:fs').readFileSync(new URL('completions/_nfse', 'file://' + process.cwd() + '/'), 'utf8'))\"",
+    "nfse": "node --env-file-if-exists=.env src/cli/index.ts"
   },
   "dependencies": {
     "fast-xml-parser": "^5.2.5",
@@ -48,16 +53,17 @@
   "author": "Caio Agiani",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/caioagiani/gissonline-nfse.git"
+    "url": "git+https://github.com/caioagiani/nfse-br.git"
   },
-  "homepage": "https://github.com/caioagiani/gissonline-nfse#readme",
+  "homepage": "https://github.com/caioagiani/nfse-br#readme",
   "bugs": {
-    "url": "https://github.com/caioagiani/gissonline-nfse/issues"
+    "url": "https://github.com/caioagiani/nfse-br/issues"
   },
   "engines": {
     "node": ">=20"
   },
   "bin": {
+    "nfse": "dist/cli/index.js",
     "giss": "dist/cli/index.js"
   },
   "main": "dist/index.js",
@@ -71,9 +77,7 @@
   },
   "files": [
     "dist",
-    "docs/schemas",
-    "docs/schemas-tomados",
-    "docs/schemas-nacional",
+    "schemas",
     "completions",
     "README.md",
     "LICENSE"

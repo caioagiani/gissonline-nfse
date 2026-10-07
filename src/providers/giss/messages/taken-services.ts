@@ -5,7 +5,7 @@ import type {
   PurchasedServiceBatch,
   PurchasedServiceDetails,
   Supplier,
-} from "../domain/types.ts";
+} from "../../../domain/types.ts";
 import {
   amount,
   element,
@@ -13,7 +13,7 @@ import {
   isoDate,
   requiredGroup,
   xmlDocument,
-} from "../infra/xml.ts";
+} from "../../../infra/xml.ts";
 
 /** Builders das mensagens do serviço `nfsc` (serviços tomados). Schemas v1.00. */
 

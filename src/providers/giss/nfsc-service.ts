@@ -1,12 +1,12 @@
-import { GissError } from "../domain/errors.ts";
-import { rootSignature, type XmlSigner } from "../domain/signature-policy.ts";
+import { GissError } from "../../domain/errors.ts";
+import { rootSignature, type XmlSigner } from "../../domain/signature-policy.ts";
 import type {
   PartyIdentification,
   PurchasedService,
   PurchasedServiceBatch,
-} from "../domain/types.ts";
-import type { Certificate } from "../infra/certificate.ts";
-import { callSoap, type NfscOperation } from "../infra/soap-client.ts";
+} from "../../domain/types.ts";
+import type { Certificate } from "../../infra/certificate.ts";
+import { callSoap, type NfscOperation } from "./soap-client.ts";
 import {
   parseBatchResult,
   parseCancellationResult,
@@ -17,8 +17,8 @@ import {
   type CancellationResult,
   type ProtocolResult,
   type QueryResult,
-} from "../messages/parser.ts";
-import * as messages from "../messages/taken-services.ts";
+} from "./messages/parser.ts";
+import * as messages from "./messages/taken-services.ts";
 
 export interface NfscServiceOptions {
   host: string;

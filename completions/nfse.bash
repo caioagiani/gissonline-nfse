@@ -1,7 +1,7 @@
-# Bash completion for the giss CLI. For zsh use `_giss` in this same folder.
-#   source completions/giss.bash
+# Bash completion for the nfse CLI (and its giss alias). For zsh use `_nfse` in this same folder.
+#   source completions/nfse.bash
 # or copy it to /usr/local/etc/bash_completion.d/ (or /etc/bash_completion.d/).
-_giss_completions() {
+_nfse_completions() {
   local cur prev commands global_opts opts
   cur="${COMP_WORDS[COMP_CWORD]}"
   prev="${COMP_WORDS[COMP_CWORD-1]}"
@@ -65,4 +65,4 @@ national-pdf national-xml national-docs"
 
   COMPREPLY=($(compgen -W "$opts $global_opts" -- "$cur"))
 }
-complete -F _giss_completions giss
+complete -F _nfse_completions nfse giss

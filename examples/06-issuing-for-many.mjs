@@ -9,11 +9,11 @@
  */
 import { readFileSync } from "node:fs";
 import {
-  GissClient,
+  NfseClient,
   buildRps,
   loadCertificate,
   DEFAULT_PROFILE,
-} from "gissonline-nfse";
+} from "nfse-br";
 
 const DRY_RUN = true;
 
@@ -73,7 +73,7 @@ const queue = [
 // ---------------------------------------------------------------------------
 for (const company of companies) {
   const certificate = loadCertificate(company.pfx, company.pfxPassword);
-  const { nfse, config } = new GissClient({
+  const { nfse, config } = new NfseClient({
     environment: "producao",
     city: company.city,
     cnpj: company.cnpj,

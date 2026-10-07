@@ -1,66 +1,66 @@
 # Command line
 
-`giss` when installed globally, `npm run giss -- ...` inside the repository.
+`nfse` when installed globally (`giss` still works as an alias), `npm run nfse -- ...` inside the repository.
 Every command takes `--env producao|homologacao`, `--json`, `--xml` and `--debug`.
 
 ## Commands
 
 ```bash
-giss                                      # help with every command
-giss cert [--export]                      # certificate; --export writes the PEM files
+nfse                                      # help with every command
+nfse cert [--export]                      # certificate; --export writes the PEM files
 
 # queries — services provided
-giss latest [--limit 10] [--months 12]    # most recent invoices
-giss issued --from 2026-07-01 --to 2026-07-31 [--competence] [--all]
-giss range --first 555 --last 569
-giss rps --number 12 --series A
-giss batch --protocol 202607000123
+nfse latest [--limit 10] [--months 12]    # most recent invoices
+nfse issued --from 2026-07-01 --to 2026-07-31 [--competence] [--all]
+nfse range --first 555 --last 569
+nfse rps --number 12 --series A
+nfse batch --protocol 202607000123
 
 # queries — services received
-giss received --from 2026-07-01 --to 2026-07-31
-giss purchased-batch --protocol P
-giss purchased-protocol --protocol P
-giss purchased-number --from D --to D --number N --series S
+nfse received --from 2026-07-01 --to 2026-07-31
+nfse purchased-batch --protocol P
+nfse purchased-protocol --protocol P
+nfse purchased-number --from D --to D --number N --series S
 
 # issuing (nothing is sent without --confirm)
-giss issue --customer acme --amount 15000 --description "Software development"
-giss issue --customer acme --amount 15000 --rps 12 --confirm
+nfse issue --customer acme --amount 15000 --description "Software development"
+nfse issue --customer acme --amount 15000 --rps 12 --confirm
                                           # repeating the same --rps is safe:
                                           # an issued RPS is never issued twice
-giss cancel --number 569 --reason 1 --confirm
-giss replace --number 569 --reason 1 --customer acme --amount 15000 --confirm
+nfse cancel --number 569 --reason 1 --confirm
+nfse replace --number 569 --reason 1 --customer acme --amount 15000 --confirm
 
 # national issuer (Sistema Nacional NFS-e) — see national.md
-giss national-status                      # has the city enabled it?
-giss national-docs                        # invoices and events with your CNPJ
-giss national-pdf --key 3552502…          # DANFSe by access key
-giss issue --issuer nacional --customer acme --amount 15000 --dps 7 --confirm
-giss cancel --issuer nacional --key 3552502… --reason 1 --text "Valor informado errado" --confirm
+nfse national-status                      # has the city enabled it?
+nfse national-docs                        # invoices and events with your CNPJ
+nfse national-pdf --key 3552502…          # DANFSe by access key
+nfse issue --issuer nacional --customer acme --amount 15000 --dps 7 --confirm
+nfse cancel --issuer nacional --key 3552502… --reason 1 --text "Valor informado errado" --confirm
 
 # documents of an issued invoice
-giss pdf --number 573                     # writes ./nfse-573.pdf
-giss xml --number 573 --out ~/notas       # writes ~/notas/nfse-573.xml
+nfse pdf --number 573                     # writes ./nfse-573.pdf
+nfse xml --number 573 --out ~/notas       # writes ~/notas/nfse-573.xml
 
 # portal messages (Fale Conosco)
-giss messages                             # the ones you opened
-giss messages --id 20                     # one, with the auditor's reply
-giss messages --id 20 --attachment 16     # writes ./webnar giss.pdf
-giss message --subject S --text T --confirm
+nfse messages                             # the ones you opened
+nfse messages --id 20                     # one, with the auditor's reply
+nfse messages --id 20 --attachment 16     # writes ./webnar giss.pdf
+nfse message --subject S --text T --confirm
 
 # municipal activity table (CodigoTributacaoMunicipio)
-giss activities --item 1.09
-giss activities --company
+nfse activities --item 1.09
+nfse activities --company
 
 # local directory
-giss customers --sync --from 2026-01-01 --to 2026-12-31
-giss suppliers
-giss customer-add --tax-id 00000000000191 --name "Acme Ltda" --alias acme
-giss profile [--save]
+nfse customers --sync --from 2026-01-01 --to 2026-12-31
+nfse suppliers
+nfse customer-add --tax-id 00000000000191 --name "Acme Ltda" --alias acme
+nfse profile [--save]
 
 # portal directory (REST API)
-giss portal-list [--type 2]
-giss portal-add --tax-id ... --name ... --street ... --confirm
-giss portal-import
+nfse portal-list [--type 2]
+nfse portal-add --tax-id ... --name ... --street ... --confirm
+nfse portal-import
 ```
 
 Global flags: `--env producao|homologacao`, `--json`, `--xml`, `--debug`.
@@ -70,7 +70,7 @@ Global flags: `--env producao|homologacao`, `--json`, `--xml`, `--debug`.
 Shell completion — **bash**:
 
 ```bash
-source "$(npm root -g)/gissonline-nfse/completions/giss.bash"
+source "$(npm root -g)/nfse-br/completions/nfse.bash"
 # or copy it to /usr/local/etc/bash_completion.d/
 ```
 
@@ -78,25 +78,25 @@ source "$(npm root -g)/gissonline-nfse/completions/giss.bash"
 
 ```bash
 mkdir -p ~/.zsh/completions
-cp "$(npm root -g)/gissonline-nfse/completions/_giss" ~/.zsh/completions/
+cp "$(npm root -g)/nfse-br/completions/_nfse" ~/.zsh/completions/
 # in ~/.zshrc, before `compinit`:
 #   fpath=(~/.zsh/completions $fpath)
 ```
 
-With oh-my-zsh, `~/.oh-my-zsh/completions` is already on `fpath` — copy `_giss`
+With oh-my-zsh, `~/.oh-my-zsh/completions` is already on `fpath` — copy `_nfse`
 there and restart the shell.
 
 ## Documents (PDF and XML)
 
 Neither Web Service produces a file: ABRASF only returns the invoice as XML embedded
 in the SOAP response, and the printed representation is the portal's job — `pdf`,
-`danfe` and `imprimir` appear nowhere in the two WSDLs. So `giss pdf` and `giss xml`
+`danfe` and `imprimir` appear nowhere in the two WSDLs. So `nfse pdf` and `nfse xml`
 go through the portal REST API:
 
 ```bash
-giss pdf --number 573                  # ./nfse-573.pdf
-giss xml --number 573                  # ./nfse-573.xml
-giss pdf --number 573 --out ~/notas    # a directory, or a full path ending in .pdf
+nfse pdf --number 573                  # ./nfse-573.pdf
+nfse xml --number 573                  # ./nfse-573.xml
+nfse pdf --number 573 --out ~/notas    # a directory, or a full path ending in .pdf
 ```
 
 Both resolve the invoice by its printed number, then download by the **internal id** —
@@ -112,8 +112,8 @@ and needs no portal login.
 ## Municipalities
 
 ```bash
-giss cities                # every city known to publish the Web Service
-giss cities --state SP     # just one state
+nfse cities                # every city known to publish the Web Service
+nfse cities --state SP     # just one state
 ```
 
 Setting `GISS_MUNICIPIO` to the slug is enough — the IBGE code follows from it.
@@ -124,12 +124,12 @@ See [municipalities.md](municipalities.md).
 The support channel of the portal, and the only one the API opens to a taxpayer:
 
 ```bash
-giss messages                          # everything you opened, newest last
-giss messages --unread                 # only replies you have not read
-giss messages --id 20                  # the message with its reply and attachments
-giss messages --id 20 --attachment 16  # downloads one of them, into ./ or --out
-giss message --subject "..." --text "..."            # shows what would be sent
-giss message --subject "..." --text "..." --confirm  # actually opens it
+nfse messages                          # everything you opened, newest last
+nfse messages --unread                 # only replies you have not read
+nfse messages --id 20                  # the message with its reply and attachments
+nfse messages --id 20 --attachment 16  # downloads one of them, into ./ or --out
+nfse message --subject "..." --text "..."            # shows what would be sent
+nfse message --subject "..." --text "..." --confirm  # actually opens it
 ```
 
 ```
@@ -157,12 +157,12 @@ session. It is staff-side and not reachable from here.
 query invoices, nothing else. The table lives in the portal REST API:
 
 ```bash
-giss activities                     # the whole city table
-giss activities portais             # filter by code or description
-giss activities --item 1.09         # filter by LC 116 item
-giss activities --city 3518800      # another city, by IBGE code
-giss activities --company           # only what your company is bound to
-giss activities --company --date 2026-01-31
+nfse activities                     # the whole city table
+nfse activities portais             # filter by code or description
+nfse activities --item 1.09         # filter by LC 116 item
+nfse activities --city 3518800      # another city, by IBGE code
+nfse activities --company           # only what your company is bound to
+nfse activities --company --date 2026-01-31
 ```
 
 ```
@@ -172,7 +172,7 @@ giss activities --company --date 2026-01-31
 The first column is what goes in `CodigoTributacaoMunicipio`, the second is the LC 116
 item it maps to — the two fields the invoice needs, resolved together.
 
-The city table is **public**: it answers without login, so `giss activities` needs no
+The city table is **public**: it answers without login, so `nfse activities` needs no
 portal credentials and no certificate, only `GISS_MUNICIPIO` (or `--city`). Adding
 `--company` switches to the authenticated route and returns the short list the company
 can actually use — 4 activities against 964 in Suzano.
@@ -191,13 +191,13 @@ Three things the live API taught us:
 ## Lookups
 
 Neither GissOnline service resolves a CNPJ, so filling a party means copying from
-the Receita's site. `giss zip` and `giss cnpj` close that gap through
+the Receita's site. `nfse zip` and `nfse cnpj` close that gap through
 [BrasilAPI](https://brasilapi.com.br):
 
 ```bash
-giss zip 04744-010
-giss cnpj 60977243000106
-giss customer-add --tax-id 60977243000106 --lookup   # fills the blanks
+nfse zip 04744-010
+nfse cnpj 60977243000106
+nfse customer-add --tax-id 60977243000106 --lookup   # fills the blanks
 ```
 
 `--lookup` works on `customer-add` and `portal-add`, and anything passed
@@ -217,10 +217,10 @@ The directory you see in the portal (*Manutenção Cadastral → Clientes e Forn
 on a **separate REST API**, implemented in `src/services/portal-service.ts`:
 
 ```bash
-giss portal-list                  # customers registered in the portal
-giss portal-list --type 2         # suppliers
-giss portal-add --tax-id ... --name ... --confirm
-giss portal-import                # brings the portal directory into the local one
+nfse portal-list                  # customers registered in the portal
+nfse portal-list --type 2         # suppliers
+nfse portal-add --tax-id ... --name ... --confirm
+nfse portal-import                # brings the portal directory into the local one
 ```
 
 | | SOAP (`/service-ws/`) | REST (`service-empresa/api/`) |

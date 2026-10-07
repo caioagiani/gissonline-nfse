@@ -1,6 +1,6 @@
 import { request } from "node:https";
 import { gunzipSync, gzipSync } from "node:zlib";
-import type { Certificate } from "./certificate.ts";
+import type { Certificate } from "../../infra/certificate.ts";
 
 /**
  * Transporte da API do Sistema Nacional NFS-e (SEFIN e ADN).

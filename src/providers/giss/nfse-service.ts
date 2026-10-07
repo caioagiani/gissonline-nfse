@@ -1,4 +1,4 @@
-import { GissError, type ServiceMessage } from "../domain/errors.ts";
+import { GissError, type ServiceMessage } from "../../domain/errors.ts";
 import {
   cancellationTarget,
   elementSignature,
@@ -8,21 +8,21 @@ import {
   rpsTarget,
   type SignaturePolicy,
   type XmlSigner,
-} from "../domain/signature-policy.ts";
+} from "../../domain/signature-policy.ts";
 import type {
   CancellationRequest,
   DateRange,
   PartyIdentification,
   Rps,
   RpsBatch,
-} from "../domain/types.ts";
-import type { Certificate } from "../infra/certificate.ts";
+} from "../../domain/types.ts";
+import type { Certificate } from "../../infra/certificate.ts";
 import {
   callSoap,
   type NfseOperation,
   type SoapService,
-} from "../infra/soap-client.ts";
-import * as messages from "../messages/provided-services.ts";
+} from "./soap-client.ts";
+import * as messages from "./messages/provided-services.ts";
 import {
   parseBatchResult,
   parseCancellationResult,
@@ -34,7 +34,7 @@ import {
   type Nfse,
   type ProtocolResult,
   type QueryResult,
-} from "../messages/parser.ts";
+} from "./messages/parser.ts";
 
 /**
  * Resultado de uma emissão idempotente.

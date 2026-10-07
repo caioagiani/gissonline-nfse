@@ -8,7 +8,7 @@
  * que já virou nota, justamente para mostrar que repetir não emite de novo.
  */
 import { readFileSync } from "node:fs";
-import { GissClient, buildRps, DEFAULT_PROFILE } from "gissonline-nfse";
+import { NfseClient, buildRps, DEFAULT_PROFILE } from "nfse-br";
 
 // A configuração vai inteira no construtor — nada é lido do ambiente por
 // baixo. Numa aplicação estes valores vêm da tabela da empresa; aqui vêm do
@@ -22,7 +22,7 @@ const company = {
   certificatePassword: process.env.CERT_PASSWORD,
 };
 
-const { nfse } = new GissClient(company);
+const { nfse } = new NfseClient(company);
 
 // O tomador é um objeto puro: pode vir do seu banco, do cadastro local ou
 // do portal. O pacote não impõe onde os dados moram.

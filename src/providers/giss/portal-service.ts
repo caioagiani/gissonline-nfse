@@ -1,10 +1,10 @@
 import { createSign } from "node:crypto";
-import { PortalError } from "../domain/errors.ts";
-import type { Address } from "../domain/types.ts";
-import { findMunicipalityByCode } from "../config/municipalities.ts";
-import { loadCertificate, type CertificateInput } from "../infra/certificate.ts";
-import { requestBinary, requestJson } from "../infra/http-client.ts";
-import { digitsOnly, isoDate } from "../infra/xml.ts";
+import { PortalError } from "../../domain/errors.ts";
+import type { Address } from "../../domain/types.ts";
+import { findMunicipalityByCode } from "./municipalities.ts";
+import { loadCertificate, type CertificateInput } from "../../infra/certificate.ts";
+import { requestBinary, requestJson } from "./http-client.ts";
+import { digitsOnly, isoDate } from "../../infra/xml.ts";
 
 /**
  * Cliente da API REST que o portal GissOnline usa por trás.

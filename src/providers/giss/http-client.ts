@@ -1,4 +1,4 @@
-import { PortalError } from "../domain/errors.ts";
+import { PortalError } from "../../domain/errors.ts";
 
 /** Cliente HTTP JSON usado pela API REST do portal. */
 export async function requestJson<T>(

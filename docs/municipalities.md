@@ -42,7 +42,7 @@ operations, same WSDL, same signature. Only the host changes:
 | `suzano` | Suzano | SP | `3552502` |
 
 Set `GISS_MUNICIPIO` to the slug and the IBGE code follows from it — passing
-`GISS_CODIGO_MUNICIPIO` explicitly still wins. `giss cities [--state SP]` prints
+`GISS_CODIGO_MUNICIPIO` explicitly still wins. `nfse cities [--state SP]` prints
 this table, and `MUNICIPALITIES` exports it to the library.
 
 ## How this list was made

@@ -1,6 +1,6 @@
 import { resolve } from "node:path";
 import { digitsOnly } from "../infra/xml.ts";
-import { findMunicipality } from "./municipalities.ts";
+import { findMunicipality } from "../providers/giss/municipalities.ts";
 
 export type Environment = "producao" | "homologacao";
 

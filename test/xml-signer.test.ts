@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { SignedXml } from "xml-crypto";
 import { createXmlSigner } from "../src/infra/xml-signer.ts";
-import { buildDps, dpsId, type DpsContext } from "../src/messages/national.ts";
+import { buildDps, dpsId, type DpsContext } from "../src/providers/nacional/messages.ts";
 import { PROVIDER_CNPJ, SUZANO, sampleRps, testCertificate } from "./helpers.ts";
 
 const context: DpsContext = {

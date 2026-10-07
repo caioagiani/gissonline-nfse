@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { generateNfseRequest } from "../src/messages/provided-services.ts";
+import { generateNfseRequest } from "../src/providers/giss/messages/provided-services.ts";
 import { PROVIDER_CNPJ, sampleRps } from "./helpers.ts";
 
 const provider = { cnpj: PROVIDER_CNPJ, municipalRegistration: "53624" };

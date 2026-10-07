@@ -1,4 +1,4 @@
-import type { Address, Rps, ServiceTaker } from "../domain/types.ts";
+import type { Address, Rps, ServiceTaker } from "../../domain/types.ts";
 import {
   amount,
   digitsOnly,
@@ -8,7 +8,7 @@ import {
   requiredGroup,
   unescapeXml,
   xmlDocument,
-} from "../infra/xml.ts";
+} from "../../infra/xml.ts";
 
 /**
  * Mensagens do Sistema Nacional NFS-e — leiaute v1.01 (Anexo I da SE/CGNFS-e).
@@ -20,7 +20,7 @@ import {
  */
 export const NATIONAL_NAMESPACE = "http://www.sped.fazenda.gov.br/nfse";
 export const NATIONAL_VERSION = "1.01";
-const APPLICATION = "gissonline-nfse";
+const APPLICATION = "nfse-br";
 
 /** 1 = produção, 2 = produção restrita (o "homologação" do nacional). */
 export type NationalEnvironment = 1 | 2;

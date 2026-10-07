@@ -1,5 +1,5 @@
 import { XMLParser } from "fast-xml-parser";
-import type { ServiceMessage } from "../domain/errors.ts";
+import type { ServiceMessage } from "../../../domain/errors.ts";
 
 /** Leitura das respostas XML do Web Service, normalizadas para objetos simples. */
 

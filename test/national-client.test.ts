@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { gunzipSync } from "node:zlib";
-import { packXml, parseJson, unpackXml } from "../src/infra/national-client.ts";
+import { packXml, parseJson, unpackXml } from "../src/providers/nacional/national-client.ts";
 
 describe("packXml / unpackXml", () => {
   it("compacta em gzip e base64, e volta ao mesmo texto", () => {

@@ -18,7 +18,7 @@ With that set, `issue` and `cancel` go through the national API. Everything else
 ## Before the first invoice: is the city ready?
 
 ```bash
-giss national-status
+nfse national-status
 ```
 
 ```
@@ -43,15 +43,15 @@ Checked on 2026-10-06 for Suzano (3552502): shares `yes`, accepts `no`.
 ## Commands
 
 ```bash
-giss national-status                      # the two flags above
-giss national-docs [--from NSU]           # invoices and events where your CNPJ appears
-giss national-get --key K                 # one invoice by its 50-digit access key
-giss national-pdf --key K [--out DIR]     # the DANFSe
-giss national-xml --key K [--out DIR]
+nfse national-status                      # the two flags above
+nfse national-docs [--from NSU]           # invoices and events where your CNPJ appears
+nfse national-get --key K                 # one invoice by its 50-digit access key
+nfse national-pdf --key K [--out DIR]     # the DANFSe
+nfse national-xml --key K [--out DIR]
 
-giss issue --issuer nacional --customer acme --amount 1500 --description "…"
-giss issue --issuer nacional --customer acme --amount 1500 --description "…" --dps 7 --confirm
-giss cancel --issuer nacional --key K --reason 1 --text "Valor informado errado" --confirm
+nfse issue --issuer nacional --customer acme --amount 1500 --description "…"
+nfse issue --issuer nacional --customer acme --amount 1500 --description "…" --dps 7 --confirm
+nfse cancel --issuer nacional --key K --reason 1 --text "Valor informado errado" --confirm
 ```
 
 `national-docs` already lists the invoices issued through GissOnline: a city that
@@ -97,7 +97,7 @@ service. The first test after the city flips the flag should confirm them:
 
 `--env homologacao` selects the restricted environment, which has no fiscal effect.
 
-Schemas: `docs/schemas-nacional/` holds the official XSD v1.01 (2026-02-09), from
+Schemas: `schemas/nacional/` holds the official XSD v1.01 (2026-02-09), from
 <https://www.gov.br/nfse/pt-br/biblioteca/documentacao-tecnica/documentacao-atual>.
 Do not confuse it with **NFS-e Via**, a separate layout used only for road tolls (service
 `220101`).

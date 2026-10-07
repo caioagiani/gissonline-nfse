@@ -17,9 +17,9 @@ import {
   parseNationalNfse,
   type NationalCancellationReason,
   type NationalNfse,
-} from "../messages/national.ts";
-import type { Nfse, QueryResult } from "../messages/parser.ts";
-import { GissClient } from "../services/giss-client.ts";
+} from "../providers/nacional/messages.ts";
+import type { Nfse, QueryResult } from "../providers/giss/messages/parser.ts";
+import { NfseClient } from "../client.ts";
 import {
   lookupParty,
   lookupZip,
@@ -32,8 +32,8 @@ import {
   type DocumentFormat,
   type PortalMessage,
   type PartyRole,
-} from "../services/portal-service.ts";
-import { MUNICIPALITIES } from "../config/municipalities.ts";
+} from "../providers/giss/portal-service.ts";
+import { MUNICIPALITIES } from "../providers/giss/municipalities.ts";
 import {
   ContactRepository,
   taxIdOf,
@@ -41,13 +41,16 @@ import {
 } from "../storage/contact-repository.ts";
 import { syncFromInvoices } from "../storage/invoice-sync.ts";
 import { buildRps, ProfileRepository } from "../storage/profile-repository.ts";
-import { validateAgainstSchema } from "../validation/schema-validator.ts";
+import {
+  SCHEMA_DIRECTORIES,
+  validateAgainstSchema,
+} from "../validation/schema-validator.ts";
 
-/** `giss ...` quando instalado; `npm run giss -- ...` dentro do repositório. */
-const INVOCATION = process.env["npm_lifecycle_event"] ? "npm run giss --" : "giss";
+/** `nfse ...` quando instalado (`giss` segue como apelido); `npm run nfse -- ...` no repositório. */
+const INVOCATION = process.env["npm_lifecycle_event"] ? "npm run nfse --" : "nfse";
 
 const HELP = `
-giss — GissOnline NFS-e Web Services client (ABRASF 2.04 + LC 214/2025)
+nfse — Brazilian NFS-e client: GissOnline (ABRASF 2.04) and the Sistema Nacional NFS-e
 
 Usage: ${INVOCATION} <command> [options]
 
@@ -256,7 +259,7 @@ async function main() {
     return;
   }
 
-  const client = new GissClient({
+  const client = new NfseClient({
     environment: values.env as Environment | undefined,
     issuer: values.issuer as Issuer | undefined,
     debug: values.debug,
@@ -630,7 +633,7 @@ const NATIONAL_REASONS: Record<string, string> = {
 async function runNationalCommand(
   command: string,
   values: CliValues,
-  client: GissClient,
+  client: NfseClient,
 ): Promise<boolean> {
   const { national, config } = client;
   const viaNational = config.issuer === "nacional";
@@ -725,7 +728,7 @@ async function runNationalCommand(
         if (values.xml) return void console.log(preview), true;
         console.log(issueSummary(values, rps));
         console.log(`DPS:           ${number} series ${issueOptions.series} (national issuer)`);
-        printValidation(preview, "DPS_v1.01.xsd", "docs/schemas-nacional");
+        printValidation(preview, "DPS_v1.01.xsd", SCHEMA_DIRECTORIES.national);
         console.log("\nNothing was sent. Repeat with --confirm to actually issue.");
         return true;
       }

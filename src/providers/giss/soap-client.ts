@@ -1,7 +1,7 @@
 import { request } from "node:https";
-import { SoapFaultError } from "../domain/errors.ts";
-import type { Certificate } from "./certificate.ts";
-import { escapeXml, unescapeXml } from "./xml.ts";
+import { SoapFaultError } from "../../domain/errors.ts";
+import type { Certificate } from "../../infra/certificate.ts";
+import { escapeXml, unescapeXml } from "../../infra/xml.ts";
 
 /** Serviços SOAP publicados em `/service-ws/`. */
 export const SOAP_SERVICES = {

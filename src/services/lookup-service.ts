@@ -20,7 +20,7 @@ const TIMEOUT_MS = 10_000;
  * default is rejected. Identifying the client is also the polite thing to do
  * with a free service.
  */
-const USER_AGENT = "gissonline-nfse (+https://github.com/caioagiani/gissonline-nfse)";
+const USER_AGENT = "nfse-br (+https://github.com/caioagiani/nfse-br)";
 
 export interface ZipLookup {
   zipCode: string;

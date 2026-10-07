@@ -9,7 +9,7 @@ import type {
   RpsIdentification,
   Service,
   ServiceTaker,
-} from "../domain/types.ts";
+} from "../../../domain/types.ts";
 import {
   amount,
   element,
@@ -17,7 +17,7 @@ import {
   isoDate,
   requiredGroup,
   xmlDocument,
-} from "../infra/xml.ts";
+} from "../../../infra/xml.ts";
 
 /** Builders das mensagens do serviço `nfse` (serviços prestados). */
 
