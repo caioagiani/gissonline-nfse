@@ -99,3 +99,8 @@ describe("leitura das respostas do GissOnline", () => {
     assert.deepEqual(parseErrors(xml), [{ code: "E370", message: "Alíquota", correction: undefined }]);
   });
 });
+
+it("GISS: referências numéricas no texto são decodificadas", () => {
+  const xml = responses.query("R", [{ number: "1", takerName: "Caf&#233; &#xE7;" }]);
+  assert.equal(parseQueryResult(xml).invoices[0]!.taker?.legalName, "Café ç");
+});

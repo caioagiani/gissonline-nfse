@@ -10,6 +10,8 @@ const parser = new XMLParser({
   removeNSPrefix: true,
   parseTagValue: false,
   trimValues: true,
+  // Sem isso, `&#233;` e `&#10;` chegam literais ao texto.
+  htmlEntities: true,
 });
 
 export interface Party {
