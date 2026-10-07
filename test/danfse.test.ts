@@ -38,9 +38,12 @@ describe("DANFSe — campos tirados do XML (NT 008, item 2.4.5)", () => {
     assert.equal(data.provider.taxId, "37.969.249/0001-10");
     assert.equal(data.provider.name, "EMPRESA TESTE LTDA");
     assert.equal(data.provider.city, "Suzano / SP");
-    assert.equal(data.provider.cityCodeZip, "3552502 / 08.675-000");
+    assert.equal(data.provider.cityCodeZip, "35.52502 / 08.675-000");
+    // Telefone e e-mail só os da DPS: o oficial não puxa os de `emit`.
+    assert.equal(data.provider.phone, "-");
+    assert.equal(data.provider.email, "-");
     assert.equal(data.provider.address, "Rua Teste, 10, Centro");
-    assert.equal(data.provider.simplesNacional, "Optante - Microempresa ou Empresa de...");
+    assert.equal(data.provider.simplesNacional, "Optante - Microempresa ou Empresa de ...");
   });
 
   it("tomador com CPF e município pelo código do IBGE", () => {
@@ -66,19 +69,19 @@ describe("DANFSe — campos tirados do XML (NT 008, item 2.4.5)", () => {
     assert.equal(data.federalTax.socialContributions, "R$ 46,50");
     assert.equal(data.federalTax.pis, "R$ 0,00");
     assert.equal(data.federalTax.cofins, "R$ 0,00");
-    assert.equal(data.federalTax.socialContributionsDescription, "PIS/COFINS Retidos");
+    assert.equal(data.federalTax.socialContributionsDescription, "1 - PIS/COFINS Retidos");
     assert.equal(data.federalTax.showPisCofins, true);
   });
 
   it("IBS/CBS e totais", () => {
     assert.equal(data.ibsCbs.cstClassification, "000 / 000001");
     assert.equal(data.ibsCbs.operation, "100301 / 3552502 / Suzano / SP");
-    assert.equal(data.ibsCbs.ibsRates, "0,10% / 0,00%");
+    assert.equal(data.ibsCbs.ibsRates, "0,10 % / 0,00 %");
     assert.equal(data.ibsCbs.cbsAmount, "R$ 8,45");
     assert.equal(data.ibsCbs.exclusions, "R$ 56,50");
     assert.equal(data.totals.ibsCbs, "R$ 9,39");
     assert.equal(data.totals.netWithIbsCbs, "R$ 963,89");
-    assert.equal(data.municipalTax?.rate, "2,00%");
+    assert.equal(data.municipalTax?.rate, "2,00 %");
     assert.equal(data.municipalTax?.amount, "R$ 20,00");
   });
 
@@ -86,8 +89,8 @@ describe("DANFSe — campos tirados do XML (NT 008, item 2.4.5)", () => {
     assert.equal(
       data.additionalInformation,
       "Inf. Cont.: Pedido interno 42 | NFS-e Subst.: 35525022237969249000110000000000059926100000000001 | " +
-        "Núm. Ped.: PC-7 | Totais Aproximados dos Tributos cfe. Lei nº 12.741/2012: " +
-        "Federais: 4,65%; Estaduais: 0,00%; Municipais: 2,00%",
+        "Núm. Ped.: PC-7 | Totais aproximados dos Tributos cfe. Lei n° 12.741/2012: " +
+        "Federais: 4,65 %; Estaduais: 0,00 %; Municipais: 2,00 %;",
     );
   });
 
@@ -98,10 +101,14 @@ describe("DANFSe — campos tirados do XML (NT 008, item 2.4.5)", () => {
     assert.equal(minimal.recipient, undefined);
     assert.equal(minimal.municipalTax, undefined);
     assert.equal(minimal.ibsCbs.base, "-");
+    // Sem IBSCBS o oficial imprime R$ 0,00 nestes três.
+    assert.equal(minimal.ibsCbs.exclusions, "R$ 0,00");
+    assert.equal(minimal.totals.ibsCbs, "R$ 0,00");
+    assert.equal(minimal.totals.netWithIbsCbs, "R$ 0,00");
     assert.equal(minimal.ibsCbs.cstClassification, "- / -");
     assert.equal(minimal.ibsCbs.rateReductions, "- / - / -");
     assert.equal(minimal.service.taxCode, "01.09.01 / -");
-    assert.match(minimal.additionalInformation, /Federais: -; Estaduais: -; Municipais: -$/);
+    assert.match(minimal.additionalInformation, /Federais: -; Estaduais: -; Municipais: -;$/);
   });
 
   it("código de tributação do item 99 esconde o município do cabeçalho", () => {
@@ -162,8 +169,12 @@ describe("DANFSe — conferido com os DANFSe que o Emissor Nacional gera para ME
   it("linhas opcionais do ISSQN somem quando estão vazias (nota 5)", () => {
     assert.equal(mei.municipalTax?.showRegimeRow, false);
     assert.equal(mei.municipalTax?.showBenefitRow, false);
+    // Regime especial "Nenhum" (0) também some, como no oficial.
     const full = buildDanfseData(FULL);
-    assert.equal(full.municipalTax?.showRegimeRow, true);
+    assert.equal(full.municipalTax?.showRegimeRow, false);
+    const special = buildDanfseData(FULL.replace("<regEspTrib>0</regEspTrib>", "<regEspTrib>6</regEspTrib>"));
+    assert.equal(special.municipalTax?.showRegimeRow, true);
+    assert.equal(special.municipalTax?.specialRegime, "Sociedade de Profissionais");
     assert.equal(full.municipalTax?.showBenefitRow, false);
   });
 

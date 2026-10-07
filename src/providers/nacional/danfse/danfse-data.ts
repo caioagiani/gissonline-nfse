@@ -154,9 +154,9 @@ const CODES = {
     "3": "Optante - Microempresa ou Empresa de Pequeno Porte (ME/EPP)",
   },
   regApTribSN: {
-    "1": "Regime de apuração dos tributos federais e municipal pelo SN",
-    "2": "Regime de apuração dos tributos federais pelo SN e ISSQN por fora do SN conforme respectiva legislação municipal do tributo",
-    "3": "Regime de apuração dos tributos federais e municipal por fora do SN conforme respectivas legislações federal e municipal de cada tributo",
+    "1": "Regime de apuração dos tributos federais e municipal pelo Simples Nacional",
+    "2": "Regime de apuração dos tributos federais pelo Simples Nacional e ISSQN por fora do Simples Nacional conforme respectiva legislação municipal do tributo",
+    "3": "Regime de apuração dos tributos federais e municipal por fora do Simples Nacional conforme respectivas legislações federal e municipal de cada tributo",
   },
   tribISSQN: {
     "1": "Operação Tributável",
@@ -245,9 +245,9 @@ function describe(table: Record<string, string>, code: string | undefined, max?:
   return max ? clip(text, max) : text;
 }
 
-/** Corta com reticências quando o texto passa do tamanho sugerido. */
+/** Corta com reticências quando o texto passa do tamanho sugerido, sem aparar o espaço, como o oficial. */
 export function clip(text: string, max: number): string {
-  return text.length > max ? `${text.slice(0, max - 3).trimEnd()}...` : text;
+  return text.length > max ? `${text.slice(0, max - 3)}...` : text;
 }
 
 const number = (value: string | undefined): number | undefined => {
@@ -265,7 +265,7 @@ export function money(value: number | string | undefined): string {
 
 function percent(value: string | undefined): string {
   const amount = number(value);
-  return amount === undefined ? DASH : `${brl.format(amount)}%`;
+  return amount === undefined ? DASH : `${brl.format(amount)} %`;
 }
 
 /** Soma só o que existe; nada informado continua sendo "-". */
@@ -312,7 +312,13 @@ function withOptionalRows(tax: Omit<MunicipalTax, "showRegimeRow" | "showBenefit
   const filled = (...values: string[]) => values.some((v) => v !== DASH);
   return {
     ...tax,
-    showRegimeRow: filled(tax.specialRegime, tax.immunity, tax.suspension, tax.suspensionProcess),
+    // Regime "Nenhum" (0) não conta: o oficial suprime a linha.
+    showRegimeRow: filled(
+      tax.specialRegime === CODES.regEspTrib["0"] ? DASH : tax.specialRegime,
+      tax.immunity,
+      tax.suspension,
+      tax.suspensionProcess,
+    ),
     showBenefitRow: filled(tax.benefit, tax.benefitAmount, tax.deductions, tax.unconditionalDiscount),
   };
 }
@@ -320,6 +326,11 @@ function withOptionalRows(tax: Omit<MunicipalTax, "showRegimeRow" | "showBenefit
 /** CEP no formato que a NT pede: nn.nnn-nnn. */
 function zip(value: string | undefined): string | undefined {
   return value?.length === 8 ? value.replace(/^(\d{2})(\d{3})(\d{3})$/, "$1.$2-$3") : value;
+}
+
+/** Código IBGE com o ponto depois da UF, como o oficial imprime: 35.52502. */
+function ibgeCode(code: string): string {
+  return code.replace(/^(\d{2})(\d{5})$/, "$1.$2");
 }
 
 function cityLabel(code: string | undefined): string | undefined {
@@ -346,7 +357,7 @@ function partyOf(party: Node, max = { name: 77, address: 77 }): DanfseParty {
       37,
     ),
     cityCodeZip: cityCode
-      ? `${cityCode} / ${zip(at(national, "CEP")) ?? DASH}`
+      ? `${ibgeCode(cityCode)} / ${zip(at(national, "CEP")) ?? DASH}`
       : at(foreign, "cEndPost")
         ? `${at(foreign, "cEndPost")} (ext)`
         : DASH,
@@ -385,8 +396,10 @@ export function buildDanfseData(xml: string, status?: DanfseStatus): DanfseData 
 
   // Emitida pelo próprio prestador, a DPS não repete nome nem endereço: eles
   // vêm do cadastro e a SEFIN os grava em `emit`. É o mesmo contribuinte.
+  // Telefone e e-mail, não: o oficial só imprime os que estão na DPS.
+  const { fone: _fone, email: _email, ...registered } = emit;
   const providerSource =
-    at(dps, "tpEmit") === "1" ? { ...emit, ...prest, end: prest["end"] ?? emit["enderNac"] } : prest;
+    at(dps, "tpEmit") === "1" ? { ...registered, ...prest, end: prest["end"] ?? emit["enderNac"] } : prest;
   const providerAddress = node(providerSource["end"]);
   const provider = partyOf({
     ...providerSource,
@@ -431,10 +444,10 @@ export function buildDanfseData(xml: string, status?: DanfseStatus): DanfseData 
       return share !== undefined ? percent(share) : DASH;
     };
     return (
-      "Totais Aproximados dos Tributos cfe. Lei nº 12.741/2012: " +
+      "Totais aproximados dos Tributos cfe. Lei n° 12.741/2012: " +
       `Federais: ${value(`vTotTrib/${federal}`, `pTotTrib/p${federal.slice(1)}`)}; ` +
       `Estaduais: ${value(`vTotTrib/${state}`, `pTotTrib/p${state.slice(1)}`)}; ` +
-      `Municipais: ${value(`vTotTrib/${municipal}`, `pTotTrib/p${municipal.slice(1)}`)}`
+      `Municipais: ${value(`vTotTrib/${municipal}`, `pTotTrib/p${municipal.slice(1)}`)};`
     );
   };
 
@@ -534,7 +547,10 @@ export function buildDanfseData(xml: string, status?: DanfseStatus): DanfseData 
       showPisCofins: competence === undefined || Number(competence.slice(0, 4)) <= 2026,
       pis: money(retainedPisCofins ? 0 : at(pisCofins, "vPis")),
       cofins: money(retainedPisCofins ? 0 : at(pisCofins, "vCofins")),
-      socialContributionsDescription: describe(CODES.tpRetPisCofins, at(pisCofins, "tpRetPisCofins"), 35),
+      socialContributionsDescription: (() => {
+        const code = at(pisCofins, "tpRetPisCofins");
+        return code === undefined ? DASH : clip(`${code} - ${describe(CODES.tpRetPisCofins, code)}`, 40);
+      })(),
     },
     ibsCbs: {
       cstClassification: (() => {
@@ -548,6 +564,7 @@ export function buildDanfseData(xml: string, status?: DanfseStatus): DanfseData 
         const parts = [at(dpsIbs, "cIndOp"), code, at(ibs, "xLocalidadeIncid"), ibgeMunicipality(code)?.state];
         return clip(parts.map((p) => p ?? DASH).join(" / "), 56);
       })(),
+      // Sem nada a excluir o oficial imprime R$ 0,00, não "-".
       exclusions: money(
         sum(
           at(dpsValues, "vDescCondIncond/vDescIncond"),
@@ -555,7 +572,7 @@ export function buildDanfseData(xml: string, status?: DanfseStatus): DanfseData 
           at(nfseValues, "vISSQN"),
           at(pisCofins, "vPis"),
           at(pisCofins, "vCofins"),
-        ),
+        ) ?? 0,
       ),
       base: money(at(ibsValues, "vBC")),
       rateReductions: [at(ibsValues, "uf/pRedAliqUF"), at(ibsValues, "mun/pRedAliqMun"), at(ibsValues, "fed/pRedAliqCBS")]
@@ -577,8 +594,10 @@ export function buildDanfseData(xml: string, status?: DanfseStatus): DanfseData 
       conditionalDiscount: money(at(dpsValues, "vDescCondIncond/vDescCond")),
       withholdings: money(at(nfseValues, "vTotalRet")),
       net: money(at(nfseValues, "vLiq")),
-      ibsCbs: money(sum(ibsTotal, cbsTotal)),
-      netWithIbsCbs: money(at(ibsTotals, "vTotNF")),
+      // Sem o grupo IBSCBS o oficial imprime R$ 0,00 nos dois, inclusive no
+      // líquido + IBS/CBS (vTotNF ausente). Copiado como está.
+      ibsCbs: money(sum(ibsTotal, cbsTotal) ?? 0),
+      netWithIbsCbs: money(at(ibsTotals, "vTotNF") ?? 0),
     },
     additionalInformation,
     stub: `${at(inf, "nNFSe") ?? DASH} / ${accessKey}`,

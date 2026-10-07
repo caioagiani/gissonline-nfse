@@ -108,7 +108,19 @@ VALIDADE JURÍDICA" header in the restricted environment, only data present in t
 Checked against DANFSe printed by the Emissor Nacional itself (MEI invoices, 2026-09):
 same blocks, same codes for the generating environment and environment type, `-` for each
 missing part of a composite field, optional ISSQN rows dropped when empty, and line
-breaks in the description kept.
+breaks in the description kept. Also checked against the DANFSe the public consultation
+returns when our QR Code is scanned (invoice transcribed by the city, `ambGer` 1). That
+fixed the official quirks we copy:
+
+- IBGE code printed as `35.52502`, rates as `2,98 %`;
+- the provider's phone and e-mail come only from the DPS, never from `emit`;
+- special regime "Nenhum" (0) drops the ISSQN regime row;
+- `0 - PIS/COFINS/CSLL Não Retidos`, with the code in front;
+- `R$ 0,00`, not `-`, in exclusions, IBS/CBS total and net + IBS/CBS when the invoice has
+  no `IBSCBS` group. The last one is wrong on their side (the net is not zero), but it
+  is what the official document prints;
+- the description takes only the room its text needs; the rest goes to the additional
+  information.
 
 One unavoidable difference: the note names Arial and Microsoft Sans Serif, which are
 proprietary and cannot be embedded. The PDF uses Helvetica, the standard PDF font with the

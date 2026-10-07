@@ -96,19 +96,13 @@ export async function drawDanfse(data: DanfseData): Promise<Uint8Array> {
   const descriptionLines = canvas.wrap(data.service.description, fonts.regular, 7, WIDTH - 0.2);
   const informationLines = canvas.wrap(data.additionalInformation, fonts.regular, 7, WIDTH - 0.2);
   const need = (lines: number) => lines * LINE_HEIGHT + 0.2;
-  // Pelo modelo, a descrição tem 0,64 cm e as informações ficam com o resto;
-  // o que os blocos suprimidos economizam vai para a descrição (item 2.3).
-  // Se mesmo assim o texto não couber, a descrição avança sobre o espaço que
-  // as informações não usam.
-  const suppressed =
-    (data.taker ? 0 : 1.62) +
-    (data.recipient && data.recipient !== "taker" ? 0 : 1.62) +
-    (data.intermediary ? 0 : 1.62) +
-    (data.municipalTax ? 0 : 2.27) +
-    (data.federalTax.showPisCofins ? 0 : 0.65);
-  const informationNeed = Math.max(0.39, need(informationLines.length));
+  // Como no oficial, a descrição ocupa só o que o texto precisa (mínimo de
+  // 0,64 cm) e as informações complementares ficam com o resto, inclusive o
+  // que os blocos suprimidos economizam. Se a descrição não couber, avança
+  // sobre o espaço que as informações não usam.
+  const informationNeed = Math.max(0.39, need(informationLines.length) + 0.35);
   const descriptionHeight = Math.min(
-    Math.max(0.64 + suppressed, need(descriptionLines.length) + 0.3),
+    Math.max(0.64, need(descriptionLines.length) + 0.3),
     Math.max(0.64, free - informationNeed),
   );
 
@@ -140,8 +134,8 @@ function header(canvas: Canvas, data: DanfseData, logo: Awaited<ReturnType<PDFDo
   }
 
   if (data.header.city) canvas.text(`Município: ${data.header.city}`, 15.62, 0.66, 8, canvas.fonts.regular);
-  canvas.text(`Ambiente Gerador: ${data.header.generator}`, 15.62, 1.13, 6, canvas.fonts.regular);
-  canvas.text(`Tipo de Ambiente: ${data.header.environment}`, 15.62, 1.38, 6, canvas.fonts.regular);
+  canvas.text(`Ambiente Gerador: ${data.header.generator}`, 15.62, 0.95, 6, canvas.fonts.regular);
+  canvas.text(`Tipo de Ambiente: ${data.header.environment}`, 15.62, 1.19, 6, canvas.fonts.regular);
   return 1.48;
 }
 
@@ -222,7 +216,7 @@ function recipient(canvas: Canvas, data: DanfseData, y: number): number {
 function service(canvas: Canvas, data: DanfseData, y: number, height: number, lines: string[]): number {
   canvas.line(y);
   canvas.title("SERVIÇO PRESTADO", y);
-  canvas.field(COL[1], y, COL_WIDTH, "Código de Tributação Nacional / Municipal", data.service.taxCode);
+  canvas.field(COL[1], y, COL_WIDTH, "Código de Tributação Nacional/Municipal", data.service.taxCode);
   canvas.field(COL[2], y, COL_WIDTH, "Código da NBS", data.service.nbs);
   canvas.field(COL[3], y, COL_WIDTH, "Local da Prestação / Sigla UF / País", data.service.location);
   // Sem título (label), como manda a tabela.
@@ -287,7 +281,7 @@ function federalTax(canvas: Canvas, data: DanfseData, y: number): number {
 function ibsCbs(canvas: Canvas, data: DanfseData, y: number): number {
   const tax = data.ibsCbs;
   canvas.line(y);
-  canvas.title("TRIBUTAÇÃO IBS / CBS", y);
+  canvas.title("TRIBUTAÇÃO IBS/CBS", y);
   canvas.field(COL[1], y, COL_WIDTH, "CST / cClassTrib", tax.cstClassification);
   canvas.field(COL[2], y, WIDE, "Indicador de Operação / Código IBGE Incidência / Município Incidência / Sigla UF", tax.operation);
   canvas.field(COL[0], y + 0.64, COL_WIDTH, "Exclusões e Reduções da Base de Cálculo", tax.exclusions);
@@ -326,7 +320,7 @@ function totals(canvas: Canvas, data: DanfseData, y: number): number {
 function information(canvas: Canvas, lines: string[], y: number, height: number): void {
   canvas.line(y);
   canvas.title("INFORMAÇÕES COMPLEMENTARES", y, 0.41, WIDTH);
-  const room = Math.max(1, Math.floor((height - 0.5) / LINE_HEIGHT));
+  const room = Math.max(1, Math.floor((height - 0.85) / LINE_HEIGHT));
   // O texto já vem com a linha dos tributos por último; se não couber, as
   // reticências entram antes dela, que é obrigatória (nota 10).
   const shown =
@@ -334,7 +328,8 @@ function information(canvas: Canvas, lines: string[], y: number, height: number)
       ? [...lines.slice(0, room - 2), `${lines[room - 2] ?? ""}...`, ...lines.slice(-1)]
       : lines;
   shown.forEach((line, index) => {
-    canvas.text(line, LEFT + 0.1, y + 0.66 + index * LINE_HEIGHT, 7, canvas.fonts.regular);
+    // Uma linha em branco depois do título, como no oficial.
+    canvas.text(line, LEFT + 0.1, y + 1.0 + index * LINE_HEIGHT, 7, canvas.fonts.regular);
   });
 }
 
@@ -344,7 +339,7 @@ function stub(canvas: Canvas, data: DanfseData, y: number): void {
   canvas.vline(COL[2] - 0.01, y, 0.67);
   canvas.field(COL[0], y, COL_WIDTH, "DATA CIENTIFICAÇÃO:", "", { caps: true });
   canvas.field(COL[1], y, COL_WIDTH, "IDENTIFICAÇÃO E ASSINATURA", "", { caps: true });
-  canvas.field(COL[2], y, WIDE, "Nº NFS-e / CHAVE NFS-e", data.stub, { caps: true });
+  canvas.field(COL[2], y, WIDE, "N° NFS-e / CHAVE NFS-e", data.stub, { caps: true });
 }
 
 /** Desenho em centímetros, com a origem no canto superior esquerdo. */
