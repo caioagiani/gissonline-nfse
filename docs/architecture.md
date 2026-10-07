@@ -60,6 +60,29 @@ docs/                  manuals, samples and the error table
 (`Rps`, `Nfse`, `Iss`, `Cnpj`) so the code stays mappable line by line against the
 official manuals and XSD.
 
+## Dependencies
+
+Five runtime dependencies, each doing one job:
+
+| Package | Used for |
+| --- | --- |
+| `xml-crypto` | XMLDSig signing (rsa-sha1 for GissOnline, rsa-sha256 for the national API) |
+| `fast-xml-parser` | reading every service response |
+| `node-forge` | opening the `.pfx` (PKCS#12) into a PEM key and certificate |
+| `pdf-lib` | drawing the DANFSe |
+| `qrcode-generator` | the DANFSe QR Code |
+
+`npm run audit:runtime` audits exactly what an install of the package receives — a
+lockfile built from `dependencies` alone — and fails on any high or critical advisory.
+CI and the release run it. Advisories that were assessed and do not reach the library
+are listed, with the reason, in `scripts/audit-runtime.mjs`:
+
+- **`node-forge` GHSA-86w9-cpqp-85rv** (RSA PKCS#1 v1.5 signature verification). The
+  library never verifies an RSA signature with forge; it only parses the PKCS#12, whose
+  password is checked by HMAC. No fixed version exists. Node has no PKCS#12 parser that
+  exposes the key, so the alternative would be `pkijs` — worth it if an advisory ever
+  reaches the PKCS#12 path.
+
 ## Adding a provider
 
 A new issuing system gets `providers/<name>/` and `schemas/<name>/`, and a service on

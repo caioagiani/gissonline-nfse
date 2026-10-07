@@ -50,6 +50,7 @@ jobs:
       # contra os XSD seriam pulados em silêncio.
       - run: sudo apt-get install -y --no-install-recommends libxml2-utils
       - run: npm test
+      - run: npm run audit:runtime
 
       # Decides the version, writes CHANGELOG.md, commits, tags and creates the
       # GitHub release. Does not publish.
