@@ -46,7 +46,7 @@ Checked on 2026-10-06 for Suzano (3552502): shares `yes`, accepts `no`.
 nfse national-status                      # the two flags above
 nfse national-docs [--from NSU]           # invoices and events where your CNPJ appears
 nfse national-get --key K                 # one invoice by its 50-digit access key
-nfse national-pdf --key K [--out DIR]     # the DANFSe
+nfse national-pdf --key K [--out DIR]     # the DANFSe, generated locally (see below)
 nfse national-xml --key K [--out DIR]
 
 nfse issue --issuer nacional --customer acme --amount 1500 --description "…"
@@ -78,6 +78,38 @@ batch and no protocol.
   `2` (service not provided) or `9` (other) and a justification of 15 to 255 characters.
   `replace` is not available on this path yet: cancel, then issue again.
 
+## DANFSe (the PDF)
+
+The national API no longer renders it. Technical Note 008 (v1.02, 2026-07-14) suspended
+`adn.nfse.gov.br/danfse` on 2026-08-03 — it answers `503` since — and moved the duty to
+the issuing system: the DANFSe is generated from the invoice XML, following the model in
+Annex I. Generated that way it is the official auxiliary document, with the same standing
+the API's PDF had.
+
+`national.pdf(key)` does that: one call to `GET /contribuintes/NFSe/{key}/Eventos` on the
+ADN returns the invoice and its events, and `renderDanfse` draws DANFSe v2.0. The events
+decide the watermark — `SUBSTITUÍDA` for `105102`, `CANCELADA` for `101101`, `105104` and
+`305101` — so a PDF never comes out clean for an invoice that no longer stands. That ADN
+route only reaches invoices where the certificate's CNPJ appears.
+
+With the XML already in hand, render it directly:
+
+```ts
+import { renderDanfse } from "nfse-br";
+const pdf = await renderDanfse(xml, { status: "cancelled" }); // Uint8Array
+```
+
+What follows the note to the letter: the Annex I layout and the 2.4.5 positions, A4
+portrait on one page, 0.5 pt dividers and a 1 pt border, 5% grey shading, the QR Code
+pointing to `https://www.nfse.gov.br/ConsultaPublica/?tpc=1&chave=…`, the "NFS-e SEM
+VALIDADE JURÍDICA" header in the restricted environment, only data present in the XML
+(`-` where a field is empty), the suppression rules of 2.3 and the ellipsis limits.
+
+One unavoidable difference: the note names Arial and Microsoft Sans Serif, which are
+proprietary and cannot be embedded. The PDF uses Helvetica, the standard PDF font with the
+same metrics as Arial. Characters outside its encoding (an emoji in a description) print
+as `?`.
+
 ## Not verified yet
 
 E0039 stops the restricted environment before it checks anything else. So the rules
@@ -86,14 +118,13 @@ service. The first test after the city flips the flag should confirm them:
 
 - leaving out `pAliq` for ME/EPP apportioned through the Simples;
 - leaving out the `IBSCBS` group, which is optional in layout 1.01;
-- `GET /danfse/{key}` on the ADN answered `503` on 2026-10-06 for every key tried.
 
 ## Hosts
 
 | | Production | Restricted (test) |
 | --- | --- | --- |
 | SEFIN (issue, query, events) | `sefin.nfse.gov.br/SefinNacional` | `sefin.producaorestrita.nfse.gov.br/SefinNacional` |
-| ADN (distribution, DANFSe, parameters) | `adn.nfse.gov.br` | `adn.producaorestrita.nfse.gov.br` |
+| ADN (distribution, events, parameters) | `adn.nfse.gov.br` | `adn.producaorestrita.nfse.gov.br` |
 
 `--env homologacao` selects the restricted environment, which has no fiscal effect.
 

@@ -14,13 +14,17 @@ import {
   buildCancellationEvent,
   buildDps,
   dpsId,
+  parseNationalEvent,
   parseNationalNfse,
   type DpsContext,
+  type NationalEvent,
   type NationalCancellationReason,
   type NationalEnvironment,
   type NationalNfse,
   type SimplesOption,
 } from "./messages.ts";
+import { danfseStatus } from "./danfse/danfse-data.ts";
+import { renderDanfse } from "./danfse/danfse-pdf.ts";
 
 /**
  * Hosts do Sistema Nacional NFS-e. A SEFIN emite e registra eventos; o ADN
@@ -191,14 +195,38 @@ export class NationalService {
     return parseNationalNfse(unpackXml(body.nfseXmlGZipB64));
   }
 
-  /** DANFSe — a representação em PDF da nota, gerada pelo ADN. */
-  async pdf(accessKey: string): Promise<Buffer> {
-    const url = `${this.hosts.adn}/danfse/${accessKey}`;
-    const response = await this.call(url);
-    if (response.status !== 200 || !response.contentType.includes("pdf")) {
-      throw this.failure(url, response);
+  /**
+   * A NFS-e e todos os seus eventos (cancelamento, substituição...), numa
+   * consulta só ao ADN. Só alcança notas em que o CNPJ do certificado aparece.
+   */
+  async withEvents(accessKey: string): Promise<{ xml: string; events: NationalEvent[] }> {
+    const url = `${this.hosts.adn}/contribuintes/NFSe/${accessKey}/Eventos`;
+    const body = await this.json<{
+      LoteDFe?: { ChaveAcesso: string; TipoDocumento: string; ArquivoXml: string }[];
+    }>(url);
+    const documents = (body.LoteDFe ?? []).map((d) => ({ type: d.TipoDocumento, xml: unpackXml(d.ArquivoXml) }));
+    const nfse = documents.find((d) => d.type === "NFSE");
+    if (!nfse) {
+      throw new NationalError(new URL(url).pathname, 200, [], body, {
+        code: "UNEXPECTED_RESPONSE",
+        retryable: false,
+      });
     }
-    return response.body;
+    return {
+      xml: nfse.xml,
+      events: documents.filter((d) => d.type !== "NFSE").map((d) => parseNationalEvent(d.xml)),
+    };
+  }
+
+  /**
+   * DANFSe v2.0 em PDF, gerado aqui a partir do XML (NT 008): a API nacional
+   * que o gerava foi suspensa em 03/08/2026. Os eventos da nota decidem a
+   * marca d'água — CANCELADA ou SUBSTITUÍDA —, então um PDF nunca sai limpo
+   * para uma nota que já não vale.
+   */
+  async pdf(accessKey: string): Promise<Buffer> {
+    const { xml, events } = await this.withEvents(accessKey);
+    return Buffer.from(await renderDanfse(xml, { status: danfseStatus(events) }));
   }
 
   /**
@@ -288,7 +316,7 @@ export class NationalService {
   private failure(url: string, response: NationalResponse): NationalError {
     const body = parseJson<Record<string, unknown>>(response) ?? response.body.toString("utf8");
     const messages =
-      typeof body === "object" ? messagesOf(body["erros"] ?? body["erro"]) : [];
+      typeof body === "object" ? messagesOf(body["erros"] ?? body["erro"] ?? body["Erros"]) : [];
     return new NationalError(new URL(url).pathname, response.status, messages, body);
   }
 

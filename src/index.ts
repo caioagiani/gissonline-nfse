@@ -84,6 +84,10 @@ export {
   NATIONAL_NAMESPACE,
   NATIONAL_VERSION,
 } from "./providers/nacional/messages.ts";
+export { renderDanfse, drawDanfse } from "./providers/nacional/danfse/danfse-pdf.ts";
+export type { DanfseOptions } from "./providers/nacional/danfse/danfse-pdf.ts";
+export { buildDanfseData, danfseStatus } from "./providers/nacional/danfse/danfse-data.ts";
+export type { DanfseData, DanfseStatus } from "./providers/nacional/danfse/danfse-data.ts";
 export type {
   DpsContext,
   NationalCancellationReason,

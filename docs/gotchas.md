@@ -61,3 +61,7 @@ All found by testing against the live service:
 
 The homologation environment has its own two limits, described in
 [configuration.md](configuration.md#test-environment).
+
+- **The national DANFSe API is gone.** NT 008 suspended `adn.nfse.gov.br/danfse` on
+  2026-08-03; it answers `503`. The library renders the PDF itself — see
+  [national.md](national.md#danfse-the-pdf).

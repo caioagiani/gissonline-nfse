@@ -27,6 +27,7 @@ src/
       national-client.ts   REST/JSON over mTLS, gzip+base64 documents
       messages.ts          DPS, cancellation event, NFS-e parser
       national-service.ts  issue, query, cancel, DANFSe, distribution
+      danfse/              DANFSe v2.0 (NT 008): XML → fields → PDF, IBGE table, logo
   services/
     lookup-service.ts    postal code and CNPJ lookups (BrasilAPI)
   client.ts            NfseClient — facade composing every provider

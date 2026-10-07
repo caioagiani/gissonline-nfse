@@ -199,20 +199,56 @@ describe("NationalService.findByDps / get", () => {
 });
 
 describe("NationalService.pdf", () => {
-  it("devolve o PDF do DANFSe", async () => {
-    const pdf = Buffer.from("%PDF-1.4 teste");
+  const lote = (...docs: Array<{ type: string; xml: string }>) => ({
+    json: {
+      StatusProcessamento: "DOCUMENTOS_LOCALIZADOS",
+      LoteDFe: docs.map((d, i) => ({ NSU: i + 1, ChaveAcesso: ACCESS_KEY, TipoDocumento: d.type, ArquivoXml: packXml(d.xml) })),
+    },
+  });
+  const replacement =
+    `<evento xmlns="http://www.sped.fazenda.gov.br/nfse"><infEvento><pedRegEvento><infPedReg>` +
+    `<chNFSe>${ACCESS_KEY}</chNFSe><e105102><xDesc>Cancelamento de NFS-e por Substituição</xDesc></e105102>` +
+    `</infPedReg></pedRegEvento></infEvento></evento>`;
+
+  it("gera o DANFSe localmente a partir da nota e dos eventos do ADN (a API do PDF foi suspensa)", async () => {
     const { national, calls } = service({
-      [`${adn}/danfse/`]: () => ({ contentType: "application/pdf", body: pdf }),
+      [`${adn}/contribuintes/NFSe/`]: () => lote({ type: "NFSE", xml: NFSE_XML }),
     });
-    assert.deepEqual(await national.pdf(ACCESS_KEY), pdf);
-    assert.equal(calls[0]?.url, `${adn}/danfse/${ACCESS_KEY}`);
+    const pdf = await national.pdf(ACCESS_KEY);
+    assert.equal(pdf.subarray(0, 5).toString(), "%PDF-");
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0]?.url, `${adn}/contribuintes/NFSe/${ACCESS_KEY}/Eventos`);
   });
 
-  it("não aceita um erro com HTTP 200 como se fosse PDF", async () => {
+  it("evento de substituição chega aos eventos lidos", async () => {
     const { national } = service({
-      [`${adn}/danfse/`]: () => ({ json: { erro: { codigo: "E1", descricao: "falhou" } } }),
+      [`${adn}/contribuintes/NFSe/`]: () => lote({ type: "NFSE", xml: NFSE_XML }, { type: "EVENTO", xml: replacement }),
     });
-    await assert.rejects(national.pdf(ACCESS_KEY), /\[E1\] falhou/);
+    const { events } = await national.withEvents(ACCESS_KEY);
+    assert.deepEqual(events.map((e) => e.code), ["105102"]);
+    assert.equal((await national.pdf(ACCESS_KEY)).subarray(0, 5).toString(), "%PDF-");
+  });
+
+  it("nota que o ADN não acha: NOT_FOUND com o código do serviço", async () => {
+    const { national } = service({
+      [`${adn}/contribuintes/NFSe/`]: () => ({
+        status: 404,
+        json: { LoteDFe: [], Erros: [{ Codigo: "E2240", Descricao: "Nenhum documento localizado" }] },
+      }),
+    });
+    await assert.rejects(national.pdf(ACCESS_KEY), (error) => {
+      assert.ok(error instanceof NationalError);
+      assert.equal(error.code, "NOT_FOUND");
+      assert.match(error.message, /\[E2240\] Nenhum documento localizado/);
+      return true;
+    });
+  });
+
+  it("lote sem a NFS-e não vira PDF vazio", async () => {
+    const { national } = service({
+      [`${adn}/contribuintes/NFSe/`]: () => lote({ type: "EVENTO", xml: replacement }),
+    });
+    await assert.rejects(national.pdf(ACCESS_KEY), (error) => error instanceof NationalError && error.code === "UNEXPECTED_RESPONSE");
   });
 });
 
