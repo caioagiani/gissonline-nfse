@@ -57,7 +57,9 @@ function supplierGroup(supplier: Supplier): string {
           element(`${T}:Cep`, supplier.address.zipCode),
         ])
       : "",
-    supplier.contact
+    // Aqui, ao contrário dos serviços prestados, o XSD exige o Telefone no
+    // Contato: só com e-mail o grupo sai fora do schema (E160), então fica de fora.
+    supplier.contact?.phone
       ? group(`${T}:Contato`, [
           element(`${T}:Telefone`, supplier.contact.phone),
           element(`${T}:Email`, supplier.contact.email),
