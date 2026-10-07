@@ -2,6 +2,20 @@
 
 All found by testing against the live service:
 
+- **Suzano refuses `CancelarNfse` through the Web Service.** Schema and signature pass, and
+  the answer is `V999 — Para realizar o cancelamento entre em contato com a prefeitura`.
+  Cancelling there goes through the portal or the city hall; `cancel` and `replace` will
+  not succeed against that city.
+- **Suzano refuses `OutrasRetencoes` in the RPS, even at zero** (`E370`). The XSD makes it
+  optional, so the client leaves it out unless there is a value.
+- **The national issuer depends on the city, not on the taxpayer.** A DPS that is valid in
+  every other respect is refused with `E0039` until the city sets
+  `aderenteEmissorNacional`. `giss national-status` reads that flag. See
+  [national.md](national.md).
+- **The national XSD rejects every `serie`.** Its pattern is `^0{0,4}\d{1,5}$`, and in XSD
+  `^` and `$` are literal characters, not anchors. The validator lists it as a known
+  divergence.
+
 - **Signing the whole batch is not enough.** The manual says the batch signature waives the
   individual ones, but the service answers `E174 — RPS não assinado`. Each RPS must be
   signed, and the batch signature must reference the `LoteRps` Id — with `URI=""` it

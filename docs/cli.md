@@ -30,6 +30,13 @@ giss issue --customer acme --amount 15000 --rps 12 --confirm
 giss cancel --number 569 --reason 1 --confirm
 giss replace --number 569 --reason 1 --customer acme --amount 15000 --confirm
 
+# national issuer (Sistema Nacional NFS-e) — see national.md
+giss national-status                      # has the city enabled it?
+giss national-docs                        # invoices and events with your CNPJ
+giss national-pdf --key 3552502…          # DANFSe by access key
+giss issue --issuer nacional --customer acme --amount 15000 --dps 7 --confirm
+giss cancel --issuer nacional --key 3552502… --reason 1 --text "Valor informado errado" --confirm
+
 # documents of an issued invoice
 giss pdf --number 573                     # writes ./nfse-573.pdf
 giss xml --number 573 --out ~/notas       # writes ~/notas/nfse-573.xml

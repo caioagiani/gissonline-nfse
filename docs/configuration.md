@@ -7,6 +7,7 @@
 | `GISS_ENV` | `producao` or `homologacao` |
 | `GISS_MUNICIPIO` | city slug in the host (`suzano` → `ws-suzano.giss.com.br`) — see [municipalities.md](municipalities.md) |
 | `GISS_VERSAO` | layout version (`2.04`) |
+| `NFSE_EMISSOR` | `giss` (default) or `nacional` — who issues and cancels; see [national.md](national.md) |
 | `GISS_CODIGO_MUNICIPIO` | IBGE code — optional for a [known city](municipalities.md), which supplies it |
 | `CERT_PATH` / `CERT_PASSWORD` | A1 certificate and its password |
 | `GISS_CNPJ` / `GISS_ISC_MUNICIPAL` | the provider |

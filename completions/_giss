@@ -45,10 +45,16 @@ _giss() {
     'zip:Look up a postal code (BrasilAPI)'
     'cnpj:Look up a company by CNPJ (BrasilAPI)'
     'profile:Show or save the tax profile defaults'
+    'national-status:City adhesion to the national issuer'
+    'national-get:National invoice by access key'
+    'national-pdf:Download the DANFSe'
+    'national-xml:Download the national invoice XML'
+    'national-docs:Invoices and events where your CNPJ appears'
   )
 
   global_opts=(
     '--env[Environment]:environment:(producao homologacao)'
+    '--issuer[Who issues]:issuer:(giss nacional)'
     '--json[JSON output]'
     '--xml[Raw XML output]'
     '--debug[Log the XML sent and received]'
@@ -163,6 +169,16 @@ _giss() {
         activities)
           _arguments $global_opts '--item[LC 116 item]:item:' '--city[City IBGE code]:code:' \
             '--company[Only what the company is bound to]' '--date[Rate valid on this date]:date (YYYY-MM-DD):'
+          ;;
+        national-get)
+          _arguments $global_opts '--key[50-digit access key]:key:'
+          ;;
+        national-pdf|national-xml)
+          _arguments $global_opts '--key[50-digit access key]:key:' \
+            '--out[Target directory or file]:target:_files'
+          ;;
+        national-docs)
+          _arguments $global_opts '--from[Start after this NSU]:nsu:'
           ;;
         profile)
           _arguments $global_opts '--save[Write to data/profile.json]'

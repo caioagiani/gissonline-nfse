@@ -11,9 +11,14 @@ export {
   findMunicipality,
   type Municipality,
 } from "./config/municipalities.ts";
-export type { Environment, GissConfig } from "./config/index.ts";
+export type { Environment, GissConfig, Issuer } from "./config/index.ts";
 
-export { GissError, PortalError, SoapFaultError } from "./domain/errors.ts";
+export {
+  GissError,
+  NationalError,
+  PortalError,
+  SoapFaultError,
+} from "./domain/errors.ts";
 export type { ServiceMessage } from "./domain/errors.ts";
 
 export * from "./domain/types.ts";
@@ -26,6 +31,7 @@ export type {
   ExportedFiles,
 } from "./infra/certificate.ts";
 export { createXmlSigner } from "./infra/xml-signer.ts";
+export type { SignatureAlgorithm } from "./infra/xml-signer.ts";
 export { SOAP_SERVICES } from "./infra/soap-client.ts";
 export type {
   NfscOperation,
@@ -48,6 +54,30 @@ export {
 export { NfseService } from "./services/nfse-service.ts";
 export type { IssueOutcome } from "./services/nfse-service.ts";
 export { NfscService } from "./services/nfsc-service.ts";
+export { NationalService, NATIONAL_HOSTS } from "./services/national-service.ts";
+export type {
+  DistributedDocument,
+  MunicipalAgreement,
+  NationalIssueOptions,
+  NationalIssueOutcome,
+  NationalServiceOptions,
+} from "./services/national-service.ts";
+export {
+  buildDps,
+  buildCancellationEvent,
+  dpsId,
+  nationalTaxCode,
+  parseNationalNfse,
+  NATIONAL_NAMESPACE,
+  NATIONAL_VERSION,
+} from "./messages/national.ts";
+export type {
+  DpsContext,
+  NationalCancellationReason,
+  NationalEnvironment,
+  NationalNfse,
+  SimplesOption,
+} from "./messages/national.ts";
 export { PortalService, buildPortalParty } from "./services/portal-service.ts";
 export type {
   AnyPortalCredentials,

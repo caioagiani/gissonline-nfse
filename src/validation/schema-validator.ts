@@ -32,7 +32,11 @@ export interface ValidationResult {
  * Casos em que o XSD publicado contradiz o que o serviço realmente aceita —
  * confirmados contra notas emitidas de verdade.
  */
-const KNOWN_DIVERGENCES: RegExp[] = [];
+const KNOWN_DIVERGENCES: RegExp[] = [
+  // XSD nacional v1.01: o padrão de `serie` é "^0{0,4}\d{1,5}$". Em XSD, `^` e
+  // `$` são caracteres literais, não âncoras — nenhum valor real casa.
+  /\{http:\/\/www\.sped\.fazenda\.gov\.br\/nfse\}serie'.*\^0\{0,4\}/,
+];
 
 /**
  * Valida um XML contra o XSD correspondente usando `xmllint`. Devolve `null`
