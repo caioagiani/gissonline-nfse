@@ -1,5 +1,5 @@
-import { NotSupportedError, ValidationError } from "../domain/errors.ts";
-import type { Address, Rps, ServiceTaker } from "../domain/types.ts";
+import { NotSupportedError, ValidationError } from "../../domain/errors.ts";
+import type { Address, Rps, ServiceTaker } from "../../domain/types.ts";
 import {
   amount,
   digitsOnly,
@@ -9,7 +9,7 @@ import {
   requiredGroup,
   unescapeXml,
   xmlDocument,
-} from "../infra/xml.ts";
+} from "../../infra/xml.ts";
 
 /**
  * Mensagens do Sistema Nacional NFS-e — leiaute v1.01 (Anexo I da SE/CGNFS-e).

@@ -22,9 +22,9 @@ import {
   parseNationalNfse,
   type NationalCancellationReason,
   type NationalNfse,
-} from "../messages/national.ts";
-import type { Nfse, QueryResult } from "../messages/parser.ts";
-import { GissClient } from "../services/giss-client.ts";
+} from "../providers/nacional/messages.ts";
+import type { Nfse, QueryResult } from "../providers/giss/messages/parser.ts";
+import { GissClient } from "../client.ts";
 import {
   lookupParty,
   lookupZip,
@@ -37,8 +37,8 @@ import {
   type DocumentFormat,
   type PortalMessage,
   type PartyRole,
-} from "../services/portal-service.ts";
-import { MUNICIPALITIES } from "../config/municipalities.ts";
+} from "../providers/giss/portal-service.ts";
+import { MUNICIPALITIES } from "../providers/giss/municipalities.ts";
 import {
   ContactRepository,
   taxIdOf,

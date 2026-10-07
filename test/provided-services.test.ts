@@ -4,7 +4,7 @@ import type { Rps } from "../src/domain/types.ts";
 import {
   generateNfseRequest,
   sendRpsBatchRequest,
-} from "../src/messages/provided-services.ts";
+} from "../src/providers/giss/messages/provided-services.ts";
 import { validateAgainstSchema } from "../src/validation/schema-validator.ts";
 import { PROVIDER_CNPJ, sampleRps } from "./helpers.ts";
 

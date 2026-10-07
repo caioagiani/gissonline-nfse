@@ -1,15 +1,15 @@
-import { loadConfig, type GissConfig } from "../config/index.ts";
-import type { PartyIdentification } from "../domain/types.ts";
+import { loadConfig, type GissConfig } from "./config/index.ts";
+import type { PartyIdentification } from "./domain/types.ts";
 import {
   loadCertificate,
   type Certificate,
   type CertificateInput,
-} from "../infra/certificate.ts";
-import { createXmlSigner } from "../infra/xml-signer.ts";
-import type { QueryResult } from "../messages/parser.ts";
-import { NfscService } from "./nfsc-service.ts";
-import { NationalService } from "./national-service.ts";
-import { NfseService } from "./nfse-service.ts";
+} from "./infra/certificate.ts";
+import { createXmlSigner } from "./infra/xml-signer.ts";
+import type { QueryResult } from "./providers/giss/messages/parser.ts";
+import { NfscService } from "./providers/giss/nfsc-service.ts";
+import { NationalService } from "./providers/nacional/national-service.ts";
+import { NfseService } from "./providers/giss/nfse-service.ts";
 
 export interface GissClientOptions extends Partial<GissConfig> {
   /**

@@ -1,15 +1,15 @@
-import type { Environment } from "../config/index.ts";
-import { NationalError, NfseError, type ServiceMessage } from "../domain/errors.ts";
-import type { XmlSigner } from "../domain/signature-policy.ts";
-import type { Rps } from "../domain/types.ts";
-import type { Certificate } from "../infra/certificate.ts";
+import type { Environment } from "../../config/index.ts";
+import { NationalError, NfseError, type ServiceMessage } from "../../domain/errors.ts";
+import type { XmlSigner } from "../../domain/signature-policy.ts";
+import type { Rps } from "../../domain/types.ts";
+import type { Certificate } from "../../infra/certificate.ts";
 import {
   callNational,
   packXml,
   parseJson,
   unpackXml,
   type NationalResponse,
-} from "../infra/national-client.ts";
+} from "./national-client.ts";
 import {
   buildCancellationEvent,
   buildDps,
@@ -20,7 +20,7 @@ import {
   type NationalEnvironment,
   type NationalNfse,
   type SimplesOption,
-} from "../messages/national.ts";
+} from "./messages.ts";
 
 /**
  * Hosts do Sistema Nacional NFS-e. A SEFIN emite e registra eventos; o ADN

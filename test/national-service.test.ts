@@ -2,9 +2,9 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import { NationalError, NfseError, NotSupportedError, TransportError } from "../src/domain/errors.ts";
-import { packXml, unpackXml } from "../src/infra/national-client.ts";
+import { packXml, unpackXml } from "../src/providers/nacional/national-client.ts";
 import { createXmlSigner } from "../src/infra/xml-signer.ts";
-import { NATIONAL_HOSTS, NationalService } from "../src/services/national-service.ts";
+import { NATIONAL_HOSTS, NationalService } from "../src/providers/nacional/national-service.ts";
 import {
   fakeTransport,
   PROVIDER_CNPJ,

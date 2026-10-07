@@ -10,7 +10,7 @@ import {
   nationalTaxCode,
   parseNationalNfse,
   type DpsContext,
-} from "../src/messages/national.ts";
+} from "../src/providers/nacional/messages.ts";
 import { PROVIDER_CNPJ, SUZANO, sampleRps } from "./helpers.ts";
 
 const context: DpsContext = {

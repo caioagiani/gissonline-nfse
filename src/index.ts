@@ -10,7 +10,7 @@ export {
   MUNICIPALITIES,
   findMunicipality,
   type Municipality,
-} from "./config/municipalities.ts";
+} from "./providers/giss/municipalities.ts";
 export type { Environment, GissConfig, Issuer } from "./config/index.ts";
 
 export {
@@ -43,16 +43,16 @@ export type {
 } from "./infra/certificate.ts";
 export { createXmlSigner } from "./infra/xml-signer.ts";
 export type { SignatureAlgorithm } from "./infra/xml-signer.ts";
-export { SOAP_SERVICES } from "./infra/soap-client.ts";
+export { SOAP_SERVICES } from "./providers/giss/soap-client.ts";
 export type {
   NfscOperation,
   NfseOperation,
   SoapOperation,
   SoapService,
-} from "./infra/soap-client.ts";
+} from "./providers/giss/soap-client.ts";
 
-export { GissClient } from "./services/giss-client.ts";
-export type { GissClientOptions } from "./services/giss-client.ts";
+export { GissClient } from "./client.ts";
+export type { GissClientOptions } from "./client.ts";
 export {
   lookupZip,
   lookupCompany,
@@ -62,17 +62,17 @@ export {
   type CompanyLookup,
 } from "./services/lookup-service.ts";
 
-export { NfseService } from "./services/nfse-service.ts";
-export type { IssueOutcome } from "./services/nfse-service.ts";
-export { NfscService } from "./services/nfsc-service.ts";
-export { NationalService, NATIONAL_HOSTS } from "./services/national-service.ts";
+export { NfseService } from "./providers/giss/nfse-service.ts";
+export type { IssueOutcome } from "./providers/giss/nfse-service.ts";
+export { NfscService } from "./providers/giss/nfsc-service.ts";
+export { NationalService, NATIONAL_HOSTS } from "./providers/nacional/national-service.ts";
 export type {
   DistributedDocument,
   MunicipalAgreement,
   NationalIssueOptions,
   NationalIssueOutcome,
   NationalServiceOptions,
-} from "./services/national-service.ts";
+} from "./providers/nacional/national-service.ts";
 export {
   buildDps,
   buildCancellationEvent,
@@ -81,15 +81,15 @@ export {
   parseNationalNfse,
   NATIONAL_NAMESPACE,
   NATIONAL_VERSION,
-} from "./messages/national.ts";
+} from "./providers/nacional/messages.ts";
 export type {
   DpsContext,
   NationalCancellationReason,
   NationalEnvironment,
   NationalNfse,
   SimplesOption,
-} from "./messages/national.ts";
-export { PortalService, buildPortalParty } from "./services/portal-service.ts";
+} from "./providers/nacional/messages.ts";
+export { PortalService, buildPortalParty } from "./providers/giss/portal-service.ts";
 export type {
   AnyPortalCredentials,
   DocumentFormat,
@@ -102,9 +102,9 @@ export type {
   PortalCredentials,
   PortalParty,
   PortalSession,
-} from "./services/portal-service.ts";
+} from "./providers/giss/portal-service.ts";
 
-export { BATCH_STATUS } from "./messages/parser.ts";
+export { BATCH_STATUS } from "./providers/giss/messages/parser.ts";
 export type {
   BatchResult,
   CancellationResult,
@@ -113,7 +113,7 @@ export type {
   ProtocolResult,
   QueryResult,
   RpsIdentification,
-} from "./messages/parser.ts";
+} from "./providers/giss/messages/parser.ts";
 
 export { ContactRepository, taxIdOf } from "./storage/contact-repository.ts";
 export type { Contact, ContactRole } from "./storage/contact-repository.ts";

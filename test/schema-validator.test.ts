@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { describe, it } from "node:test";
-import { buildDps, buildCancellationEvent } from "../src/messages/national.ts";
+import { buildDps, buildCancellationEvent } from "../src/providers/nacional/messages.ts";
 import { createXmlSigner } from "../src/infra/xml-signer.ts";
 import { validateAgainstSchema } from "../src/validation/schema-validator.ts";
 import { PROVIDER_CNPJ, SUZANO, sampleRps, testCertificate } from "./helpers.ts";

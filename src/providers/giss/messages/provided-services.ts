@@ -11,7 +11,7 @@ import type {
   RpsIdentification,
   Service,
   ServiceTaker,
-} from "../domain/types.ts";
+} from "../../../domain/types.ts";
 import {
   amount,
   element,
@@ -19,8 +19,8 @@ import {
   isoDate,
   requiredGroup,
   xmlDocument,
-} from "../infra/xml.ts";
-import { ValidationError } from "../domain/errors.ts";
+} from "../../../infra/xml.ts";
+import { ValidationError } from "../../../domain/errors.ts";
 
 /** Builders das mensagens do serviço `nfse` (serviços prestados). */
 

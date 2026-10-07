@@ -1,13 +1,13 @@
 import { request } from "node:https";
-import { NfseError } from "../domain/errors.ts";
+import { NfseError } from "../../domain/errors.ts";
 import {
   assertCertificateUsable,
   classifyTransportError,
   timeoutError,
-} from "./transport-errors.ts";
-import { SoapFaultError } from "../domain/errors.ts";
-import type { Certificate } from "./certificate.ts";
-import { escapeXml, unescapeXml } from "./xml.ts";
+} from "../../infra/transport-errors.ts";
+import { SoapFaultError } from "../../domain/errors.ts";
+import type { Certificate } from "../../infra/certificate.ts";
+import { escapeXml, unescapeXml } from "../../infra/xml.ts";
 
 /** Serviços SOAP publicados em `/service-ws/`. */
 export const SOAP_SERVICES = {

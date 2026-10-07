@@ -2,7 +2,7 @@ import { generateKeyPairSync } from "node:crypto";
 import forge from "node-forge";
 import { buildRps, DEFAULT_PROFILE, type IssueInput } from "../src/storage/profile-repository.ts";
 import type { Certificate } from "../src/infra/certificate.ts";
-import type { NationalRequest, NationalResponse } from "../src/infra/national-client.ts";
+import type { NationalRequest, NationalResponse } from "../src/providers/nacional/national-client.ts";
 import type { Rps } from "../src/domain/types.ts";
 
 let cached: Certificate | undefined;

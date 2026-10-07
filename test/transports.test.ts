@@ -4,9 +4,9 @@ import { createServer as createHttpsServer } from "node:https";
 import { createServer as createTcpServer, type AddressInfo } from "node:net";
 import { after, before, describe, it } from "node:test";
 import { CertificateError, NfseError, PortalError, TransportError } from "../src/domain/errors.ts";
-import { requestBinary, requestJson } from "../src/infra/http-client.ts";
-import { callNational } from "../src/infra/national-client.ts";
-import { callSoap, readSoapResponse } from "../src/infra/soap-client.ts";
+import { requestBinary, requestJson } from "../src/providers/giss/http-client.ts";
+import { callNational } from "../src/providers/nacional/national-client.ts";
+import { callSoap, readSoapResponse } from "../src/providers/giss/soap-client.ts";
 import { certificateValid, testCertificate } from "./helpers.ts";
 
 /** Porta que ninguém escuta: abre e fecha um servidor para ganhar um número livre. */

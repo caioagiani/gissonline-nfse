@@ -1,5 +1,5 @@
-import { PortalError } from "../domain/errors.ts";
-import { classifyTransportError, timeoutError } from "./transport-errors.ts";
+import { PortalError } from "../../domain/errors.ts";
+import { classifyTransportError, timeoutError } from "../../infra/transport-errors.ts";
 
 const TIMEOUT_MS = 60_000;
 
