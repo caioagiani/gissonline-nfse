@@ -5,7 +5,8 @@ import type {
   PurchasedServiceBatch,
   PurchasedServiceDetails,
   Supplier,
-} from "../domain/types.ts";
+} from "../../../domain/types.ts";
+import { ValidationError } from "../../../domain/errors.ts";
 import {
   amount,
   element,
@@ -13,7 +14,7 @@ import {
   isoDate,
   requiredGroup,
   xmlDocument,
-} from "../infra/xml.ts";
+} from "../../../infra/xml.ts";
 
 /** Builders das mensagens do serviço `nfsc` (serviços tomados). Schemas v1.00. */
 
@@ -40,6 +41,27 @@ function partyGroup(tag: string, party: PartyIdentification): string {
   ]);
 }
 
+/**
+ * Aqui, ao contrário dos serviços prestados, o XSD exige o Telefone no Contato:
+ * só com e-mail o XML sai fora do schema e o serviço devolve E160. Descartar o
+ * e-mail em silêncio esconderia o dado de quem integra, então a recusa vem
+ * antes do envio.
+ */
+function contactGroup(supplier: Supplier): string {
+  const contact = supplier.contact;
+  if (!contact?.phone && !contact?.email) return "";
+  if (!contact.phone) {
+    throw new ValidationError(
+      `Fornecedor ${supplier.cnpj ?? supplier.cpf ?? supplier.legalName}: nas notas de serviço tomado o contato exige telefone — informe contact.phone ou omita contact`,
+      { provider: "giss", details: { field: "supplier.contact.phone" } },
+    );
+  }
+  return group(`${T}:Contato`, [
+    element(`${T}:Telefone`, contact.phone),
+    element(`${T}:Email`, contact.email),
+  ]);
+}
+
 function supplierGroup(supplier: Supplier): string {
   return requiredGroup(`${T}:DadosPrestador`, [
     partyGroup(`${T}:Identificacao`, supplier),
@@ -57,12 +79,7 @@ function supplierGroup(supplier: Supplier): string {
           element(`${T}:Cep`, supplier.address.zipCode),
         ])
       : "",
-    supplier.contact
-      ? group(`${T}:Contato`, [
-          element(`${T}:Telefone`, supplier.contact.phone),
-          element(`${T}:Email`, supplier.contact.email),
-        ])
-      : "",
+    contactGroup(supplier),
     element(`${T}:RegimeEspecialTributacao`, supplier.specialTaxRegime),
     element(`${T}:OptanteSimplesNacional`, supplier.simplesNacionalOptant),
   ]);

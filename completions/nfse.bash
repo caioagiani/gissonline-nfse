@@ -1,7 +1,7 @@
-# Bash completion for the giss CLI. For zsh use `_giss` in this same folder.
-#   source completions/giss.bash
+# Bash completion for the nfse CLI (and its giss alias). For zsh use `_nfse` in this same folder.
+#   source completions/nfse.bash
 # or copy it to /usr/local/etc/bash_completion.d/ (or /etc/bash_completion.d/).
-_giss_completions() {
+_nfse_completions() {
   local cur prev commands global_opts opts
   cur="${COMP_WORDS[COMP_CWORD]}"
   prev="${COMP_WORDS[COMP_CWORD-1]}"
@@ -10,13 +10,15 @@ _giss_completions() {
 purchased-protocol purchased-number issue cancel replace customers \
 suppliers customer-add supplier-add customer-rm supplier-rm \
 portal-list portal-add portal-rm portal-import pdf xml zip cnpj cities \
-activities messages message profile"
+activities messages message profile national-status national-get \
+national-pdf national-xml national-docs danfse"
 
-  global_opts="--env --json --xml --debug --help"
+  global_opts="--env --issuer --json --xml --debug --help"
 
   # known values for some flags
   case "$prev" in
     --env)     COMPREPLY=($(compgen -W "producao homologacao" -- "$cur")); return ;;
+    --issuer)  COMPREPLY=($(compgen -W "giss nacional" -- "$cur")); return ;;
     --reason)  COMPREPLY=($(compgen -W "1 2 3 4 5" -- "$cur")); return ;;
     --type)    COMPREPLY=($(compgen -W "1 2" -- "$cur")); return ;;
     --simples) COMPREPLY=($(compgen -W "1 2" -- "$cur")); return ;;
@@ -52,6 +54,10 @@ activities messages message profile"
     pdf|xml)         opts="--number --out" ;;
     cities)          opts="--state" ;;
     activities)      opts="--item --city --company --date" ;;
+    national-get)    opts="--key" ;;
+    national-pdf|national-xml) opts="--key --out" ;;
+    national-docs)   opts="--from" ;;
+    danfse)          opts="--event --status --out" ;;
     messages)        opts="--id --unread --attachment --out --city" ;;
     message)         opts="--subject --text --city --confirm" ;;
     profile)         opts="--save" ;;
@@ -60,4 +66,4 @@ activities messages message profile"
 
   COMPREPLY=($(compgen -W "$opts $global_opts" -- "$cur"))
 }
-complete -F _giss_completions giss
+complete -F _nfse_completions nfse giss

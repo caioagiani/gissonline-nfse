@@ -1,8 +1,15 @@
 import { resolve } from "node:path";
 import { digitsOnly } from "../infra/xml.ts";
-import { findMunicipality } from "./municipalities.ts";
+import { findMunicipality } from "../providers/giss/municipalities.ts";
+import { ConfigError } from "../domain/errors.ts";
 
 export type Environment = "producao" | "homologacao";
+
+/**
+ * Quem emite: o Web Service GissOnline ou o Sistema Nacional NFS-e. A partir
+ * de 01/11/2026 o Simples Nacional só emite pelo nacional (Res. CGSN 191/2026).
+ */
+export type Issuer = "giss" | "nacional";
 
 export interface GissConfig {
   environment: Environment;
@@ -18,11 +25,12 @@ export interface GissConfig {
   cityCode: string;
   /** Versão do leiaute usada no cabeçalho e nos namespaces */
   version: string;
+  issuer: Issuer;
 }
 
 function required(key: string): string {
   const value = process.env[key]?.trim().replace(/^"|"$/g, "");
-  if (!value) throw new Error(`Variável de ambiente ausente: ${key}`);
+  if (!value) throw new ConfigError(`Variável de ambiente ausente: ${key}`);
   return value;
 }
 
@@ -57,7 +65,7 @@ export function resolveCityCode(
 ): string {
   const cityCode = code ?? findMunicipality(city)?.cityCode;
   if (!cityCode) {
-    throw new Error(
+    throw new ConfigError(
       `Informe GISS_CODIGO_MUNICIPIO: "${city}" não está na lista de municípios conhecidos (veja MUNICIPALITIES)`,
     );
   }
@@ -68,10 +76,15 @@ export function loadConfig(overrides: Partial<GissConfig> = {}): GissConfig {
   const environment = (overrides.environment ??
     optional("GISS_ENV", "producao")) as Environment;
   if (environment !== "producao" && environment !== "homologacao") {
-    throw new Error(`GISS_ENV inválido: ${environment} (use producao|homologacao)`);
+    throw new ConfigError(`GISS_ENV inválido: ${environment} (use producao|homologacao)`);
   }
 
   const city = overrides.city ?? optional("GISS_MUNICIPIO", "suzano");
+
+  const issuer = (overrides.issuer ?? optional("NFSE_EMISSOR", "giss")) as Issuer;
+  if (issuer !== "giss" && issuer !== "nacional") {
+    throw new ConfigError(`NFSE_EMISSOR inválido: ${issuer} (use giss|nacional)`);
+  }
 
   // Errar o código IBGE é fácil e caro: ele identifica o município na nota.
   // Quando a cidade é uma das conhecidas, o código vem dela — antes, trocar
@@ -91,6 +104,7 @@ export function loadConfig(overrides: Partial<GissConfig> = {}): GissConfig {
       overrides.municipalRegistration ?? required("GISS_ISC_MUNICIPAL"),
     cityCode,
     version: overrides.version ?? optional("GISS_VERSAO", "2.04"),
+    issuer,
   };
 }
 

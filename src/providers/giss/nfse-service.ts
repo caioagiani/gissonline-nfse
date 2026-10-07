@@ -1,4 +1,4 @@
-import { GissError, type ServiceMessage } from "../domain/errors.ts";
+import { GissError, type ServiceMessage, ValidationError, NfseError } from "../../domain/errors.ts";
 import {
   cancellationTarget,
   elementSignature,
@@ -8,21 +8,21 @@ import {
   rpsTarget,
   type SignaturePolicy,
   type XmlSigner,
-} from "../domain/signature-policy.ts";
+} from "../../domain/signature-policy.ts";
 import type {
   CancellationRequest,
   DateRange,
   PartyIdentification,
   Rps,
   RpsBatch,
-} from "../domain/types.ts";
-import type { Certificate } from "../infra/certificate.ts";
+} from "../../domain/types.ts";
+import type { Certificate } from "../../infra/certificate.ts";
 import {
   callSoap,
   type NfseOperation,
   type SoapService,
-} from "../infra/soap-client.ts";
-import * as messages from "../messages/provided-services.ts";
+} from "./soap-client.ts";
+import * as messages from "./messages/provided-services.ts";
 import {
   parseBatchResult,
   parseCancellationResult,
@@ -34,7 +34,7 @@ import {
   type Nfse,
   type ProtocolResult,
   type QueryResult,
-} from "../messages/parser.ts";
+} from "./messages/parser.ts";
 
 /**
  * Resultado de uma emissão idempotente.
@@ -58,6 +58,8 @@ export interface NfseServiceOptions {
   cityCode: string | number;
   version: string;
   debug?: boolean;
+  /** Substitui o transporte SOAP — para testes, ou para passar por um proxy */
+  transport?: typeof callSoap;
 }
 
 interface PeriodFilter {
@@ -151,7 +153,7 @@ export class NfseService {
   ): Promise<IssueOutcome> {
     const identification = rps.identification;
     if (!identification?.number) {
-      throw new Error(
+      throw new ValidationError(
         "Informe o número do RPS: sem ele a emissão não é idempotente e uma repetição vira nota duplicada",
       );
     }
@@ -171,6 +173,10 @@ export class NfseService {
     const batch = await this.sendRpsBatch({
       batchNumber: options.batchNumber ?? Number(identification.number),
       rps: [rps],
+    }).catch((error: unknown) => {
+      // O número do RPS é o que torna a nova tentativa segura: vai junto.
+      if (error instanceof NfseError) Object.assign(error.details, { rps: query });
+      throw error;
     });
 
     for (let attempt = 0; attempt < attempts; attempt++) {
@@ -384,9 +390,9 @@ export class NfseService {
   }
 
   private assertBatchSize(batch: RpsBatch): void {
-    if (batch.rps.length === 0) throw new Error("Lote sem RPS");
+    if (batch.rps.length === 0) throw new ValidationError("Lote sem RPS");
     if (batch.rps.length > 50) {
-      throw new Error(`Lote com ${batch.rps.length} RPS — o limite é 50 por lote`);
+      throw new ValidationError(`Lote com ${batch.rps.length} RPS — o limite é 50 por lote`);
     }
   }
 
@@ -396,14 +402,14 @@ export class NfseService {
     data: string,
     policy: SignaturePolicy = { name: "raiz", apply: (xml, s) => s.sign(xml) },
   ): Promise<string> {
-    const { host, certificate, signer, version, debug } = this.#options;
+    const { host, certificate, signer, version, debug, transport = callSoap } = this.#options;
     const signed = policy.apply(data, signer);
 
     if (debug) {
       console.error(`\n--- ${operation} (${policy.name}) envio ---\n${signed}`);
     }
 
-    const response = await callSoap(operation, signed, {
+    const response = await transport(operation, signed, {
       host,
       service: "nfse" satisfies SoapService,
       certificate,

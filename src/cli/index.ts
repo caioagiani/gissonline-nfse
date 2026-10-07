@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { parseArgs } from "node:util";
 import {
@@ -7,13 +7,27 @@ import {
   resolveCityCode,
   type Environment,
   type GissConfig,
+  type Issuer,
 } from "../config/index.ts";
-import { GissError, PortalError } from "../domain/errors.ts";
+import {
+  GissError,
+  NationalError,
+  NfseError,
+  type NfseErrorCode,
+} from "../domain/errors.ts";
 import type { Address, CancellationCode, Rps } from "../domain/types.ts";
 import { exportPem, type Certificate } from "../infra/certificate.ts";
 import { isoDate } from "../infra/xml.ts";
-import type { Nfse, QueryResult } from "../messages/parser.ts";
-import { GissClient } from "../services/giss-client.ts";
+import {
+  nfseNumberFromKey,
+  parseNationalEvent,
+  parseNationalNfse,
+  type NationalCancellationReason,
+  type NationalNfse,
+} from "../providers/nacional/messages.ts";
+import type { Nfse, QueryResult } from "../providers/giss/messages/parser.ts";
+import { NfseClient } from "../client.ts";
+import { renderDanfse } from "../providers/nacional/danfse/danfse-pdf.ts";
 import {
   lookupParty,
   lookupZip,
@@ -26,8 +40,8 @@ import {
   type DocumentFormat,
   type PortalMessage,
   type PartyRole,
-} from "../services/portal-service.ts";
-import { MUNICIPALITIES } from "../config/municipalities.ts";
+} from "../providers/giss/portal-service.ts";
+import { findMunicipalityByCode, MUNICIPALITIES } from "../providers/giss/municipalities.ts";
 import {
   ContactRepository,
   taxIdOf,
@@ -35,13 +49,16 @@ import {
 } from "../storage/contact-repository.ts";
 import { syncFromInvoices } from "../storage/invoice-sync.ts";
 import { buildRps, ProfileRepository } from "../storage/profile-repository.ts";
-import { validateAgainstSchema } from "../validation/schema-validator.ts";
+import {
+  SCHEMA_DIRECTORIES,
+  validateAgainstSchema,
+} from "../validation/schema-validator.ts";
 
-/** `giss ...` quando instalado; `npm run giss -- ...` dentro do repositório. */
-const INVOCATION = process.env["npm_lifecycle_event"] ? "npm run giss --" : "giss";
+/** `nfse ...` quando instalado (`giss` segue como apelido); `npm run nfse -- ...` no repositório. */
+const INVOCATION = process.env["npm_lifecycle_event"] ? "npm run nfse --" : "nfse";
 
 const HELP = `
-giss — GissOnline NFS-e Web Services client (ABRASF 2.04 + LC 214/2025)
+nfse — Brazilian NFS-e client: GissOnline (ABRASF 2.04) and the Sistema Nacional NFS-e
 
 Usage: ${INVOCATION} <command> [options]
 
@@ -111,6 +128,18 @@ PORTAL MESSAGES (Fale Conosco)
            [--attachment N] [--out DIR]             Downloads an attachment of that message
   message --subject S --text T [--confirm]          Opens a message to the city hall
 
+NATIONAL ISSUER (Sistema Nacional NFS-e — mandatory for Simples from 2026-11-01)
+  national-status                                   City adhesion and whether issuing is possible
+  national-get --key K                              Invoice by its 50-digit access key
+  national-pdf --key K [--out DIR|FILE]             DANFSe (the national PDF)
+  national-xml --key K [--out DIR|FILE]             Invoice XML
+  national-docs [--from NSU]                        Invoices and events where your CNPJ appears
+  danfse <nfse.xml> [--event FILE]... [--out DIR|FILE]  DANFSe from a saved XML (offline)
+         [--status cancelled|replaced]              Watermark; otherwise taken from the events
+  With NFSE_EMISSOR=nacional (or --issuer nacional), issue and cancel go
+  through the national API: issue takes [--dps N] to make a retry safe, and
+  cancel takes --key K --reason 1|2|9 --text "15 to 255 characters".
+
 MUNICIPAL ACTIVITIES (the source of CodigoTributacaoMunicipio)
   activities [term] [--item 1.09] [--city IBGE]     City activity table (no login)
              [--company] [--date YYYY-MM-DD]        Only the ones your company is bound to
@@ -120,11 +149,15 @@ TAX PROFILE
 
 Global options:
   --env producao|homologacao   Environment (default: GISS_ENV from .env)
+  --issuer giss|nacional       Who issues (default: NFSE_EMISSOR, or giss)
   --json | --xml | --debug     Output format / diagnostics
 `;
 
 const options = {
   env: { type: "string" },
+  issuer: { type: "string" },
+  key: { type: "string" },
+  dps: { type: "string" },
   from: { type: "string" },
   to: { type: "string" },
   competence: { type: "string" },
@@ -153,6 +186,8 @@ const options = {
   inss: { type: "string" },
   "income-tax": { type: "string" },
   reason: { type: "string" },
+  event: { type: "string", multiple: true },
+  status: { type: "string" },
   confirm: { type: "boolean", default: false },
   sync: { type: "boolean", default: false },
   "tax-id": { type: "string" },
@@ -236,10 +271,15 @@ async function main() {
     return;
   }
 
-  const client = new GissClient({
+  const client = new NfseClient({
     environment: values.env as Environment | undefined,
+    issuer: values.issuer as Issuer | undefined,
     debug: values.debug,
   });
+
+  warnCertificateExpiry(client.certificate);
+
+  if (await runNationalCommand(command, values, client)) return;
   const asNumber = (v: string | undefined) => (v === undefined ? undefined : Number(v));
 
   switch (command) {
@@ -400,6 +440,7 @@ async function main() {
 
     case "issue": {
       const rps = buildRpsFromCli(values);
+      warnSimplesDeadline(rps);
       if (!values.confirm) {
         const preview = client.nfse.previewIssueNfse(rps);
         if (values.xml) return void console.log(preview);
@@ -576,6 +617,249 @@ async function main() {
   }
 }
 
+/** Avisa com 30 dias de antecedência: certificado vencido para toda emissão. */
+function warnCertificateExpiry(certificate: Certificate, now = new Date()): void {
+  const days = Math.floor((certificate.validTo.getTime() - now.getTime()) / 86_400_000);
+  if (days < 0 || days > 30) return;
+  console.error(
+    `⚠ The A1 certificate expires in ${days} day(s), on ${isoDate(certificate.validTo)}. ` +
+      "Renew it before then: an expired certificate stops every request.\n",
+  );
+}
+
+/** Data em que o Simples Nacional deixa de emitir pelo sistema municipal. */
+const SIMPLES_NATIONAL_DEADLINE = "2026-11-01";
+
+/**
+ * A Res. CGSN 191/2026 tira o Simples dos emissores municipais em 01/11/2026.
+ * O aviso não bloqueia: o município pode aceitar por mais tempo, e quem decide
+ * é a resposta do serviço — mas ninguém deveria descobrir isso pela recusa.
+ */
+function warnSimplesDeadline(rps: Rps): void {
+  if (rps.simplesNacionalOptant !== 1) return;
+  if (isoDate(new Date()) < SIMPLES_NATIONAL_DEADLINE) return;
+  console.log(
+    `⚠ Simples Nacional issues through the national system since ${SIMPLES_NATIONAL_DEADLINE} ` +
+      "(Res. CGSN 191/2026). Set NFSE_EMISSOR=nacional — see docs/national.md.\n",
+  );
+}
+
+const NATIONAL_REASONS: Record<string, string> = {
+  "1": "issuing error",
+  "2": "service not provided",
+  "9": "other",
+};
+
+/**
+ * Comandos do Sistema Nacional NFS-e. `issue` e `cancel` só passam por aqui
+ * quando o emissor configurado é o nacional; os `national-*` sempre.
+ */
+async function runNationalCommand(
+  command: string,
+  values: CliValues,
+  client: NfseClient,
+): Promise<boolean> {
+  const { national, config } = client;
+  const viaNational = config.issuer === "nacional";
+  const key = () => {
+    const value = values.key?.replace(/\D/g, "");
+    if (!value || value.length !== 50) throw new Error("Provide the 50-digit access --key");
+    return value;
+  };
+
+  switch (command) {
+    case "national-status": {
+      const agreement = await national.agreement();
+      const yes = (v: boolean) => (v ? "yes" : "no");
+      console.log(`City (IBGE):             ${config.cityCode}`);
+      console.log(`Environment:             ${config.environment} (${national.hosts.sefin})`);
+      console.log(`Shares with national:    ${yes(agreement.sharesWithNational)}`);
+      console.log(`Accepts national issuer: ${yes(agreement.usesNationalIssuer)}`);
+      console.log(`Configured issuer:       ${config.issuer}`);
+      if (values.json) console.log(JSON.stringify(agreement.raw, null, 2));
+      if (!agreement.usesNationalIssuer) {
+        console.log(
+          "\nThe city has not enabled the national issuer yet: any DPS is refused with E0039.",
+        );
+      }
+      return true;
+    }
+
+    case "national-get": {
+      printNational(await national.get(key()), values);
+      return true;
+    }
+
+    case "national-pdf":
+    case "national-xml": {
+      const accessKey = key();
+      const format = command === "national-pdf" ? "pdf" : "xml";
+      const file =
+        format === "pdf"
+          ? await national.pdf(accessKey).catch((error: unknown) => {
+              // O DANFSe do ADN cai com frequência (503). Nota emitida por um
+              // município do GissOnline tem o PDF da prefeitura como saída.
+              const city = findMunicipalityByCode(accessKey.slice(0, 7));
+              if (error instanceof NfseError && error.code === "UNAVAILABLE" && city) {
+                console.error(
+                  `The national PDF is unavailable. This invoice was issued in ${city.name} (GissOnline): ` +
+                    `try \`${INVOCATION} pdf --number ${nfseNumberFromKey(accessKey)}\`.`,
+                );
+              }
+              throw error;
+            })
+          : Buffer.from((await national.get(accessKey)).xml, "utf8");
+      const target = documentTarget(values.out, accessKey, format);
+      mkdirSync(dirname(target), { recursive: true });
+      writeFileSync(target, file);
+      console.log(`${target}  (${(file.length / 1024).toFixed(1)} KB)`);
+      return true;
+    }
+
+    case "national-docs": {
+      const documents = await national.distribution(Number(values.from ?? 0));
+      if (values.json) {
+        console.log(JSON.stringify(documents.map(({ xml, ...rest }) => rest), null, 2));
+        return true;
+      }
+      for (const document of documents) {
+        const head = [String(document.nsu).padStart(5), document.type.padEnd(6)];
+        if (document.type !== "NFSE") {
+          const event = parseNationalEvent(document.xml);
+          const replaced = event.replacementKey
+            ? ` → replaced by ${nfseNumberFromKey(event.replacementKey) ?? event.replacementKey}`
+            : "";
+          console.log(
+            [
+              ...head,
+              (event.code ?? "").padEnd(8),
+              (event.nfseNumber ?? "").padStart(9),
+              (event.requestedAt ?? event.processedAt)?.slice(0, 10) ?? "",
+              `${event.description ?? "event"}${replaced}`,
+            ].join("  "),
+          );
+          console.log(`${"".padStart(15)}key ${event.accessKey ?? document.accessKey}`);
+          continue;
+        }
+        const nfse = parseNationalNfseSafe(document.xml);
+        const role = nfse?.issuerCnpj === config.cnpj ? "issued" : "received";
+        const party = role === "issued" ? nfse?.takerName : nfse?.issuerName;
+        console.log(
+          [
+            ...head,
+            nfse ? role.padEnd(8) : "".padEnd(8),
+            nfse?.number?.padStart(9) ?? "".padStart(9),
+            nfse?.processedAt?.slice(0, 10) ?? "",
+            nfse?.serviceAmount?.toFixed(2).padStart(10) ?? "",
+            `${nfse?.issuingCity ?? ""}${party ? ` · ${party}` : ""}`,
+          ].join("  "),
+        );
+        console.log(`${"".padStart(15)}key ${document.accessKey}`);
+      }
+      const last = documents.at(-1);
+      console.log(
+        last
+          ? `\n${documents.length} document(s). Continue with --from ${last.nsu}`
+          : "No documents after this NSU.",
+      );
+      return true;
+    }
+
+    case "issue": {
+      if (!viaNational) return false;
+      const rps = buildRpsFromCli(values);
+      const profile = new ProfileRepository().load();
+      const number = values.dps ?? String(Math.floor(Date.now() / 1000));
+      const issueOptions = {
+        series: values.series ?? profile.nationalSeries ?? "1",
+        number,
+        simplesOption: profile.simplesOption ?? (rps.simplesNacionalOptant === 1 ? 3 : 1),
+        simplesApportionment: profile.simplesApportionment,
+      } as const;
+
+      if (!values.confirm) {
+        const preview = national.previewDps(rps, issueOptions);
+        if (values.xml) return void console.log(preview), true;
+        console.log(issueSummary(values, rps));
+        console.log(`DPS:           ${number} series ${issueOptions.series} (national issuer)`);
+        printValidation(preview, "DPS_v1.01.xsd", SCHEMA_DIRECTORIES.national);
+        console.log("\nNothing was sent. Repeat with --confirm to actually issue.");
+        return true;
+      }
+
+      if (!values.dps) {
+        console.log(`DPS ${number} (generated). Pass --dps ${number} to retry safely.`);
+      }
+      const outcome = await national.issue(rps, issueOptions);
+      console.log(
+        outcome.status === "already-issued"
+          ? "This DPS had already been issued:"
+          : "Invoice issued:",
+      );
+      printNational(outcome.nfse, values);
+      for (const alert of outcome.alerts) console.log(`⚠ [${alert.code}] ${alert.message}`);
+      return true;
+    }
+
+    case "cancel": {
+      if (!viaNational) return false;
+      const accessKey = key();
+      if (!values.reason || !NATIONAL_REASONS[values.reason]) {
+        throw new Error("Provide --reason 1 (issuing error), 2 (not provided) or 9 (other)");
+      }
+      if (!values.text) throw new Error("Provide the justification in --text (15 to 255 chars)");
+      if (!values.confirm) {
+        console.log(
+          `Would cancel ${accessKey}, reason ${values.reason} (${NATIONAL_REASONS[values.reason]}).`,
+        );
+        console.log("Nothing was sent. Repeat with --confirm.");
+        return true;
+      }
+      const event = await national.cancel(
+        accessKey,
+        Number(values.reason) as NationalCancellationReason,
+        values.text,
+      );
+      console.log(`Invoice ${accessKey} cancelled.`);
+      if (values.xml) console.log(event);
+      return true;
+    }
+
+    case "replace":
+      if (viaNational) {
+        throw new Error(
+          "replace is not available on the national issuer yet: cancel, then issue again",
+        );
+      }
+      return false;
+
+    default:
+      return false;
+  }
+}
+
+function parseNationalNfseSafe(xml: string): NationalNfse | null {
+  try {
+    return parseNationalNfse(xml);
+  } catch {
+    return null;
+  }
+}
+
+function printNational(nfse: NationalNfse, values: CliValues): void {
+  if (values.xml) return void console.log(nfse.xml);
+  if (values.json) {
+    const { xml, ...rest } = nfse;
+    return void console.log(JSON.stringify(rest, null, 2));
+  }
+  console.log(`Number:      ${nfse.number ?? "—"}`);
+  console.log(`Access key:  ${nfse.accessKey}`);
+  console.log(`Processed:   ${nfse.processedAt ?? "—"}`);
+  console.log(`Customer:    ${nfse.takerName ?? "—"} (${nfse.takerTaxId ?? "—"})`);
+  console.log(`Amount:      R$ ${nfse.serviceAmount?.toFixed(2) ?? "—"}`);
+  console.log(`Description: ${nfse.description ?? "—"}`);
+}
+
 /** Rótulo em português para as mensagens ao usuário. */
 const roleLabel = (role: ContactRole): string =>
   role === "customer" ? "customer" : "supplier";
@@ -638,7 +922,7 @@ async function runLocalCommand(
 
     case "zip": {
       const code = positionals[1] ?? values.zip;
-      if (!code) throw new Error("Provide the postal code: giss zip 01310-100");
+      if (!code) throw new Error(`Provide the postal code: ${INVOCATION} zip 01310-100`);
       const found = await lookupZip(code);
       if (values.json) return void console.log(JSON.stringify(found, null, 2)), true;
       console.log(`  zip:      ${found.zipCode}`);
@@ -650,7 +934,7 @@ async function runLocalCommand(
 
     case "cnpj": {
       const taxId = positionals[1] ?? values["tax-id"];
-      if (!taxId) throw new Error("Provide the CNPJ: giss cnpj 00000000000191");
+      if (!taxId) throw new Error(`Provide the CNPJ: ${INVOCATION} cnpj 00000000000191`);
       const found = await lookupParty(taxId);
       if (values.json) return void console.log(JSON.stringify(found, null, 2)), true;
       console.log(`  name:      ${found.legalName}`);
@@ -663,7 +947,27 @@ async function runLocalCommand(
       console.log(`  zip:       ${found.zipCode ?? "—"}`);
       if (found.email) console.log(`  email:     ${found.email}`);
       if (found.phone) console.log(`  phone:     ${found.phone}`);
-      console.log(`\n  giss customer-add --tax-id ${found.taxId} --lookup`);
+      console.log(`\n  ${INVOCATION} customer-add --tax-id ${found.taxId} --lookup`);
+      return true;
+    }
+
+    case "danfse": {
+      // Offline: o PDF sai do XML que o projeto já guardou, sem certificado.
+      const file = positionals[1];
+      if (!file) throw new Error(`Usage: ${INVOCATION} danfse <nfse.xml> [--event FILE]... [--out DIR|FILE]`);
+      const status = values.status;
+      if (status !== undefined && status !== "cancelled" && status !== "replaced") {
+        throw new Error("--status must be cancelled or replaced");
+      }
+      const xml = readFileSync(file, "utf8");
+      const pdf = Buffer.from(
+        await renderDanfse(xml, { status, events: (values.event ?? []).map((path) => readFileSync(path, "utf8")) }),
+      );
+      const accessKey = /Id="NFS(\d{50})"/.exec(xml)?.[1] ?? "danfse";
+      const target = documentTarget(values.out, accessKey, "pdf");
+      mkdirSync(dirname(target), { recursive: true });
+      writeFileSync(target, pdf);
+      console.log(`${target}  (${(pdf.length / 1024).toFixed(1)} KB)`);
       return true;
     }
 
@@ -1119,12 +1423,16 @@ function issueSummary(values: CliValues, rps: Rps): string {
   return lines.join("\n");
 }
 
-function printValidation(xml: string): void {
-  const result = validateAgainstSchema(xml, "gerar-nfse-envio-v2_04.xsd");
+function printValidation(
+  xml: string,
+  schema = "gerar-nfse-envio-v2_04.xsd",
+  directory?: string,
+): void {
+  const result = validateAgainstSchema(xml, schema, directory);
   if (result === null) {
     console.log("\nSchema: not checked (xmllint not installed).");
   } else if (result.valid) {
-    console.log("\nSchema: XML valid against gerar-nfse-envio-v2_04.xsd.");
+    console.log(`\nSchema: XML valid against ${schema}.`);
     for (const d of result.knownDivergences) {
       console.log(`  (known XSD divergence, ignored) ${d.slice(0, 90)}`);
     }
@@ -1204,18 +1512,66 @@ function printContacts(
   console.log(`\n${contacts.length} ${roleLabel(role)}(s) — ${repository.path}`);
 }
 
-main().catch((error: unknown) => {
-  if (error instanceof GissError) {
-    console.error(`\n${error.operation} returned an error:`);
-    for (const message of error.messages) {
+/** O que fazer depois de cada tipo de erro — a parte que a mensagem do serviço não diz. */
+const NEXT_STEP: Partial<Record<NfseErrorCode, string>> = {
+  CONFIG: "Check .env (see .env.example).",
+  CERTIFICATE: `Check the certificate with: ${INVOCATION} cert`,
+  UNAVAILABLE: "The service is unavailable right now. Try again in a few minutes.",
+  TRANSPORT: "Network failure. Try again; check connectivity or a proxy if it persists.",
+  AUTHENTICATION: "The credentials were refused. Check the certificate or the portal login.",
+};
+
+function printError(error: unknown, debug: boolean): void {
+  if (!(error instanceof NfseError)) {
+    console.error(error instanceof Error ? error.message : error);
+    if (debug && error instanceof Error) console.error(error.stack);
+    return;
+  }
+
+  const origin = [error.provider, error.operation].filter(Boolean).join(" · ");
+  const messages =
+    error instanceof GissError || error instanceof NationalError ? error.messages : [];
+
+  if (messages.length > 0) {
+    console.error(`\n${origin} returned an error:`);
+    for (const message of messages) {
       console.error(
         `  [${message.code}] ${message.message}${message.correction ? ` — ${message.correction}` : ""}`,
       );
     }
-  } else if (error instanceof PortalError) {
-    console.error(`\nPortal API: ${error.message}`);
   } else {
-    console.error(error instanceof Error ? error.message : error);
+    console.error(`\n${error.message}`);
   }
+  console.error(`\n  code: ${error.code}${origin ? `  (${origin})` : ""}`);
+
+  if (error.outcomeUnknown) {
+    console.error(
+      "\n⚠ The request may have reached the service, and the answer did not come back.",
+    );
+    const rps = error.details["rps"] as { number?: unknown; series?: unknown } | undefined;
+    const id = error.details["dpsId"]
+      ? `DPS ${String(error.details["dpsId"])}`
+      : rps
+        ? `RPS ${String(rps.number)} series ${String(rps.series)}`
+        : undefined;
+    console.error(
+      id
+        ? `  Repeat with the same number (${id}): it will not issue twice.`
+        : "  Repeat with the same RPS/DPS number: it will not issue twice.",
+    );
+  } else if (NEXT_STEP[error.code]) {
+    console.error(`  ${NEXT_STEP[error.code]}`);
+  }
+
+  if (messages.some((m) => m.code === "E0039")) {
+    console.error(
+      `\nThe city has not enabled the national issuer yet. Check with: ${INVOCATION} national-status`,
+    );
+  }
+  if (debug && error.cause) console.error("\ncause:", error.cause);
+}
+
+main().catch((error: unknown) => {
+  printError(error, process.argv.includes("--debug"));
   process.exitCode = 1;
 });

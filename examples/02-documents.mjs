@@ -8,7 +8,7 @@
  * a API REST, que pede login de CPF/senha além do certificado.
  */
 import { readFileSync, writeFileSync } from "node:fs";
-import { GissClient, PortalService, loadPortalCredentials } from "gissonline-nfse";
+import { NfseClient, PortalService, loadPortalCredentials } from "nfse-br";
 
 // A configuração vai inteira no construtor — nada é lido do ambiente por
 // baixo. Numa aplicação estes valores vêm da tabela da empresa; aqui vêm do
@@ -23,7 +23,7 @@ const company = {
 };
 
 // `config` vem junto porque o login do portal é montado a partir dele.
-const { nfse, config } = new GissClient(company);
+const { nfse, config } = new NfseClient(company);
 
 // O download é pelo id interno da nota — o atributo `Id` de `InfNfse` —,
 // não pelo número impresso. Por isso a consulta vem antes.

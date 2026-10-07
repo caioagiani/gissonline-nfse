@@ -1,37 +1,47 @@
 {
-  "name": "gissonline-nfse",
+  "name": "nfse-br",
   "version": "1.9.0",
   "type": "module",
-  "description": "Node/TypeScript client for the GissOnline Web Services (Brazilian municipal service invoices, NFS-e ABRASF 2.04 + LC 214/2025): issuing, cancelling, replacing, queries and the customer directory",
+  "description": "Node/TypeScript client and CLI for Brazilian NFS-e: GissOnline Web Services (ABRASF 2.04 + LC 214/2025, 32 cities) and the Sistema Nacional NFS-e — issuing, cancelling, queries and the customer directory",
   "keywords": [
     "nfse",
+    "nfs-e",
+    "nfse-nacional",
+    "emissor-nacional",
+    "nota-fiscal",
+    "nota-fiscal-servico",
+    "simples-nacional",
+    "sefin",
+    "dps",
     "gissonline",
     "abrasf",
-    "nota-fiscal",
     "iss",
-    "soap",
     "xmldsig",
     "icp-brasil",
     "certificado-digital",
     "lc-214-2025",
     "brazil",
-    "tax",
     "cli"
   ],
   "scripts": {
     "build": "tsc && node -e \"require('node:fs').chmodSync('dist/cli/index.js', 0o755)\"",
     "typecheck": "tsc -p tsconfig.check.json",
     "test": "node --test test/*.test.ts",
+    "audit:runtime": "node scripts/audit-runtime.mjs",
     "giss": "node --env-file-if-exists=.env src/cli/index.ts",
+    "nfse": "node --env-file-if-exists=.env src/cli/index.ts",
     "prepack": "npm run build",
     "prepare": "husky || true",
     "commitlint": "commitlint --from origin/main --to HEAD",
-    "completion:zsh": "node -e \"process.stdout.write(require('node:fs').readFileSync(new URL('completions/_giss', 'file://' + process.cwd() + '/'), 'utf8'))\""
+    "completion:zsh": "node -e \"process.stdout.write(require('node:fs').readFileSync(new URL('completions/_nfse', 'file://' + process.cwd() + '/'), 'utf8'))\""
   },
   "dependencies": {
-    "fast-xml-parser": "^5.2.5",
+    "@pdf-lib/fontkit": "^1.1.1",
+    "fast-xml-parser": "^5.11.2",
     "node-forge": "^1.3.1",
-    "xml-crypto": "^6.1.2"
+    "pdf-lib": "^1.17.1",
+    "qrcode-generator": "^2.0.4",
+    "xml-crypto": "^6.3.3"
   },
   "devDependencies": {
     "@commitlint/cli": "^21.2.2",
@@ -48,16 +58,17 @@
   "author": "Caio Agiani",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/caioagiani/gissonline-nfse.git"
+    "url": "git+https://github.com/caioagiani/nfse-br.git"
   },
-  "homepage": "https://github.com/caioagiani/gissonline-nfse#readme",
+  "homepage": "https://github.com/caioagiani/nfse-br#readme",
   "bugs": {
-    "url": "https://github.com/caioagiani/gissonline-nfse/issues"
+    "url": "https://github.com/caioagiani/nfse-br/issues"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   },
   "bin": {
+    "nfse": "dist/cli/index.js",
     "giss": "dist/cli/index.js"
   },
   "main": "dist/index.js",
@@ -71,8 +82,8 @@
   },
   "files": [
     "dist",
-    "docs/schemas",
-    "docs/schemas-tomados",
+    "schemas",
+    "assets",
     "completions",
     "README.md",
     "LICENSE"

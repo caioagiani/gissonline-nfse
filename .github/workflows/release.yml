@@ -46,6 +46,11 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm run build
+      # Nada é publicado sem a suíte verde. Sem xmllint, os testes que validam
+      # contra os XSD seriam pulados em silêncio.
+      - run: sudo apt-get install -y --no-install-recommends libxml2-utils
+      - run: npm test
+      - run: npm run audit:runtime
 
       # Decides the version, writes CHANGELOG.md, commits, tags and creates the
       # GitHub release. Does not publish.
@@ -63,7 +68,7 @@ jobs:
       - name: Did the version change?
         id: check
         run: |
-          published=$(npm view gissonline-nfse version 2>/dev/null || echo none)
+          published=$(npm view nfse-br version 2>/dev/null || echo none)
           current=$(node -p "require('./package.json').version")
           echo "current=$current" >> "$GITHUB_OUTPUT"
           if [ "$published" = "$current" ]; then

@@ -15,7 +15,8 @@ export function unescapeXml(value: string): string {
     .replace(/&gt;/g, ">")
     .replace(/&quot;/g, '"')
     .replace(/&apos;/g, "'")
-    .replace(/&#(\d+);/g, (_, code: string) => String.fromCharCode(Number(code)))
+    .replace(/&#(\d+);/g, (_, code: string) => String.fromCodePoint(Number(code)))
+    .replace(/&#x([0-9a-f]+);/gi, (_, code: string) => String.fromCodePoint(parseInt(code, 16)))
     .replace(/&amp;/g, "&");
 }
 

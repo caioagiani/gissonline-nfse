@@ -1,14 +1,14 @@
-#compdef giss
-# Zsh completion for the giss CLI.
+#compdef nfse giss
+# Zsh completion for the nfse CLI (and its giss alias).
 #
 #   mkdir -p ~/.zsh/completions
-#   cp completions/_giss ~/.zsh/completions/
+#   cp completions/_nfse ~/.zsh/completions/
 #   # in ~/.zshrc, before `compinit`:
 #   fpath=(~/.zsh/completions $fpath)
 #
 # With oh-my-zsh, ~/.oh-my-zsh/completions is already on fpath.
 
-_giss() {
+_nfse() {
   local -a commands global_opts
   local context state line
 
@@ -45,10 +45,17 @@ _giss() {
     'zip:Look up a postal code (BrasilAPI)'
     'cnpj:Look up a company by CNPJ (BrasilAPI)'
     'profile:Show or save the tax profile defaults'
+    'national-status:City adhesion to the national issuer'
+    'national-get:National invoice by access key'
+    'national-pdf:Download the DANFSe'
+    'national-xml:Download the national invoice XML'
+    'national-docs:Invoices and events where your CNPJ appears'
+    'danfse:DANFSe from a saved national XML (offline)'
   )
 
   global_opts=(
     '--env[Environment]:environment:(producao homologacao)'
+    '--issuer[Who issues]:issuer:(giss nacional)'
     '--json[JSON output]'
     '--xml[Raw XML output]'
     '--debug[Log the XML sent and received]'
@@ -164,6 +171,21 @@ _giss() {
           _arguments $global_opts '--item[LC 116 item]:item:' '--city[City IBGE code]:code:' \
             '--company[Only what the company is bound to]' '--date[Rate valid on this date]:date (YYYY-MM-DD):'
           ;;
+        national-get)
+          _arguments $global_opts '--key[50-digit access key]:key:'
+          ;;
+        national-pdf|national-xml)
+          _arguments $global_opts '--key[50-digit access key]:key:' \
+            '--out[Target directory or file]:target:_files'
+          ;;
+        national-docs)
+          _arguments $global_opts '--from[Start after this NSU]:nsu:'
+          ;;
+        danfse)
+          _arguments $global_opts '*--event[Event XML of the invoice]:event:_files -g "*.xml"' \
+            '--status[Watermark]:status:(cancelled replaced)' \
+            '--out[Target directory or file]:target:_files' '1:invoice XML:_files -g "*.xml"'
+          ;;
         profile)
           _arguments $global_opts '--save[Write to data/profile.json]'
           ;;
@@ -175,4 +197,4 @@ _giss() {
   esac
 }
 
-_giss "$@"
+_nfse "$@"

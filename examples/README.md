@@ -34,7 +34,7 @@ Every example passes the configuration in full, because that is what an
 application does:
 
 ```js
-const giss = new GissClient({
+const client = new NfseClient({
   environment: "producao",
   city: "suzano",                                   // the IBGE code follows from it
   cnpj: process.env.GISS_CNPJ,
@@ -51,9 +51,9 @@ written to disk. With a certificate already loaded through `loadCertificate`,
 `certificatePassword` is not needed either: it only ever existed to open the
 file.
 
-`new GissClient()` with no arguments also works — it reads `process.env`, and
+`new NfseClient()` with no arguments also works — it reads `process.env`, and
 it is `--env-file` that fills that in, not the package. The library never reads
-a file on its own; only the `giss` CLI does, through `process.loadEnvFile()`.
+a file on its own; only the `nfse` CLI does, through `process.loadEnvFile()`.
 It is convenient for a terminal and wrong for a server, so no example uses it.
 
 There is no login and no token in any of this: identity **is** the A1
@@ -66,7 +66,7 @@ CPF/password for the directory and the PDF/XML downloads.
 ## Running from inside this repository
 
 `package.json` declares `name` and `exports`, so Node's self-referencing kicks
-in: a file inside the repo importing `"gissonline-nfse"` resolves to the local
+in: a file inside the repo importing `"nfse-br"` resolves to the local
 `dist/`, **not** to the installed package. Run `npm run build` first, or a stale
 `dist/` will quietly run instead of your changes — which is exactly what
 happened while writing these, and it looked like a missing validation rather
@@ -83,13 +83,13 @@ namespace carries information rather than just grouping. Destructuring the
 service works:
 
 ```js
-const { nfse, nfsc } = giss;
+const { nfse, nfsc } = client;
 await nfse.queryProvidedServices({ … });
 ```
 
 Destructuring the method does not: the methods reach the certificate and the
 host through `this`. For a loose reference, bind it explicitly —
-`giss.nfse.queryProvidedServices.bind(giss.nfse)`.
+`client.nfse.queryProvidedServices.bind(client.nfse)`.
 
 The methods live on the prototype, which is what keeps a client at ~1.5 KB —
 500 of them fit in 0.7 MB. Auto-binding every method would give each instance

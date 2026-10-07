@@ -11,7 +11,7 @@ import type {
   RpsIdentification,
   Service,
   ServiceTaker,
-} from "../domain/types.ts";
+} from "../../../domain/types.ts";
 import {
   amount,
   element,
@@ -19,7 +19,8 @@ import {
   isoDate,
   requiredGroup,
   xmlDocument,
-} from "../infra/xml.ts";
+} from "../../../infra/xml.ts";
+import { ValidationError } from "../../../domain/errors.ts";
 
 /** Builders das mensagens do serviço `nfse` (serviços prestados). */
 
@@ -101,7 +102,10 @@ function amountsGroup(amounts: Amounts): string {
     element(`${T}:ValorInss`, amount(amounts.inss)),
     element(`${T}:ValorIr`, amount(amounts.incomeTax)),
     element(`${T}:ValorCsll`, amount(amounts.csll)),
-    element(`${T}:OutrasRetencoes`, amount(amounts.otherWithholdings)),
+    // Suzano recusa a tag no RPS (E370), mesmo zerada; o XSD a deixa opcional.
+    amounts.otherWithholdings
+      ? element(`${T}:OutrasRetencoes`, amount(amounts.otherWithholdings))
+      : "",
     element(`${T}:ValTotTributos`, amount(amounts.totalTaxes)),
     element(`${T}:ValorIss`, amount(amounts.iss)),
     // A alíquota vai como fração: 3,07% é enviado como 0.0307. Mandar 3.07
@@ -206,7 +210,7 @@ function foreignTradeGroup(trade: ForeignTrade): string {
 function takerGroup(taker: ServiceTaker): string {
   // `Endereco` e `EnderecoExterior` são um xsd:choice: enviar os dois invalida o XML.
   if (taker.address && taker.foreignAddress) {
-    throw new Error("Informe address ou foreignAddress do tomador, não os dois");
+    throw new ValidationError("Informe address ou foreignAddress do tomador, não os dois");
   }
   return requiredGroup(`${T}:TomadorServico`, [
     taker.cnpj || taker.cpf ? partyGroup(`${T}:IdentificacaoTomador`, taker) : "",
@@ -514,7 +518,7 @@ function periodFilter(args: PeriodFilter): string {
   if (args.competencePeriod) {
     return dateRangeGroup("PeriodoCompetencia", args.competencePeriod);
   }
-  throw new Error(
+  throw new ValidationError(
     "Informe nfseNumber, issuePeriod ou competencePeriod na consulta",
   );
 }

@@ -1,6 +1,7 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import forge from "node-forge";
+import { CertificateError } from "../domain/errors.ts";
 
 const CERT_BAG_OID = "1.2.840.113549.1.12.10.1.3";
 const KEY_BAG_OID = "1.2.840.113549.1.12.10.1.1";
@@ -47,17 +48,31 @@ export function loadCertificate(
 ): Certificate {
   if (isCertificate(input)) return input;
   if (password === undefined) {
-    throw new Error("Informe a senha do certificado");
+    throw new CertificateError("Informe a senha do certificado");
   }
 
-  const pfx = typeof input === "string" ? readFileSync(input) : input;
-  const p12 = forge.pkcs12.pkcs12FromAsn1(
-    forge.asn1.fromDer(forge.util.createBuffer(pfx.toString("binary"))),
-    password,
-  );
+  const pfx = typeof input === "string" ? readPfx(input) : input;
+  let p12: forge.pkcs12.Pkcs12Pfx;
+  try {
+    p12 = forge.pkcs12.pkcs12FromAsn1(
+      forge.asn1.fromDer(forge.util.createBuffer(pfx.toString("binary"))),
+      password,
+    );
+  } catch (error) {
+    // node-forge sinaliza senha errada pela falha na verificação do MAC.
+    const wrongPassword = /mac could not be verified|invalid password/i.test(
+      error instanceof Error ? error.message : "",
+    );
+    throw new CertificateError(
+      wrongPassword
+        ? "Senha do certificado incorreta"
+        : "Arquivo de certificado inválido: não é um PKCS#12 (.pfx/.p12) legível",
+      { cause: error },
+    );
+  }
 
   const privateKey = findPrivateKey(p12);
-  if (!privateKey) throw new Error("Nenhuma chave privada encontrada no certificado");
+  if (!privateKey) throw new CertificateError("Nenhuma chave privada encontrada no certificado");
 
   const certificates = (p12.getBags({ bagType: CERT_BAG_OID })[CERT_BAG_OID] ?? [])
     .map((bag) => bag.cert)
@@ -69,7 +84,7 @@ export function loadCertificate(
     return publicKey.n?.toString(16) === privateKey.n.toString(16);
   });
   if (!certificate) {
-    throw new Error("Certificado do titular não encontrado no arquivo .pfx");
+    throw new CertificateError("Certificado do titular não encontrado no arquivo .pfx");
   }
 
   const certificatePem = forge.pki.certificateToPem(certificate);
@@ -87,6 +102,17 @@ export function loadCertificate(
     validFrom: certificate.validity.notBefore,
     validTo: certificate.validity.notAfter,
   };
+}
+
+function readPfx(path: string): Buffer {
+  try {
+    return readFileSync(path);
+  } catch (error) {
+    throw new CertificateError(`Não foi possível ler o certificado em ${path}`, {
+      cause: error,
+      details: { path },
+    });
+  }
 }
 
 export interface ExportedFiles {

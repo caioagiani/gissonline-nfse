@@ -8,12 +8,12 @@
  */
 import { readFileSync } from "node:fs";
 import {
-  GissClient,
+  NfseClient,
   PortalService,
   loadPortalCredentials,
   lookupZip,
   lookupCompany,
-} from "gissonline-nfse";
+} from "nfse-br";
 
 // A configuração vai inteira no construtor — nada é lido do ambiente por
 // baixo. Numa aplicação estes valores vêm da tabela da empresa; aqui vêm do
@@ -28,7 +28,7 @@ const company = {
 };
 
 // Só o `config` é usado aqui: o cadastro vive na API REST, não no Web Service.
-const { config } = new GissClient(company);
+const { config } = new NfseClient(company);
 
 // 1. O diretório do portal --------------------------------------------------
 // O Web Service não tem cadastro: sob o ABRASF os dados do tomador viajam

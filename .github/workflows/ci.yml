@@ -17,16 +17,40 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm run build
-      # xmllint valida os XSD que acompanham o pacote
-      - run: sudo apt-get install -y --no-install-recommends libxml2-utils
-      - name: Validate bundled schemas
-        run: |
-          for f in docs/schemas/*.xsd docs/schemas-tomados/vigente/*.xsd; do
-            xmllint --noout "$f" || exit 1
-          done
-      - name: Test (XML checked against the bundled XSD)
-        run: npm test
       - name: Check the CLI runs
         run: node dist/cli/index.js --help | grep -q "Usage:"
       - name: Check the package contents
         run: npm pack --dry-run
+
+  # Check próprio no PR: só as dependências que o pacote leva; alerta alto ou
+  # crítico fora da lista aceita em scripts/audit-runtime.mjs derruba o check.
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Audit runtime dependencies
+        run: npm run audit:runtime
+
+  # Fora do build, para aparecer como check próprio no PR. Na menor versão
+  # suportada (engines), que é a que tem mais chance de faltar algo.
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # Sem xmllint, os testes que validam contra os XSD seriam pulados.
+      - run: sudo apt-get install -y --no-install-recommends libxml2-utils
+      - name: Validate bundled schemas
+        run: |
+          for f in schemas/giss/prestados/*.xsd schemas/giss/tomados/vigente/*.xsd schemas/nacional/DPS_v1.01.xsd schemas/nacional/pedRegEvento_v1.01.xsd; do
+            xmllint --noout "$f" || exit 1
+          done
+      - name: Test (XML checked against the bundled XSD)
+        run: npm test

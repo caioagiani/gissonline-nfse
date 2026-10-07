@@ -1,12 +1,12 @@
-import { GissError } from "../domain/errors.ts";
-import { rootSignature, type XmlSigner } from "../domain/signature-policy.ts";
+import { GissError, ValidationError } from "../../domain/errors.ts";
+import { rootSignature, type XmlSigner } from "../../domain/signature-policy.ts";
 import type {
   PartyIdentification,
   PurchasedService,
   PurchasedServiceBatch,
-} from "../domain/types.ts";
-import type { Certificate } from "../infra/certificate.ts";
-import { callSoap, type NfscOperation } from "../infra/soap-client.ts";
+} from "../../domain/types.ts";
+import type { Certificate } from "../../infra/certificate.ts";
+import { callSoap, type NfscOperation } from "./soap-client.ts";
 import {
   parseBatchResult,
   parseCancellationResult,
@@ -17,8 +17,8 @@ import {
   type CancellationResult,
   type ProtocolResult,
   type QueryResult,
-} from "../messages/parser.ts";
-import * as messages from "../messages/taken-services.ts";
+} from "./messages/parser.ts";
+import * as messages from "./messages/taken-services.ts";
 
 export interface NfscServiceOptions {
   host: string;
@@ -27,6 +27,8 @@ export interface NfscServiceOptions {
   taker: PartyIdentification;
   cityCode: string | number;
   debug?: boolean;
+  /** Substitui o transporte SOAP — para testes, ou para passar por um proxy */
+  transport?: typeof callSoap;
 }
 
 /**
@@ -61,9 +63,9 @@ export class NfscService {
   async sendPurchasedServiceBatch(
     batch: PurchasedServiceBatch,
   ): Promise<ProtocolResult> {
-    if (batch.invoices.length === 0) throw new Error("Lote sem notas");
+    if (batch.invoices.length === 0) throw new ValidationError("Lote sem notas");
     if (batch.invoices.length > 50) {
-      throw new Error(
+      throw new ValidationError(
         `Lote com ${batch.invoices.length} notas — o limite é 50 por lote`,
       );
     }
@@ -106,7 +108,7 @@ export class NfscService {
     taker?: PartyIdentification;
   }): Promise<QueryResult> {
     if (!args.declaredNumber || !args.declaredSeries) {
-      throw new Error(
+      throw new ValidationError(
         "ConsultarServicoCompradoPorNumero exige declaredNumber e declaredSeries",
       );
     }
@@ -148,12 +150,12 @@ export class NfscService {
     operation: NfscOperation,
     data: string,
   ): Promise<string> {
-    const { host, certificate, signer, debug } = this.#options;
+    const { host, certificate, signer, debug, transport = callSoap } = this.#options;
     const signed = rootSignature.apply(data, signer);
 
     if (debug) console.error(`\n--- ${operation} envio ---\n${signed}`);
 
-    const response = await callSoap(operation, signed, {
+    const response = await transport(operation, signed, {
       host,
       service: "nfsc",
       certificate,
