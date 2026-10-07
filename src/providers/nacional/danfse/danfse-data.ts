@@ -41,7 +41,9 @@ export interface DanfseData {
   header: {
     /** Vazio quando o código de tributação nacional é do item 99 */
     city: string;
+    /** Código de um dígito (tabela 2.4.5): 1 Prefeitura, 2 Sistema Nacional */
     generator: string;
+    /** Código de um dígito: 1 Produção, 2 Homologação */
     environment: string;
     /** tpAmb = 2: imprimir "NFS-e SEM VALIDADE JURÍDICA" */
     testing: boolean;
@@ -88,6 +90,9 @@ export interface DanfseData {
     rate: string;
     withholding: string;
     amount: string;
+    /** Linhas marcadas com ** no Anexo I: somem quando todos os campos estão vazios (nota 5) */
+    showRegimeRow: boolean;
+    showBenefitRow: boolean;
   };
   federalTax: {
     incomeTax: string;
@@ -134,8 +139,6 @@ const DASH = "-";
 
 /** Descrições dos códigos, como o XSD v1.01 as define. */
 const CODES = {
-  ambGer: { "1": "Prefeitura", "2": "Sistema Nacional da NFS-e" },
-  tpAmb: { "1": "Produção", "2": "Homologação" },
   tpEmit: { "1": "Prestador", "2": "Tomador", "3": "Intermediário" },
   cStat: {
     "100": "NFS-e Gerada",
@@ -214,6 +217,8 @@ const parser = new XMLParser({
   removeNSPrefix: true,
   parseTagValue: false,
   trimValues: true,
+  // Sem isso, `&#233;` e `&#10;` chegam literais ao texto.
+  htmlEntities: true,
   isArray: (name) => name === "gItemPed" || name === "docRef",
 });
 
@@ -230,7 +235,7 @@ function at(root: unknown, path: string): string | undefined {
     current = Array.isArray(current) ? current[0] : (current as Node)[part];
   }
   if (current === undefined || current === null || typeof current === "object") return undefined;
-  const text = String(current).trim();
+  const text = String(current).replace(/\r\n?/g, "\n").trim();
   return text === "" ? undefined : text;
 }
 
@@ -290,6 +295,28 @@ export function formatTaxId(party: Node): string {
   return at(party, "NIF") ?? cnpj ?? cpf ?? DASH;
 }
 
+/** Telefone brasileiro com DDD, como o Emissor Nacional imprime; outro formato fica como veio. */
+export function phone(value: string | undefined): string {
+  if (!value) return DASH;
+  // Com código de país não é número nacional: fica exatamente como veio.
+  if (value.trim().startsWith("+")) return value;
+  const digits = value.replace(/\D/g, "");
+  if (digits.length === 10) return digits.replace(/^(\d{2})(\d{4})(\d{4})$/, "($1) $2-$3");
+  if (digits.length === 11) return digits.replace(/^(\d{2})(\d{5})(\d{4})$/, "($1) $2-$3");
+  return value;
+}
+
+type MunicipalTax = NonNullable<DanfseData["municipalTax"]>;
+
+function withOptionalRows(tax: Omit<MunicipalTax, "showRegimeRow" | "showBenefitRow">): MunicipalTax {
+  const filled = (...values: string[]) => values.some((v) => v !== DASH);
+  return {
+    ...tax,
+    showRegimeRow: filled(tax.specialRegime, tax.immunity, tax.suspension, tax.suspensionProcess),
+    showBenefitRow: filled(tax.benefit, tax.benefitAmount, tax.deductions, tax.unconditionalDiscount),
+  };
+}
+
 /** CEP no formato que a NT pede: nn.nnn-nnn. */
 function zip(value: string | undefined): string | undefined {
   return value?.length === 8 ? value.replace(/^(\d{2})(\d{3})(\d{3})$/, "$1.$2-$3") : value;
@@ -312,7 +339,7 @@ function partyOf(party: Node, max = { name: 77, address: 77 }): DanfseParty {
   return {
     taxId: formatTaxId(party),
     municipalRegistration: at(party, "IM") ?? DASH,
-    phone: at(party, "fone") ?? DASH,
+    phone: phone(at(party, "fone")),
     name: clip(at(party, "xNome") ?? DASH, max.name),
     city: clip(
       cityLabel(cityCode) ?? (foreignCity ? `${foreignCity} / ${at(foreign, "cPais") ?? ""}`.trim() : cityCode ?? DASH),
@@ -387,7 +414,7 @@ export function buildDanfseData(xml: string, status?: DanfseStatus): DanfseData 
   const emitterState = at(emit, "enderNac/UF");
 
   const location = (city: string | undefined, cityCode: string | undefined, country: string | undefined) =>
-    city ? clip(`${city} / ${ibgeMunicipality(cityCode)?.state ?? DASH} / ${country ?? "BR"}`, 42) : DASH;
+    city ? clip(`${city} / ${ibgeMunicipality(cityCode)?.state ?? DASH} / ${country ?? DASH}`, 42) : DASH;
 
   const competence = at(dps, "dCompet");
   const retainedPisCofins = at(pisCofins, "tpRetPisCofins") === "1";
@@ -442,9 +469,9 @@ export function buildDanfseData(xml: string, status?: DanfseStatus): DanfseData 
     header: {
       city: cTribNac?.startsWith("99")
         ? ""
-        : clip(`${at(inf, "xLocEmi") ?? DASH}${emitterState ? ` / ${emitterState}` : ""}`, 37),
-      generator: describe(CODES.ambGer, at(inf, "ambGer")),
-      environment: describe(CODES.tpAmb, at(dps, "tpAmb")),
+        : clip(`${at(inf, "xLocEmi") ?? DASH}${emitterState ? ` - ${emitterState}` : ""}`, 37),
+      generator: at(inf, "ambGer") ?? DASH,
+      environment: at(dps, "tpAmb") ?? DASH,
       testing: at(dps, "tpAmb") === "2",
     },
     accessKey,
@@ -469,12 +496,7 @@ export function buildDanfseData(xml: string, status?: DanfseStatus): DanfseData 
     recipient,
     intermediary,
     service: {
-      taxCode: [
-        cTribNac?.replace(/^(\d{2})(\d{2})(\d{2})$/, "$1.$2.$3"),
-        at(cServ, "cTribMun"),
-      ]
-        .filter(Boolean)
-        .join(" / ") || DASH,
+      taxCode: `${cTribNac?.replace(/^(\d{2})(\d{2})(\d{2})$/, "$1.$2.$3") ?? DASH} / ${at(cServ, "cTribMun") ?? DASH}`,
       nbs: at(cServ, "cNBS")?.replace(/^(\d)(\d{4})(\d{2})(\d{2})$/, "$1.$2.$3.$4") ?? DASH,
       location: location(at(inf, "xLocPrestacao"), at(serv, "locPrest/cLocPrestacao"), at(serv, "locPrest/cPaisPrestacao")),
       taxCodeDescription: clip(at(inf, "xTribMun") ?? at(inf, "xTribNac") ?? DASH, 170),
@@ -482,7 +504,7 @@ export function buildDanfseData(xml: string, status?: DanfseStatus): DanfseData 
     },
     municipalTax: noIss
       ? undefined
-      : {
+      : withOptionalRows({
           taxation: describe(CODES.tribISSQN, issuedTaxation, 21),
           incidence: location(at(inf, "xLocIncid"), at(inf, "cLocIncid"), at(tribMun, "cPaisResult")),
           specialRegime: describe(CODES.regEspTrib, at(regTrib, "regEspTrib"), 27),
@@ -500,7 +522,7 @@ export function buildDanfseData(xml: string, status?: DanfseStatus): DanfseData 
           rate: percent(at(nfseValues, "pAliqAplic")),
           withholding: describe(CODES.tpRetISSQN, at(tribMun, "tpRetISSQN"), 25),
           amount: money(at(nfseValues, "vISSQN")),
-        },
+        }),
     federalTax: {
       incomeTax: money(at(tribFed, "vRetIRRF")),
       socialSecurity: money(at(tribFed, "vRetCP")),
@@ -519,12 +541,12 @@ export function buildDanfseData(xml: string, status?: DanfseStatus): DanfseData 
         const group = node(node(node(dpsIbs["valores"])["trib"])["gIBSCBS"]);
         const cst = at(group, "CST");
         const classification = at(group, "cClassTrib");
-        return cst || classification ? `${cst ?? DASH} / ${classification ?? DASH}` : DASH;
+        return `${cst ?? DASH} / ${classification ?? DASH}`;
       })(),
       operation: (() => {
         const code = at(ibs, "cLocalidadeIncid");
         const parts = [at(dpsIbs, "cIndOp"), code, at(ibs, "xLocalidadeIncid"), ibgeMunicipality(code)?.state];
-        return parts.some(Boolean) ? clip(parts.map((p) => p ?? DASH).join(" / "), 56) : DASH;
+        return clip(parts.map((p) => p ?? DASH).join(" / "), 56);
       })(),
       exclusions: money(
         sum(
@@ -536,14 +558,10 @@ export function buildDanfseData(xml: string, status?: DanfseStatus): DanfseData 
         ),
       ),
       base: money(at(ibsValues, "vBC")),
-      rateReductions: Object.keys(ibsValues).length
-        ? [at(ibsValues, "uf/pRedAliqUF"), at(ibsValues, "mun/pRedAliqMun"), at(ibsValues, "fed/pRedAliqCBS")]
-            .map(percent)
-            .join(" / ")
-        : DASH,
-      ibsRates: Object.keys(ibsValues).length
-        ? `${percent(at(ibsValues, "uf/pIBSUF"))} / ${percent(at(ibsValues, "mun/pIBSMun"))}`
-        : DASH,
+      rateReductions: [at(ibsValues, "uf/pRedAliqUF"), at(ibsValues, "mun/pRedAliqMun"), at(ibsValues, "fed/pRedAliqCBS")]
+        .map(percent)
+        .join(" / "),
+      ibsRates: `${percent(at(ibsValues, "uf/pIBSUF"))} / ${percent(at(ibsValues, "mun/pIBSMun"))}`,
       municipalEffectiveRate: percent(at(ibsValues, "mun/pAliqEfetMun")),
       municipalAmount: money(at(ibsTotals, "gIBS/gIBSMunTot/vIBSMun")),
       stateEffectiveRate: percent(at(ibsValues, "uf/pAliqEfetUF")),

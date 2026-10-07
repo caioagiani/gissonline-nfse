@@ -31,12 +31,7 @@ describe("DANFSe — campos tirados do XML (NT 008, item 2.4.5)", () => {
   });
 
   it("cabeçalho: município do emitente, ambiente e o aviso de homologação", () => {
-    assert.deepEqual(data.header, {
-      city: "Suzano / SP",
-      generator: "Sistema Nacional da NFS-e",
-      environment: "Homologação",
-      testing: true,
-    });
+    assert.deepEqual(data.header, { city: "Suzano - SP", generator: "2", environment: "2", testing: true });
   });
 
   it("prestador emitente: dados de `emit`, já que a DPS não os repete", () => {
@@ -63,7 +58,7 @@ describe("DANFSe — campos tirados do XML (NT 008, item 2.4.5)", () => {
   it("serviço: códigos com máscara e descrição", () => {
     assert.equal(data.service.taxCode, "01.04.01 / 002");
     assert.equal(data.service.nbs, "1.1502.10.00");
-    assert.equal(data.service.location, "Suzano / SP / BR");
+    assert.equal(data.service.location, "Suzano / SP / -");
     assert.equal(data.service.description, "Desenvolvimento sob encomenda");
   });
 
@@ -103,6 +98,9 @@ describe("DANFSe — campos tirados do XML (NT 008, item 2.4.5)", () => {
     assert.equal(minimal.recipient, undefined);
     assert.equal(minimal.municipalTax, undefined);
     assert.equal(minimal.ibsCbs.base, "-");
+    assert.equal(minimal.ibsCbs.cstClassification, "- / -");
+    assert.equal(minimal.ibsCbs.rateReductions, "- / - / -");
+    assert.equal(minimal.service.taxCode, "01.09.01 / -");
     assert.match(minimal.additionalInformation, /Federais: -; Estaduais: -; Municipais: -$/);
   });
 
@@ -127,6 +125,51 @@ describe("DANFSe — campos tirados do XML (NT 008, item 2.4.5)", () => {
   it("municípios do IBGE", () => {
     assert.deepEqual(ibgeMunicipality("3552502"), { name: "Suzano", state: "SP" });
     assert.equal(ibgeMunicipality("0000000"), undefined);
+  });
+});
+
+describe("DANFSe — conferido com os DANFSe que o Emissor Nacional gera para MEI", () => {
+  const mei = buildDanfseData(fixture("national-nfse-mei.xml"));
+
+  it("cabeçalho com códigos de ambiente e 'Município - UF'", () => {
+    assert.deepEqual(mei.header, { city: "São Paulo - SP", generator: "2", environment: "1", testing: false });
+    assert.equal(mei.identification.status, "NFS-e MEI");
+    assert.equal(mei.identification.dpsSeries, "70000");
+  });
+
+  it("MEI: situação no Simples e telefone com máscara", () => {
+    assert.equal(mei.provider.simplesNacional, "Optante - Microempreendedor Individua...");
+    assert.equal(mei.provider.simplesRegime, "-");
+    assert.equal(mei.provider.phone, "(11) 98765-4321");
+    assert.equal(mei.taker?.city, "Barueri / SP");
+  });
+
+  it("partes que faltam viram '-' dentro dos campos compostos", () => {
+    assert.equal(mei.service.taxCode, "15.18.02 / -");
+    assert.equal(mei.service.nbs, "1.1806.40.00");
+    assert.equal(mei.service.location, "São Paulo / SP / -");
+    assert.equal(mei.ibsCbs.operation, "- / - / - / -");
+    assert.equal(mei.ibsCbs.ibsRates, "- / -");
+  });
+
+  it("quebras de linha da descrição são mantidas, inclusive vindas como &#13;&#10;", () => {
+    assert.equal(
+      mei.service.description,
+      "Serviços prestados como assistente referente ao mês de setembro de 2026.\nDados bancários:\nBanco 0260.\nAgencia 0001 - Conta 12345-6\nPIX: chave-teste",
+    );
+  });
+
+  it("linhas opcionais do ISSQN somem quando estão vazias (nota 5)", () => {
+    assert.equal(mei.municipalTax?.showRegimeRow, false);
+    assert.equal(mei.municipalTax?.showBenefitRow, false);
+    const full = buildDanfseData(FULL);
+    assert.equal(full.municipalTax?.showRegimeRow, true);
+    assert.equal(full.municipalTax?.showBenefitRow, false);
+  });
+
+  it("gera em uma página", async () => {
+    const pdf = await PDFDocument.load(await renderDanfse(fixture("national-nfse-mei.xml")));
+    assert.equal(pdf.getPageCount(), 1);
   });
 });
 
@@ -166,5 +209,20 @@ describe("DANFSe — PDF", () => {
       const pdf = await PDFDocument.load(await renderDanfse(MINIMAL, { status }));
       assert.equal(pdf.getPageCount(), 1);
     }
+  });
+});
+
+describe("DANFSe — entidades e telefone", () => {
+  it("referências numéricas e hexadecimais são decodificadas", () => {
+    const xml = fixture("national-nfse.xml").replace("Desenvolvimento de software", "Caf&#233; &#xE9; &amp; cia");
+    assert.equal(buildDanfseData(xml).service.description, "Café é & cia");
+  });
+
+  it("telefone: fixo, celular e formatos que não são brasileiros", async () => {
+    const { phone } = await import("../src/providers/nacional/danfse/danfse-data.ts");
+    assert.equal(phone("1144445555"), "(11) 4444-5555");
+    assert.equal(phone("11987654321"), "(11) 98765-4321");
+    assert.equal(phone("+1 512 555 0100"), "+1 512 555 0100");
+    assert.equal(phone(undefined), "-");
   });
 });

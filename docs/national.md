@@ -105,6 +105,11 @@ pointing to `https://www.nfse.gov.br/ConsultaPublica/?tpc=1&chave=…`, the "NFS
 VALIDADE JURÍDICA" header in the restricted environment, only data present in the XML
 (`-` where a field is empty), the suppression rules of 2.3 and the ellipsis limits.
 
+Checked against DANFSe printed by the Emissor Nacional itself (MEI invoices, 2026-09):
+same blocks, same codes for the generating environment and environment type, `-` for each
+missing part of a composite field, optional ISSQN rows dropped when empty, and line
+breaks in the description kept.
+
 One unavoidable difference: the note names Arial and Microsoft Sans Serif, which are
 proprietary and cannot be embedded. The PDF uses Helvetica, the standard PDF font with the
 same metrics as Arial. Characters outside its encoding (an emoji in a description) print

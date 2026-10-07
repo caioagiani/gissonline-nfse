@@ -72,7 +72,9 @@ export async function drawDanfse(data: DanfseData): Promise<Uint8Array> {
   // Blocos que podem encolher (item 2.3): o espaço economizado vai para a
   // descrição do serviço e para as informações complementares, calculadas
   // depois do tomador, destinatário e intermediário.
-  const municipalHeight = data.municipalTax ? 2.59 : 0.32;
+  const municipalHeight = data.municipalTax
+    ? 1.29 + (data.municipalTax.showRegimeRow ? 0.65 : 0) + (data.municipalTax.showBenefitRow ? 0.65 : 0)
+    : 0.32;
   const federalHeight = data.federalTax.showPisCofins ? 1.3 : 0.65;
   const fixedAfterService = municipalHeight + federalHeight + 2.58 + 1.37 + 0.41;
   const stubTop = 28.1;
@@ -146,15 +148,15 @@ function header(canvas: Canvas, data: DanfseData, logo: Awaited<ReturnType<PDFDo
 function identification(canvas: Canvas, data: DanfseData, y: number): number {
   const id = data.identification;
   canvas.line(y);
-  canvas.field(COL[0], y, 15.3, "CHAVE DE ACESSO DA NFS-E", data.accessKey, { caps: true, height: 0.77 });
-  canvas.field(COL[0], 2.27, COL_WIDTH, "NÚMERO DA NFS-E", id.number, { caps: true });
-  canvas.field(COL[1], 2.27, COL_WIDTH, "COMPETÊNCIA DA NFS-E", id.competence, { caps: true });
-  canvas.field(COL[2], 2.27, COL_WIDTH, "DATA E HORA DA EMISSÃO DA NFS-E", id.processedAt, { caps: true });
+  canvas.field(COL[0], y, 15.3, "CHAVE DE ACESSO DA NFS-e", data.accessKey, { caps: true, height: 0.77 });
+  canvas.field(COL[0], 2.27, COL_WIDTH, "NÚMERO DA NFS-e", id.number, { caps: true });
+  canvas.field(COL[1], 2.27, COL_WIDTH, "COMPETÊNCIA DA NFS-e", id.competence, { caps: true });
+  canvas.field(COL[2], 2.27, COL_WIDTH, "DATA E HORA DA EMISSÃO DA NFS-e", id.processedAt, { caps: true });
   canvas.field(COL[0], 2.96, COL_WIDTH, "NÚMERO DA DPS", id.dpsNumber, { caps: true });
   canvas.field(COL[1], 2.96, COL_WIDTH, "SÉRIE DA DPS", id.dpsSeries, { caps: true });
   canvas.field(COL[2], 2.96, COL_WIDTH, "DATA E HORA DA EMISSÃO DA DPS", id.dpsIssuedAt, { caps: true });
-  canvas.field(COL[0], 3.65, COL_WIDTH, "EMITENTE DA NFS-E", id.issuer, { caps: true, shade: true });
-  canvas.field(COL[1], 3.65, COL_WIDTH, "SITUAÇÃO DA NFS-E", id.status, { caps: true });
+  canvas.field(COL[0], 3.65, COL_WIDTH, "EMITENTE DA NFS-e", id.issuer, { caps: true, shade: true });
+  canvas.field(COL[1], 3.65, COL_WIDTH, "SITUAÇÃO DA NFS-e", id.status, { caps: true });
   canvas.field(COL[2], 3.65, COL_WIDTH, "FINALIDADE", id.purpose, { caps: true });
 
   canvas.qr(data.qrCodeUrl, 17.48, 1.67, 1.52);
@@ -246,19 +248,26 @@ function municipalTax(canvas: Canvas, data: DanfseData, y: number): number {
   canvas.title("TRIBUTAÇÃO MUNICIPAL (ISSQN)", y);
   canvas.field(COL[1], y, COL_WIDTH, "Tipo de Tributação do ISSQN", tax.taxation);
   canvas.field(COL[2], y, WIDE, "Município / Sigla UF / País de Incidência do ISSQN", tax.incidence);
-  canvas.field(COL[0], y + 0.65, COL_WIDTH, "Regime Especial de Tributação do ISSQN", tax.specialRegime);
-  canvas.field(COL[1], y + 0.65, COL_WIDTH, "Tipo de Imunidade do ISSQN", tax.immunity);
-  canvas.field(COL[2], y + 0.65, COL_WIDTH, "Suspensão da Exigibilidade do ISSQN", tax.suspension);
-  canvas.field(COL[3], y + 0.65, COL_WIDTH, "Número Processo Suspensão", tax.suspensionProcess);
-  canvas.field(COL[0], y + 1.3, COL_WIDTH, "Benefício Municipal", tax.benefit);
-  canvas.field(COL[1], y + 1.3, COL_WIDTH, "Cálculo do BM", tax.benefitAmount);
-  canvas.field(COL[2], y + 1.3, COL_WIDTH, "Total Deduções/Reduções", tax.deductions);
-  canvas.field(COL[3], y + 1.3, COL_WIDTH, "Desconto Incondicionado", tax.unconditionalDiscount);
-  canvas.field(COL[0], y + 1.94, COL_WIDTH, "BC ISSQN", tax.base);
-  canvas.field(COL[1], y + 1.94, COL_WIDTH, "Alíquota Aplicada", tax.rate);
-  canvas.field(COL[2], y + 1.94, COL_WIDTH, "Retenção do ISSQN", tax.withholding);
-  canvas.field(COL[3], y + 1.94, COL_WIDTH, "ISSQN Apurado", tax.amount);
-  return y + 2.59;
+  let row = y + 0.65;
+  if (tax.showRegimeRow) {
+    canvas.field(COL[0], row, COL_WIDTH, "Regime Especial de Tributação do ISSQN", tax.specialRegime);
+    canvas.field(COL[1], row, COL_WIDTH, "Tipo de Imunidade do ISSQN", tax.immunity);
+    canvas.field(COL[2], row, COL_WIDTH, "Suspensão da Exigibilidade do ISSQN", tax.suspension);
+    canvas.field(COL[3], row, COL_WIDTH, "Número Processo Suspensão", tax.suspensionProcess);
+    row += 0.65;
+  }
+  if (tax.showBenefitRow) {
+    canvas.field(COL[0], row, COL_WIDTH, "Benefício Municipal", tax.benefit);
+    canvas.field(COL[1], row, COL_WIDTH, "Cálculo do BM", tax.benefitAmount);
+    canvas.field(COL[2], row, COL_WIDTH, "Total Deduções/Reduções", tax.deductions);
+    canvas.field(COL[3], row, COL_WIDTH, "Desconto Incondicionado", tax.unconditionalDiscount);
+    row += 0.65;
+  }
+  canvas.field(COL[0], row, COL_WIDTH, "BC ISSQN", tax.base);
+  canvas.field(COL[1], row, COL_WIDTH, "Alíquota Aplicada", tax.rate);
+  canvas.field(COL[2], row, COL_WIDTH, "Retenção do ISSQN", tax.withholding);
+  canvas.field(COL[3], row, COL_WIDTH, "ISSQN Apurado", tax.amount);
+  return row + 0.65;
 }
 
 function federalTax(canvas: Canvas, data: DanfseData, y: number): number {
@@ -299,14 +308,14 @@ function ibsCbs(canvas: Canvas, data: DanfseData, y: number): number {
 function totals(canvas: Canvas, data: DanfseData, y: number): number {
   const total = data.totals;
   canvas.line(y);
-  canvas.title("VALOR TOTAL DA NFS-E", y, 0.69);
+  canvas.title("VALOR TOTAL DA NFS-e", y, 0.69);
   canvas.field(COL[1], y, COL_WIDTH, "VALOR DA OPERAÇÃO / SERVIÇO", total.service, { caps: true, height: 0.69 });
   canvas.field(COL[2], y, COL_WIDTH, "Desconto Incondicionado", total.unconditionalDiscount, { height: 0.69 });
   canvas.field(COL[3], y, COL_WIDTH, "Desconto Condicionado", total.conditionalDiscount, { height: 0.69 });
   canvas.field(COL[0], y + 0.69, COL_WIDTH, "Total das Retenções (ISSQN / Federais)", total.withholdings, { height: 0.68 });
-  canvas.field(COL[1], y + 0.69, COL_WIDTH, "VALOR LÍQUIDO DA NFS-E", total.net, { caps: true, height: 0.68 });
+  canvas.field(COL[1], y + 0.69, COL_WIDTH, "VALOR LÍQUIDO DA NFS-e", total.net, { caps: true, height: 0.68 });
   canvas.field(COL[2], y + 0.69, COL_WIDTH, "Total do IBS/CBS", total.ibsCbs, { height: 0.68 });
-  canvas.field(COL[3], y + 0.69, COL_WIDTH, "VALOR LÍQUIDO DA NFS-E + IBS/CBS", total.netWithIbsCbs, {
+  canvas.field(COL[3], y + 0.69, COL_WIDTH, "VALOR LÍQUIDO DA NFS-e + IBS/CBS", total.netWithIbsCbs, {
     caps: true,
     height: 0.68,
     shade: true,
@@ -387,10 +396,21 @@ class Canvas {
     return `${text.slice(0, end).trimEnd()}...`;
   }
 
+  /** Quebra pela largura, respeitando as quebras de linha que vieram no XML. */
   wrap(text: string, font: PDFFont, size: number, width: number): string[] {
+    return text
+      .replace(/\n{3,}/g, "\n\n")
+      .split("\n")
+      .flatMap((paragraph) => {
+        const lines = this.#wrapLine(paragraph, font, size, width);
+        return lines.length ? lines : [""];
+      });
+  }
+
+  #wrapLine(text: string, font: PDFFont, size: number, width: number): string[] {
     const lines: string[] = [];
     let line = "";
-    for (const word of text.split(/\s+/).filter(Boolean)) {
+    for (const word of text.split(/[ \t]+/).filter(Boolean)) {
       const candidate = line ? `${line} ${word}` : word;
       if (this.width(candidate, font, size) <= width) {
         line = candidate;
