@@ -46,6 +46,10 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm run build
+      # Nada é publicado sem a suíte verde. Sem xmllint, os testes que validam
+      # contra os XSD seriam pulados em silêncio.
+      - run: sudo apt-get install -y --no-install-recommends libxml2-utils
+      - run: npm test
 
       # Decides the version, writes CHANGELOG.md, commits, tags and creates the
       # GitHub release. Does not publish.
