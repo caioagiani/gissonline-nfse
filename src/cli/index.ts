@@ -7,11 +7,17 @@ import {
   resolveCityCode,
   type Environment,
   type GissConfig,
+  type Issuer,
 } from "../config/index.ts";
-import { GissError, PortalError } from "../domain/errors.ts";
+import { GissError, NationalError, PortalError } from "../domain/errors.ts";
 import type { Address, CancellationCode, Rps } from "../domain/types.ts";
 import { exportPem, type Certificate } from "../infra/certificate.ts";
 import { isoDate } from "../infra/xml.ts";
+import {
+  parseNationalNfse,
+  type NationalCancellationReason,
+  type NationalNfse,
+} from "../messages/national.ts";
 import type { Nfse, QueryResult } from "../messages/parser.ts";
 import { GissClient } from "../services/giss-client.ts";
 import {
@@ -111,6 +117,16 @@ PORTAL MESSAGES (Fale Conosco)
            [--attachment N] [--out DIR]             Downloads an attachment of that message
   message --subject S --text T [--confirm]          Opens a message to the city hall
 
+NATIONAL ISSUER (Sistema Nacional NFS-e — mandatory for Simples from 2026-11-01)
+  national-status                                   City adhesion and whether issuing is possible
+  national-get --key K                              Invoice by its 50-digit access key
+  national-pdf --key K [--out DIR|FILE]             DANFSe (the national PDF)
+  national-xml --key K [--out DIR|FILE]             Invoice XML
+  national-docs [--from NSU]                        Invoices and events where your CNPJ appears
+  With NFSE_EMISSOR=nacional (or --issuer nacional), issue and cancel go
+  through the national API: issue takes [--dps N] to make a retry safe, and
+  cancel takes --key K --reason 1|2|9 --text "15 to 255 characters".
+
 MUNICIPAL ACTIVITIES (the source of CodigoTributacaoMunicipio)
   activities [term] [--item 1.09] [--city IBGE]     City activity table (no login)
              [--company] [--date YYYY-MM-DD]        Only the ones your company is bound to
@@ -120,11 +136,15 @@ TAX PROFILE
 
 Global options:
   --env producao|homologacao   Environment (default: GISS_ENV from .env)
+  --issuer giss|nacional       Who issues (default: NFSE_EMISSOR, or giss)
   --json | --xml | --debug     Output format / diagnostics
 `;
 
 const options = {
   env: { type: "string" },
+  issuer: { type: "string" },
+  key: { type: "string" },
+  dps: { type: "string" },
   from: { type: "string" },
   to: { type: "string" },
   competence: { type: "string" },
@@ -238,8 +258,11 @@ async function main() {
 
   const client = new GissClient({
     environment: values.env as Environment | undefined,
+    issuer: values.issuer as Issuer | undefined,
     debug: values.debug,
   });
+
+  if (await runNationalCommand(command, values, client)) return;
   const asNumber = (v: string | undefined) => (v === undefined ? undefined : Number(v));
 
   switch (command) {
@@ -400,6 +423,7 @@ async function main() {
 
     case "issue": {
       const rps = buildRpsFromCli(values);
+      warnSimplesDeadline(rps);
       if (!values.confirm) {
         const preview = client.nfse.previewIssueNfse(rps);
         if (values.xml) return void console.log(preview);
@@ -574,6 +598,209 @@ async function main() {
     default:
       throw new Error(`Unknown command: ${command}`);
   }
+}
+
+/** Data em que o Simples Nacional deixa de emitir pelo sistema municipal. */
+const SIMPLES_NATIONAL_DEADLINE = "2026-11-01";
+
+/**
+ * A Res. CGSN 191/2026 tira o Simples dos emissores municipais em 01/11/2026.
+ * O aviso não bloqueia: o município pode aceitar por mais tempo, e quem decide
+ * é a resposta do serviço — mas ninguém deveria descobrir isso pela recusa.
+ */
+function warnSimplesDeadline(rps: Rps): void {
+  if (rps.simplesNacionalOptant !== 1) return;
+  if (isoDate(new Date()) < SIMPLES_NATIONAL_DEADLINE) return;
+  console.log(
+    `⚠ Simples Nacional issues through the national system since ${SIMPLES_NATIONAL_DEADLINE} ` +
+      "(Res. CGSN 191/2026). Set NFSE_EMISSOR=nacional — see docs/national.md.\n",
+  );
+}
+
+const NATIONAL_REASONS: Record<string, string> = {
+  "1": "issuing error",
+  "2": "service not provided",
+  "9": "other",
+};
+
+/**
+ * Comandos do Sistema Nacional NFS-e. `issue` e `cancel` só passam por aqui
+ * quando o emissor configurado é o nacional; os `national-*` sempre.
+ */
+async function runNationalCommand(
+  command: string,
+  values: CliValues,
+  client: GissClient,
+): Promise<boolean> {
+  const { national, config } = client;
+  const viaNational = config.issuer === "nacional";
+  const key = () => {
+    const value = values.key?.replace(/\D/g, "");
+    if (!value || value.length !== 50) throw new Error("Provide the 50-digit access --key");
+    return value;
+  };
+
+  switch (command) {
+    case "national-status": {
+      const agreement = await national.agreement();
+      const yes = (v: boolean) => (v ? "yes" : "no");
+      console.log(`City (IBGE):             ${config.cityCode}`);
+      console.log(`Environment:             ${config.environment} (${national.hosts.sefin})`);
+      console.log(`Shares with national:    ${yes(agreement.sharesWithNational)}`);
+      console.log(`Accepts national issuer: ${yes(agreement.usesNationalIssuer)}`);
+      console.log(`Configured issuer:       ${config.issuer}`);
+      if (values.json) console.log(JSON.stringify(agreement.raw, null, 2));
+      if (!agreement.usesNationalIssuer) {
+        console.log(
+          "\nThe city has not enabled the national issuer yet: any DPS is refused with E0039.",
+        );
+      }
+      return true;
+    }
+
+    case "national-get": {
+      printNational(await national.get(key()), values);
+      return true;
+    }
+
+    case "national-pdf":
+    case "national-xml": {
+      const accessKey = key();
+      const format = command === "national-pdf" ? "pdf" : "xml";
+      const file =
+        format === "pdf"
+          ? await national.pdf(accessKey)
+          : Buffer.from((await national.get(accessKey)).xml, "utf8");
+      const target = documentTarget(values.out, accessKey, format);
+      mkdirSync(dirname(target), { recursive: true });
+      writeFileSync(target, file);
+      console.log(`${target}  (${(file.length / 1024).toFixed(1)} KB)`);
+      return true;
+    }
+
+    case "national-docs": {
+      const documents = await national.distribution(Number(values.from ?? 0));
+      if (values.json) {
+        console.log(JSON.stringify(documents.map(({ xml, ...rest }) => rest), null, 2));
+        return true;
+      }
+      for (const document of documents) {
+        const nfse = document.type === "NFSE" ? parseNationalNfseSafe(document.xml) : null;
+        const role = nfse?.issuerCnpj === config.cnpj ? "issued" : "received";
+        console.log(
+          [
+            String(document.nsu).padStart(5),
+            document.type.padEnd(6),
+            nfse ? role.padEnd(8) : "".padEnd(8),
+            nfse?.number?.padStart(9) ?? "".padStart(9),
+            nfse?.processedAt?.slice(0, 10) ?? "",
+            nfse?.serviceAmount?.toFixed(2).padStart(10) ?? "",
+            nfse?.issuingCity ?? "",
+          ].join("  "),
+        );
+      }
+      const last = documents.at(-1);
+      console.log(
+        last
+          ? `\n${documents.length} document(s). Continue with --from ${last.nsu}`
+          : "No documents after this NSU.",
+      );
+      return true;
+    }
+
+    case "issue": {
+      if (!viaNational) return false;
+      const rps = buildRpsFromCli(values);
+      const profile = new ProfileRepository().load();
+      const number = values.dps ?? String(Math.floor(Date.now() / 1000));
+      const issueOptions = {
+        series: values.series ?? profile.nationalSeries ?? "1",
+        number,
+        simplesOption: profile.simplesOption ?? (rps.simplesNacionalOptant === 1 ? 3 : 1),
+        simplesApportionment: profile.simplesApportionment,
+      } as const;
+
+      if (!values.confirm) {
+        const preview = national.previewDps(rps, issueOptions);
+        if (values.xml) return void console.log(preview), true;
+        console.log(issueSummary(values, rps));
+        console.log(`DPS:           ${number} series ${issueOptions.series} (national issuer)`);
+        printValidation(preview, "DPS_v1.01.xsd", "docs/schemas-nacional");
+        console.log("\nNothing was sent. Repeat with --confirm to actually issue.");
+        return true;
+      }
+
+      if (!values.dps) {
+        console.log(`DPS ${number} (generated). Pass --dps ${number} to retry safely.`);
+      }
+      const outcome = await national.issue(rps, issueOptions);
+      console.log(
+        outcome.status === "already-issued"
+          ? "This DPS had already been issued:"
+          : "Invoice issued:",
+      );
+      printNational(outcome.nfse, values);
+      for (const alert of outcome.alerts) console.log(`⚠ [${alert.code}] ${alert.message}`);
+      return true;
+    }
+
+    case "cancel": {
+      if (!viaNational) return false;
+      const accessKey = key();
+      if (!values.reason || !NATIONAL_REASONS[values.reason]) {
+        throw new Error("Provide --reason 1 (issuing error), 2 (not provided) or 9 (other)");
+      }
+      if (!values.text) throw new Error("Provide the justification in --text (15 to 255 chars)");
+      if (!values.confirm) {
+        console.log(
+          `Would cancel ${accessKey}, reason ${values.reason} (${NATIONAL_REASONS[values.reason]}).`,
+        );
+        console.log("Nothing was sent. Repeat with --confirm.");
+        return true;
+      }
+      const event = await national.cancel(
+        accessKey,
+        Number(values.reason) as NationalCancellationReason,
+        values.text,
+      );
+      console.log(`Invoice ${accessKey} cancelled.`);
+      if (values.xml) console.log(event);
+      return true;
+    }
+
+    case "replace":
+      if (viaNational) {
+        throw new Error(
+          "replace is not available on the national issuer yet: cancel, then issue again",
+        );
+      }
+      return false;
+
+    default:
+      return false;
+  }
+}
+
+function parseNationalNfseSafe(xml: string): NationalNfse | null {
+  try {
+    return parseNationalNfse(xml);
+  } catch {
+    return null;
+  }
+}
+
+function printNational(nfse: NationalNfse, values: CliValues): void {
+  if (values.xml) return void console.log(nfse.xml);
+  if (values.json) {
+    const { xml, ...rest } = nfse;
+    return void console.log(JSON.stringify(rest, null, 2));
+  }
+  console.log(`Number:      ${nfse.number ?? "—"}`);
+  console.log(`Access key:  ${nfse.accessKey}`);
+  console.log(`Processed:   ${nfse.processedAt ?? "—"}`);
+  console.log(`Customer:    ${nfse.takerName ?? "—"} (${nfse.takerTaxId ?? "—"})`);
+  console.log(`Amount:      R$ ${nfse.serviceAmount?.toFixed(2) ?? "—"}`);
+  console.log(`Description: ${nfse.description ?? "—"}`);
 }
 
 /** Rótulo em português para as mensagens ao usuário. */
@@ -1119,12 +1346,16 @@ function issueSummary(values: CliValues, rps: Rps): string {
   return lines.join("\n");
 }
 
-function printValidation(xml: string): void {
-  const result = validateAgainstSchema(xml, "gerar-nfse-envio-v2_04.xsd");
+function printValidation(
+  xml: string,
+  schema = "gerar-nfse-envio-v2_04.xsd",
+  directory?: string,
+): void {
+  const result = validateAgainstSchema(xml, schema, directory);
   if (result === null) {
     console.log("\nSchema: not checked (xmllint not installed).");
   } else if (result.valid) {
-    console.log("\nSchema: XML valid against gerar-nfse-envio-v2_04.xsd.");
+    console.log(`\nSchema: XML valid against ${schema}.`);
     for (const d of result.knownDivergences) {
       console.log(`  (known XSD divergence, ignored) ${d.slice(0, 90)}`);
     }
@@ -1214,6 +1445,18 @@ main().catch((error: unknown) => {
     }
   } else if (error instanceof PortalError) {
     console.error(`\nPortal API: ${error.message}`);
+  } else if (error instanceof NationalError && error.messages.length) {
+    console.error(`\nNational API (HTTP ${error.status}) returned an error:`);
+    for (const message of error.messages) {
+      console.error(
+        `  [${message.code}] ${message.message}${message.correction ? ` — ${message.correction}` : ""}`,
+      );
+    }
+    if (error.messages.some((m) => m.code === "E0039")) {
+      console.error(
+        `\nThe city has not enabled the national issuer yet. Check with: ${INVOCATION} national-status`,
+      );
+    }
   } else {
     console.error(error instanceof Error ? error.message : error);
   }

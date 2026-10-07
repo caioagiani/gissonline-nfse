@@ -40,6 +40,15 @@ export interface IssuingProfile {
   pisCofins?: PisCofins;
   approximateTaxes?: ApproximateTaxes;
   ibsCbs?: Omit<IbsCbs, "taxableAmount">;
+  /**
+   * Emissor nacional: 1 = não optante, 2 = MEI, 3 = ME/EPP. Ausente, sai de
+   * `simplesNacionalOptant` (optante vira ME/EPP).
+   */
+  simplesOption?: 1 | 2 | 3;
+  /** Regime de apuração do Simples: 1 = tudo pelo SN (o caso comum) */
+  simplesApportionment?: 1 | 2 | 3;
+  /** Série das DPS no emissor nacional, só dígitos */
+  nationalSeries?: string;
 }
 
 export const DEFAULT_PROFILE: IssuingProfile = {

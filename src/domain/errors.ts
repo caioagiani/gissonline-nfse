@@ -49,3 +49,23 @@ export class PortalError extends Error {
     this.body = body;
   }
 }
+
+/** Erro devolvido pela API do Sistema Nacional NFS-e (SEFIN/ADN). */
+export class NationalError extends Error {
+  readonly status: number;
+  readonly messages: ServiceMessage[];
+  readonly body: unknown;
+
+  constructor(route: string, status: number, messages: ServiceMessage[], body: unknown) {
+    const detail = messages.length
+      ? messages.map((m) => `[${m.code}] ${m.message}`).join(" | ")
+      : typeof body === "string"
+        ? body.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().slice(0, 200)
+        : JSON.stringify(body).slice(0, 300);
+    super(`${route} → HTTP ${status}: ${detail}`);
+    this.name = "NationalError";
+    this.status = status;
+    this.messages = messages;
+    this.body = body;
+  }
+}

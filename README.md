@@ -18,6 +18,8 @@ customer and supplier directory and the municipal activity table.
 - Portal login with that same certificate, so no CPF and password are needed
 - Fale Conosco messages: read the replies from the city hall, and open new ones
 - Validation against the official XSD before sending
+- The **national issuer** (Sistema Nacional NFS-e) with the same certificate — mandatory
+  for Simples Nacional from 2026-11-01; see [docs/national.md](docs/national.md)
 - No write operation fires without `--confirm`
 
 ## Requirements
@@ -97,6 +99,7 @@ Nothing that writes fires without `--confirm`.
 | [docs/library.md](docs/library.md) | Using it as a package, and the 16 operations |
 | [docs/configuration.md](docs/configuration.md) | `.env`, serving several companies, tax profile, homologation |
 | [docs/issuing.md](docs/issuing.md) | What actually issues an invoice, and why |
+| [docs/national.md](docs/national.md) | The national issuer, and the 2026-11-01 move for Simples Nacional |
 | [docs/gotchas.md](docs/gotchas.md) | What the live service taught us the hard way |
 | [docs/architecture.md](docs/architecture.md) | Layers, patterns, mTLS, SOAP and the signature |
 

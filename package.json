@@ -73,6 +73,7 @@
     "dist",
     "docs/schemas",
     "docs/schemas-tomados",
+    "docs/schemas-nacional",
     "completions",
     "README.md",
     "LICENSE"

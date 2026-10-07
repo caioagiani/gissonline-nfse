@@ -8,6 +8,7 @@ import {
 import { createXmlSigner } from "../infra/xml-signer.ts";
 import type { QueryResult } from "../messages/parser.ts";
 import { NfscService } from "./nfsc-service.ts";
+import { NationalService } from "./national-service.ts";
 import { NfseService } from "./nfse-service.ts";
 
 export interface GissClientOptions extends Partial<GissConfig> {
@@ -37,6 +38,8 @@ export class GissClient {
   readonly certificate: Certificate;
   readonly nfse: NfseService;
   readonly nfsc: NfscService;
+  /** Sistema Nacional NFS-e — mesmo certificado, assinatura SHA-256 */
+  readonly national: NationalService;
 
   constructor(options: GissClientOptions = {}) {
     const { debug = false, certificate, ...overrides } = options;
@@ -71,6 +74,14 @@ export class GissClient {
       version: this.config.version,
     });
     this.nfsc = new NfscService({ ...shared, taker: this.provider });
+    this.national = new NationalService({
+      certificate: this.certificate,
+      signer: createXmlSigner(this.certificate, "sha256"),
+      environment: this.config.environment,
+      cnpj: this.config.cnpj,
+      cityCode: this.config.cityCode,
+      debug,
+    });
   }
 
   /** Identificação do prestador configurado no `.env`. */

@@ -4,6 +4,12 @@ import { findMunicipality } from "./municipalities.ts";
 
 export type Environment = "producao" | "homologacao";
 
+/**
+ * Quem emite: o Web Service GissOnline ou o Sistema Nacional NFS-e. A partir
+ * de 01/11/2026 o Simples Nacional só emite pelo nacional (Res. CGSN 191/2026).
+ */
+export type Issuer = "giss" | "nacional";
+
 export interface GissConfig {
   environment: Environment;
   city: string;
@@ -18,6 +24,7 @@ export interface GissConfig {
   cityCode: string;
   /** Versão do leiaute usada no cabeçalho e nos namespaces */
   version: string;
+  issuer: Issuer;
 }
 
 function required(key: string): string {
@@ -73,6 +80,11 @@ export function loadConfig(overrides: Partial<GissConfig> = {}): GissConfig {
 
   const city = overrides.city ?? optional("GISS_MUNICIPIO", "suzano");
 
+  const issuer = (overrides.issuer ?? optional("NFSE_EMISSOR", "giss")) as Issuer;
+  if (issuer !== "giss" && issuer !== "nacional") {
+    throw new Error(`NFSE_EMISSOR inválido: ${issuer} (use giss|nacional)`);
+  }
+
   // Errar o código IBGE é fácil e caro: ele identifica o município na nota.
   // Quando a cidade é uma das conhecidas, o código vem dela — antes, trocar
   // só `GISS_MUNICIPIO` deixava para trás o código de Suzano, e a nota saía
@@ -91,6 +103,7 @@ export function loadConfig(overrides: Partial<GissConfig> = {}): GissConfig {
       overrides.municipalRegistration ?? required("GISS_ISC_MUNICIPAL"),
     cityCode,
     version: overrides.version ?? optional("GISS_VERSAO", "2.04"),
+    issuer,
   };
 }
 

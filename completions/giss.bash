@@ -10,13 +10,15 @@ _giss_completions() {
 purchased-protocol purchased-number issue cancel replace customers \
 suppliers customer-add supplier-add customer-rm supplier-rm \
 portal-list portal-add portal-rm portal-import pdf xml zip cnpj cities \
-activities messages message profile"
+activities messages message profile national-status national-get \
+national-pdf national-xml national-docs"
 
-  global_opts="--env --json --xml --debug --help"
+  global_opts="--env --issuer --json --xml --debug --help"
 
   # known values for some flags
   case "$prev" in
     --env)     COMPREPLY=($(compgen -W "producao homologacao" -- "$cur")); return ;;
+    --issuer)  COMPREPLY=($(compgen -W "giss nacional" -- "$cur")); return ;;
     --reason)  COMPREPLY=($(compgen -W "1 2 3 4 5" -- "$cur")); return ;;
     --type)    COMPREPLY=($(compgen -W "1 2" -- "$cur")); return ;;
     --simples) COMPREPLY=($(compgen -W "1 2" -- "$cur")); return ;;
@@ -52,6 +54,9 @@ activities messages message profile"
     pdf|xml)         opts="--number --out" ;;
     cities)          opts="--state" ;;
     activities)      opts="--item --city --company --date" ;;
+    national-get)    opts="--key" ;;
+    national-pdf|national-xml) opts="--key --out" ;;
+    national-docs)   opts="--from" ;;
     messages)        opts="--id --unread --attachment --out --city" ;;
     message)         opts="--subject --text --city --confirm" ;;
     profile)         opts="--save" ;;
