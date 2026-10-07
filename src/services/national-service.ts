@@ -78,6 +78,8 @@ export interface NationalServiceOptions {
   /** Município do emitente (IBGE, 7 dígitos) */
   cityCode: string;
   debug?: boolean;
+  /** Substitui o transporte HTTPS — para testes, ou para passar por um proxy */
+  transport?: typeof callNational;
 }
 
 export class NationalService {
@@ -234,7 +236,8 @@ export class NationalService {
   }
 
   private call(url: string, init: { method?: "GET" | "POST"; json?: unknown } = {}) {
-    return callNational(url, { certificate: this.options.certificate, ...init });
+    const transport = this.options.transport ?? callNational;
+    return transport(url, { certificate: this.options.certificate, ...init });
   }
 
   private async json<T>(url: string, init: { method?: "GET" | "POST"; json?: unknown } = {}) {
