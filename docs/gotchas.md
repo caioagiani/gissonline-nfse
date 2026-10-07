@@ -22,6 +22,9 @@ All found by testing against the live service:
   invalidates the RPS signatures and `E174` comes back.
 - **Signing where the XSD declares no `Signature` breaks the request** with `E160`. That is
   the case for `ConsultarNfseServicoTomado`.
+- **On taken services, a supplier `Contato` requires `Telefone`.** The provided-services
+  schema accepts e-mail alone; the `nfsc` one does not, and the service answers `E160`. The
+  library refuses an e-mail-only supplier contact with a `ValidationError` before sending.
 - **Request format ≠ response format.** Queries return `ItemListaServico` as `1.04` while
   the request needs `01.04`; `CodigoNbs` comes back as `1.1703.10.00` and goes as
   `117031000` (9 chars max); `finNFSe` comes back `1` and only accepts `0`;

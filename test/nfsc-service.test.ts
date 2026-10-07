@@ -28,7 +28,7 @@ const purchase = (number = 10): PurchasedService => ({
       state: "SP",
       zipCode: "01000000",
     },
-    contact: { email: "nf@fornecedor.com.br" },
+    contact: { phone: "1144445555", email: "nf@fornecedor.com.br" },
     simplesNacionalOptant: 2,
   },
   service: {
@@ -81,15 +81,29 @@ describe("NfscService — serviços tomados", () => {
     assert.equal(calls.length, 0);
   });
 
-  it("fornecedor só com e-mail sai sem Contato (o XSD exige Telefone)", () => {
-    const onlyEmail = taken.issuePurchasedServiceRequest(purchase(), taker);
-    assert.doesNotMatch(onlyEmail, /Contato/);
+  it("fornecedor só com e-mail é recusado antes do envio (o XSD exige Telefone)", async () => {
+    const { nfsc, calls } = service({});
+    const onlyEmail = purchase();
+    onlyEmail.supplier.contact = { email: "nf@fornecedor.com.br" };
+    await assert.rejects(nfsc.issuePurchasedService(onlyEmail), (error) => {
+      assert.ok(error instanceof ValidationError);
+      assert.equal(error.details["field"], "supplier.contact.phone");
+      assert.match(error.message, /52884617000110/);
+      return true;
+    });
+    assert.equal(calls.length, 0);
+  });
+
+  it("fornecedor com telefone leva o Contato completo; sem contato, nada", () => {
     const withPhone = purchase();
     withPhone.supplier.contact = { phone: "1144445555", email: "nf@fornecedor.com.br" };
     assert.match(
       taken.issuePurchasedServiceRequest(withPhone, taker),
-      /<tipos:Contato><tipos:Telefone>1144445555<\/tipos:Telefone><tipos:Email>/,
+      /<tipos:Contato><tipos:Telefone>1144445555<\/tipos:Telefone><tipos:Email>nf@fornecedor\.com\.br<\/tipos:Email><\/tipos:Contato>/,
     );
+    const without = purchase();
+    delete without.supplier.contact;
+    assert.doesNotMatch(taken.issuePurchasedServiceRequest(without, taker), /Contato/);
   });
 
   it("lote conta as notas no atributo", async () => {
