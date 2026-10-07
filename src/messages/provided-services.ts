@@ -101,7 +101,10 @@ function amountsGroup(amounts: Amounts): string {
     element(`${T}:ValorInss`, amount(amounts.inss)),
     element(`${T}:ValorIr`, amount(amounts.incomeTax)),
     element(`${T}:ValorCsll`, amount(amounts.csll)),
-    element(`${T}:OutrasRetencoes`, amount(amounts.otherWithholdings)),
+    // Suzano recusa a tag no RPS (E370), mesmo zerada; o XSD a deixa opcional.
+    amounts.otherWithholdings
+      ? element(`${T}:OutrasRetencoes`, amount(amounts.otherWithholdings))
+      : "",
     element(`${T}:ValTotTributos`, amount(amounts.totalTaxes)),
     element(`${T}:ValorIss`, amount(amounts.iss)),
     // A alíquota vai como fração: 3,07% é enviado como 0.0307. Mandar 3.07
