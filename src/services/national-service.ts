@@ -1,5 +1,5 @@
 import type { Environment } from "../config/index.ts";
-import { NationalError, type ServiceMessage } from "../domain/errors.ts";
+import { NationalError, NfseError, type ServiceMessage } from "../domain/errors.ts";
 import type { XmlSigner } from "../domain/signature-policy.ts";
 import type { Rps } from "../domain/types.ts";
 import type { Certificate } from "../infra/certificate.ts";
@@ -55,7 +55,12 @@ export interface NationalIssueOptions {
 }
 
 export interface NationalIssueOutcome {
-  status: "issued" | "already-issued";
+  /**
+   * `issued`: emitida agora. `already-issued`: a DPS já tinha virado nota antes
+   * desta chamada. `reconciled`: o envio falhou sem resposta, e a consulta
+   * seguinte achou a nota — ela foi emitida, só a resposta se perdeu.
+   */
+  status: "issued" | "already-issued" | "reconciled";
   dpsId: string;
   nfse: NationalNfse;
   alerts: ServiceMessage[];
@@ -125,12 +130,17 @@ export class NationalService {
       return { status: "already-issued", dpsId: id, nfse: existing, alerts: [] };
     }
 
-    const body = await this.json<{ nfseXmlGZipB64?: string; alertas?: unknown }>(
-      `${this.hosts.sefin}/nfse`,
-      { method: "POST", json: { dpsXmlGZipB64: packXml(xml) } },
-    );
+    let body: { nfseXmlGZipB64?: string; alertas?: unknown };
+    try {
+      body = await this.json(`${this.hosts.sefin}/nfse`, {
+        method: "POST",
+        json: { dpsXmlGZipB64: packXml(xml) },
+      });
+    } catch (error) {
+      return this.reconcile(id, error);
+    }
     if (!body.nfseXmlGZipB64) {
-      throw new NationalError("/nfse", 200, [], body);
+      throw new NationalError("/nfse", 200, [], body, { details: { dpsId: id } });
     }
 
     return {
@@ -139,6 +149,29 @@ export class NationalService {
       nfse: parseNationalNfse(unpackXml(body.nfseXmlGZipB64)),
       alerts: messagesOf(body.alertas),
     };
+  }
+
+  /**
+   * O envio falhou sem que se saiba se a SEFIN processou. Pergunta pela DPS:
+   * se virou nota, a emissão aconteceu; se não, o erro original volta com o
+   * id da DPS, que é o que torna a nova tentativa segura.
+   */
+  private async reconcile(id: string, error: unknown): Promise<NationalIssueOutcome> {
+    const uncertain =
+      error instanceof NfseError && (error.outcomeUnknown || error.code === "UNAVAILABLE");
+    if (!uncertain) {
+      if (error instanceof NfseError) Object.assign(error.details, { dpsId: id });
+      throw error;
+    }
+
+    const found = await this.findByDps(id).catch(() => undefined);
+    if (found) return { status: "reconciled", dpsId: id, nfse: found, alerts: [] };
+
+    Object.assign(error.details, { dpsId: id });
+    // `null`: a SEFIN confirmou que a DPS não virou nota — nada foi emitido.
+    // `undefined`: a consulta também falhou, e o resultado segue incerto.
+    Object.assign(error, { outcomeUnknown: found === undefined });
+    throw error;
   }
 
   /** Nota gerada a partir de uma DPS, ou `null` se a DPS não virou nota. */

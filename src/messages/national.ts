@@ -1,3 +1,4 @@
+import { NotSupportedError, ValidationError } from "../domain/errors.ts";
 import type { Address, Rps, ServiceTaker } from "../domain/types.ts";
 import {
   amount,
@@ -73,7 +74,10 @@ export function nationalTaxCode(serviceListItem: string): string {
   if (parts.length === 2) parts.push("01");
   const code = parts.join("");
   if (!/^\d{6}$/.test(code)) {
-    throw new Error(`Item da lista "${serviceListItem}" não vira um cTribNac de 6 dígitos`);
+    throw new ValidationError(
+      `Item da lista "${serviceListItem}" não vira um cTribNac de 6 dígitos`,
+      { provider: "nacional", details: { serviceListItem } },
+    );
   }
   return code;
 }
@@ -94,10 +98,13 @@ export function buildDps(rps: Rps, context: DpsContext): string {
   const { service } = rps;
   const values = service.amounts;
 
+  assertSupported(rps);
+
   const taxability = TAXABILITY[service.issTaxability];
   if (taxability === undefined) {
-    throw new Error(
+    throw new NotSupportedError(
       `Exigibilidade ${service.issTaxability} não tem equivalente direto no padrão nacional`,
+      { provider: "nacional", details: { issTaxability: service.issTaxability } },
     );
   }
 
@@ -179,6 +186,27 @@ export function buildDps(rps: Rps, context: DpsContext): string {
   });
 }
 
+/**
+ * O que o RPS do GissOnline aceita e a DPS ainda não leva. Falhar aqui é
+ * melhor que emitir uma nota sem o tomador estrangeiro ou sem o intermediário
+ * — o envio passaria, e a nota sairia errada.
+ */
+function assertSupported(rps: Rps): void {
+  const missing = [
+    (rps.taker?.nif || rps.taker?.foreignAddress) && "tomador no exterior (NIF/endExt)",
+    rps.service.foreignTrade && "comércio exterior (comExt)",
+    rps.intermediary && "intermediário",
+    rps.construction && "obra",
+    rps.replacedRps && "substituição de nota",
+  ].filter(Boolean);
+  if (missing.length > 0) {
+    throw new NotSupportedError(
+      `O emissor nacional ainda não monta: ${missing.join(", ")}. Emita pelo GissOnline ou pelo Emissor Nacional web.`,
+      { provider: "nacional", details: { unsupported: missing } },
+    );
+  }
+}
+
 function positive(value: number | undefined): string | undefined {
   return value && value > 0 ? amount(value) : undefined;
 }
@@ -224,7 +252,10 @@ export interface CancellationInput {
 export function buildCancellationEvent(input: CancellationInput): string {
   const justification = input.justification.trim();
   if (justification.length < 15 || justification.length > 255) {
-    throw new Error("A justificativa do cancelamento precisa ter de 15 a 255 caracteres");
+    throw new ValidationError(
+      "A justificativa do cancelamento precisa ter de 15 a 255 caracteres",
+      { provider: "nacional", details: { length: justification.length } },
+    );
   }
 
   return xmlDocument({

@@ -1,5 +1,5 @@
 import { createSign } from "node:crypto";
-import { PortalError } from "../domain/errors.ts";
+import { ConfigError, PortalError, ValidationError } from "../domain/errors.ts";
 import type { Address } from "../domain/types.ts";
 import { findMunicipalityByCode } from "../config/municipalities.ts";
 import { loadCertificate, type CertificateInput } from "../infra/certificate.ts";
@@ -434,7 +434,7 @@ export class PortalService {
       ? companies.find((c) => c.documento === digitsOnly(credentials.cnpj!))
       : companies[0];
     if (!target) {
-      throw new Error(
+      throw new ConfigError(
         `Empresa ${credentials.cnpj ?? ""} não encontrada. Disponíveis: ` +
           companies.map((c) => `${c.documento} (${c.razaoSocial})`).join(", "),
       );
@@ -494,7 +494,7 @@ export class PortalService {
     >(`/service-objetos-compartilhados/api/municipio-ibge/listar/${state}`);
 
     const city = response.conteudo.find((c) => c.idMunicipioIbge === code);
-    if (!city) throw new Error(`Município ${cityCode} não encontrado na UF ${state}`);
+    if (!city) throw new ValidationError(`Município ${cityCode} não encontrado na UF ${state}`);
     return city.municipio;
   }
 
@@ -548,7 +548,7 @@ export class PortalService {
    * responde 200 e não grava nada, que é como o portal distingue o que mudou.
    */
   async update(party: PortalParty): Promise<PortalParty> {
-    if (!party.id) throw new Error("Informe o id do cadastro a atualizar");
+    if (!party.id) throw new ValidationError("Informe o id do cadastro a atualizar");
 
     const body: PortalParty = {
       ...party,

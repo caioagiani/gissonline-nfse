@@ -8,6 +8,7 @@ import type {
   ServiceTaker,
   YesNo,
 } from "../domain/types.ts";
+import { ValidationError } from "../domain/errors.ts";
 
 /**
  * Valores fiscais que se repetem em toda emissão do prestador. Os padrões abaixo
@@ -148,7 +149,7 @@ export function buildRps(base: IssuingProfile, input: IssueInput): Rps {
   const description = input.description ?? profile.defaultDescription ?? "";
 
   if (!description) {
-    throw new Error(
+    throw new ValidationError(
       "Informe a discriminação do serviço (ou defina defaultDescription no perfil)",
     );
   }
@@ -158,7 +159,7 @@ export function buildRps(base: IssuingProfile, input: IssueInput): Rps {
   // do envio. Falhar aqui nomeia o campo que falta. Não há padrão possível:
   // a alíquota é de cada contribuinte, e chutar uma emitiria imposto errado.
   if ((input.rate ?? profile.rate) === undefined && profile.issTaxability === 1) {
-    throw new Error(
+    throw new ValidationError(
       "Informe a alíquota do ISS em `rate` (ou --rate no CLI): com o imposto exigível o serviço recusa a nota com E163",
     );
   }

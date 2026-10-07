@@ -100,6 +100,7 @@ Nothing that writes fires without `--confirm`.
 | [docs/configuration.md](docs/configuration.md) | `.env`, serving several companies, tax profile, homologation |
 | [docs/issuing.md](docs/issuing.md) | What actually issues an invoice, and why |
 | [docs/national.md](docs/national.md) | The national issuer, and the 2026-11-01 move for Simples Nacional |
+| [docs/errors.md](docs/errors.md) | Error codes, retries, and what is safe to repeat |
 | [docs/gotchas.md](docs/gotchas.md) | What the live service taught us the hard way |
 | [docs/architecture.md](docs/architecture.md) | Layers, patterns, mTLS, SOAP and the signature |
 

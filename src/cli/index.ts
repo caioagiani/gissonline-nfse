@@ -9,7 +9,12 @@ import {
   type GissConfig,
   type Issuer,
 } from "../config/index.ts";
-import { GissError, NationalError, PortalError } from "../domain/errors.ts";
+import {
+  GissError,
+  NationalError,
+  NfseError,
+  type NfseErrorCode,
+} from "../domain/errors.ts";
 import type { Address, CancellationCode, Rps } from "../domain/types.ts";
 import { exportPem, type Certificate } from "../infra/certificate.ts";
 import { isoDate } from "../infra/xml.ts";
@@ -261,6 +266,8 @@ async function main() {
     issuer: values.issuer as Issuer | undefined,
     debug: values.debug,
   });
+
+  warnCertificateExpiry(client.certificate);
 
   if (await runNationalCommand(command, values, client)) return;
   const asNumber = (v: string | undefined) => (v === undefined ? undefined : Number(v));
@@ -598,6 +605,16 @@ async function main() {
     default:
       throw new Error(`Unknown command: ${command}`);
   }
+}
+
+/** Avisa com 30 dias de antecedência: certificado vencido para toda emissão. */
+function warnCertificateExpiry(certificate: Certificate, now = new Date()): void {
+  const days = Math.floor((certificate.validTo.getTime() - now.getTime()) / 86_400_000);
+  if (days < 0 || days > 30) return;
+  console.error(
+    `⚠ The A1 certificate expires in ${days} day(s), on ${isoDate(certificate.validTo)}. ` +
+      "Renew it before then: an expired certificate stops every request.\n",
+  );
 }
 
 /** Data em que o Simples Nacional deixa de emitir pelo sistema municipal. */
@@ -1435,30 +1452,66 @@ function printContacts(
   console.log(`\n${contacts.length} ${roleLabel(role)}(s) — ${repository.path}`);
 }
 
-main().catch((error: unknown) => {
-  if (error instanceof GissError) {
-    console.error(`\n${error.operation} returned an error:`);
-    for (const message of error.messages) {
+/** O que fazer depois de cada tipo de erro — a parte que a mensagem do serviço não diz. */
+const NEXT_STEP: Partial<Record<NfseErrorCode, string>> = {
+  CONFIG: "Check .env (see .env.example).",
+  CERTIFICATE: `Check the certificate with: ${INVOCATION} cert`,
+  UNAVAILABLE: "The service is unavailable right now. Try again in a few minutes.",
+  TRANSPORT: "Network failure. Try again; check connectivity or a proxy if it persists.",
+  AUTHENTICATION: "The credentials were refused. Check the certificate or the portal login.",
+};
+
+function printError(error: unknown, debug: boolean): void {
+  if (!(error instanceof NfseError)) {
+    console.error(error instanceof Error ? error.message : error);
+    if (debug && error instanceof Error) console.error(error.stack);
+    return;
+  }
+
+  const origin = [error.provider, error.operation].filter(Boolean).join(" · ");
+  const messages =
+    error instanceof GissError || error instanceof NationalError ? error.messages : [];
+
+  if (messages.length > 0) {
+    console.error(`\n${origin} returned an error:`);
+    for (const message of messages) {
       console.error(
         `  [${message.code}] ${message.message}${message.correction ? ` — ${message.correction}` : ""}`,
-      );
-    }
-  } else if (error instanceof PortalError) {
-    console.error(`\nPortal API: ${error.message}`);
-  } else if (error instanceof NationalError && error.messages.length) {
-    console.error(`\nNational API (HTTP ${error.status}) returned an error:`);
-    for (const message of error.messages) {
-      console.error(
-        `  [${message.code}] ${message.message}${message.correction ? ` — ${message.correction}` : ""}`,
-      );
-    }
-    if (error.messages.some((m) => m.code === "E0039")) {
-      console.error(
-        `\nThe city has not enabled the national issuer yet. Check with: ${INVOCATION} national-status`,
       );
     }
   } else {
-    console.error(error instanceof Error ? error.message : error);
+    console.error(`\n${error.message}`);
   }
+  console.error(`\n  code: ${error.code}${origin ? `  (${origin})` : ""}`);
+
+  if (error.outcomeUnknown) {
+    console.error(
+      "\n⚠ The request may have reached the service, and the answer did not come back.",
+    );
+    const rps = error.details["rps"] as { number?: unknown; series?: unknown } | undefined;
+    const id = error.details["dpsId"]
+      ? `DPS ${String(error.details["dpsId"])}`
+      : rps
+        ? `RPS ${String(rps.number)} series ${String(rps.series)}`
+        : undefined;
+    console.error(
+      id
+        ? `  Repeat with the same number (${id}): it will not issue twice.`
+        : "  Repeat with the same RPS/DPS number: it will not issue twice.",
+    );
+  } else if (NEXT_STEP[error.code]) {
+    console.error(`  ${NEXT_STEP[error.code]}`);
+  }
+
+  if (messages.some((m) => m.code === "E0039")) {
+    console.error(
+      `\nThe city has not enabled the national issuer yet. Check with: ${INVOCATION} national-status`,
+    );
+  }
+  if (debug && error.cause) console.error("\ncause:", error.cause);
+}
+
+main().catch((error: unknown) => {
+  printError(error, process.argv.includes("--debug"));
   process.exitCode = 1;
 });

@@ -1,4 +1,4 @@
-import { GissError, type ServiceMessage } from "../domain/errors.ts";
+import { GissError, type ServiceMessage, ValidationError, NfseError } from "../domain/errors.ts";
 import {
   cancellationTarget,
   elementSignature,
@@ -151,7 +151,7 @@ export class NfseService {
   ): Promise<IssueOutcome> {
     const identification = rps.identification;
     if (!identification?.number) {
-      throw new Error(
+      throw new ValidationError(
         "Informe o número do RPS: sem ele a emissão não é idempotente e uma repetição vira nota duplicada",
       );
     }
@@ -171,6 +171,10 @@ export class NfseService {
     const batch = await this.sendRpsBatch({
       batchNumber: options.batchNumber ?? Number(identification.number),
       rps: [rps],
+    }).catch((error: unknown) => {
+      // O número do RPS é o que torna a nova tentativa segura: vai junto.
+      if (error instanceof NfseError) Object.assign(error.details, { rps: query });
+      throw error;
     });
 
     for (let attempt = 0; attempt < attempts; attempt++) {
@@ -384,9 +388,9 @@ export class NfseService {
   }
 
   private assertBatchSize(batch: RpsBatch): void {
-    if (batch.rps.length === 0) throw new Error("Lote sem RPS");
+    if (batch.rps.length === 0) throw new ValidationError("Lote sem RPS");
     if (batch.rps.length > 50) {
-      throw new Error(`Lote com ${batch.rps.length} RPS — o limite é 50 por lote`);
+      throw new ValidationError(`Lote com ${batch.rps.length} RPS — o limite é 50 por lote`);
     }
   }
 

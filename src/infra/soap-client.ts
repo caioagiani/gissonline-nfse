@@ -1,4 +1,10 @@
 import { request } from "node:https";
+import { NfseError } from "../domain/errors.ts";
+import {
+  assertCertificateUsable,
+  classifyTransportError,
+  timeoutError,
+} from "./transport-errors.ts";
 import { SoapFaultError } from "../domain/errors.ts";
 import type { Certificate } from "./certificate.ts";
 import { escapeXml, unescapeXml } from "./xml.ts";
@@ -46,6 +52,18 @@ export type NfscOperation =
 
 export type SoapOperation = NfseOperation | NfscOperation;
 
+/** Operações que alteram estado: uma falha depois do envio deixa o resultado incerto. */
+const WRITE_OPERATIONS = new Set<SoapOperation>([
+  "CancelarNfse",
+  "GerarNfse",
+  "RecepcionarLoteRps",
+  "RecepcionarLoteRpsSincrono",
+  "SubstituirNfse",
+  "CancelarNotaServicoComprado",
+  "EmitirNotaServicoComprado",
+  "EnviarLoteNotaServicoComprado",
+]);
+
 export interface SoapResponse {
   /** XML de negócio já desembrulhado do envelope SOAP e desescapado */
   xml: string;
@@ -92,6 +110,12 @@ export async function callSoap(
   const definition = SOAP_SERVICES[service];
   const payload = buildEnvelope(service, operation, data, header);
   const url = new URL(definition.path, host);
+  const context = {
+    provider: "giss" as const,
+    operation,
+    write: WRITE_OPERATIONS.has(operation),
+  };
+  assertCertificateUsable(certificate, context);
 
   const response = await new Promise<{ body: string; status: number }>(
     (resolve, reject) => {
@@ -125,18 +149,39 @@ export async function callSoap(
       );
 
       req.setTimeout(timeoutMs, () => {
-        req.destroy(new Error(`Timeout de ${timeoutMs}ms em ${operation}`));
+        req.destroy(timeoutError(timeoutMs));
       });
-      req.on("error", reject);
+      req.on("error", (error) => reject(classifyTransportError(error, context)));
       req.end(payload);
     },
   );
 
-  return {
-    status: response.status,
-    envelope: response.body,
-    xml: extractOutputXml(response.body, operation),
-  };
+  return readSoapResponse(operation, response.status, response.body);
+}
+
+/**
+ * Desembrulha a resposta. Sem XML de negócio e com 5xx, é o servidor fora do
+ * ar (o balanceador devolve HTML) — não um fault, e vale tentar de novo.
+ */
+export function readSoapResponse(
+  operation: SoapOperation,
+  status: number,
+  envelope: string,
+): SoapResponse {
+  try {
+    return { status, envelope, xml: extractOutputXml(envelope, operation) };
+  } catch (error) {
+    if (status >= 500 && !/faultstring/.test(envelope)) {
+      throw new NfseError(`${operation} (giss): serviço indisponível, HTTP ${status}`, {
+        code: "UNAVAILABLE",
+        provider: "giss",
+        operation,
+        retryable: true,
+        cause: error,
+      });
+    }
+    throw error;
+  }
 }
 
 /**

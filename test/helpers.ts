@@ -39,6 +39,23 @@ export function testCertificate(): Certificate {
   return cached;
 }
 
+/** O mesmo certificado com outra validade — para os cenários de vencido e futuro. */
+export function certificateValid(from: string, to: string): Certificate {
+  return { ...testCertificate(), validFrom: new Date(from), validTo: new Date(to) };
+}
+
+/** `.pfx` de verdade, cifrado com senha, para exercitar `loadCertificate`. */
+export function testPfx(password: string): Buffer {
+  const certificate = testCertificate();
+  const asn1 = forge.pkcs12.toPkcs12Asn1(
+    forge.pki.privateKeyFromPem(certificate.privateKeyPem),
+    [forge.pki.certificateFromPem(certificate.certificatePem)],
+    password,
+    { algorithm: "3des" },
+  );
+  return Buffer.from(forge.asn1.toDer(asn1).getBytes(), "binary");
+}
+
 export const PROVIDER_CNPJ = "37969249000110";
 export const SUZANO = "3552502";
 

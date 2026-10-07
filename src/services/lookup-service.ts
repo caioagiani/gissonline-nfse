@@ -1,4 +1,6 @@
 import { digitsOnly } from "../infra/xml.ts";
+import { classifyHttpStatus, NfseError, ValidationError } from "../domain/errors.ts";
+import { classifyTransportError, timeoutError } from "../infra/transport-errors.ts";
 
 /**
  * Address and company lookups through [BrasilAPI](https://brasilapi.com.br).
@@ -50,7 +52,7 @@ export interface CompanyLookup {
   simplesNacionalOptant?: boolean;
 }
 
-export class LookupError extends Error {
+export class LookupError extends NfseError {
   readonly status: number;
 
   constructor(what: string, status: number) {
@@ -60,6 +62,7 @@ export class LookupError extends Error {
         : status === 429
           ? `Lookup for ${what} was rate limited — try again in a moment`
           : `Lookup for ${what} failed with HTTP ${status}`,
+      { ...classifyHttpStatus(status), provider: "brasilapi", operation: what },
     );
     this.name = "LookupError";
     this.status = status;
@@ -67,10 +70,19 @@ export class LookupError extends Error {
 }
 
 async function get<T>(route: string, what: string): Promise<T> {
-  const response = await fetch(`${BASE}${route}`, {
-    headers: { Accept: "application/json", "User-Agent": USER_AGENT },
-    signal: AbortSignal.timeout(TIMEOUT_MS),
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${BASE}${route}`, {
+      headers: { Accept: "application/json", "User-Agent": USER_AGENT },
+      signal: AbortSignal.timeout(TIMEOUT_MS),
+    });
+  } catch (error) {
+    const timedOut = (error as { name?: string }).name === "TimeoutError";
+    throw classifyTransportError(timedOut ? timeoutError(TIMEOUT_MS) : error, {
+      provider: "brasilapi",
+      operation: what,
+    });
+  }
   if (!response.ok) throw new LookupError(what, response.status);
   return (await response.json()) as T;
 }
@@ -79,7 +91,7 @@ async function get<T>(route: string, what: string): Promise<T> {
 export async function lookupZip(zipCode: string): Promise<ZipLookup> {
   const digits = digitsOnly(zipCode);
   if (digits.length !== 8) {
-    throw new Error(`Zip code must have 8 digits, got "${zipCode}"`);
+    throw new ValidationError(`Zip code must have 8 digits, got "${zipCode}"`);
   }
 
   const data = await get<{
@@ -103,7 +115,7 @@ export async function lookupZip(zipCode: string): Promise<ZipLookup> {
 export async function lookupCompany(taxId: string): Promise<CompanyLookup> {
   const digits = digitsOnly(taxId);
   if (digits.length !== 14) {
-    throw new Error(`CNPJ must have 14 digits, got "${taxId}"`);
+    throw new ValidationError(`CNPJ must have 14 digits, got "${taxId}"`);
   }
 
   const data = await get<Record<string, unknown>>(

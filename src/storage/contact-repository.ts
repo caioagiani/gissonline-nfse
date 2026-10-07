@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import type { Address, ServiceTaker, Supplier } from "../domain/types.ts";
 import { digitsOnly } from "../infra/xml.ts";
+import { ValidationError } from "../domain/errors.ts";
 
 /**
  * Cadastro local de participantes.
@@ -78,12 +79,12 @@ export class ContactRepository {
     contact: Omit<Contact, "updatedAt" | "source"> & Partial<Pick<Contact, "source">>,
   ): Contact {
     const taxId = digitsOnly(contact.taxId);
-    if (!taxId) throw new Error("Participante sem CPF/CNPJ");
+    if (!taxId) throw new ValidationError("Participante sem CPF/CNPJ");
 
     const bucket = this.#bucket(role);
     const existing = bucket.find((c) => c.taxId === taxId);
     const legalName = contact.legalName || existing?.legalName;
-    if (!legalName) throw new Error(`Participante ${taxId} sem razão social`);
+    if (!legalName) throw new ValidationError(`Participante ${taxId} sem razão social`);
 
     const updated: Contact = {
       ...existing,

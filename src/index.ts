@@ -14,12 +14,23 @@ export {
 export type { Environment, GissConfig, Issuer } from "./config/index.ts";
 
 export {
+  CertificateError,
+  ConfigError,
   GissError,
   NationalError,
+  NfseError,
+  NotSupportedError,
   PortalError,
   SoapFaultError,
+  TransportError,
+  ValidationError,
 } from "./domain/errors.ts";
-export type { ServiceMessage } from "./domain/errors.ts";
+export type {
+  NfseErrorCode,
+  NfseErrorOptions,
+  NfseProvider,
+  ServiceMessage,
+} from "./domain/errors.ts";
 
 export * from "./domain/types.ts";
 export * from "./domain/signature-policy.ts";

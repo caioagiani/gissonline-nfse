@@ -1,4 +1,26 @@
 import { PortalError } from "../domain/errors.ts";
+import { classifyTransportError, timeoutError } from "./transport-errors.ts";
+
+const TIMEOUT_MS = 60_000;
+
+/** `fetch` com tempo limite e falha de rede já classificada. */
+async function send(base: string, route: string, init: RequestInit, accept: string) {
+  try {
+    return await fetch(new URL(route, base), {
+      signal: AbortSignal.timeout(TIMEOUT_MS),
+      ...init,
+      headers: { Accept: accept, ...init.headers },
+    });
+  } catch (error) {
+    const timedOut = (error as { name?: string }).name === "TimeoutError";
+    throw classifyTransportError(timedOut ? timeoutError(TIMEOUT_MS) : error, {
+      provider: "portal",
+      operation: route,
+      // Login é POST mas não altera nada; o resto que não é GET grava no portal.
+      write: (init.method ?? "GET") !== "GET" && !route.includes("/login/"),
+    });
+  }
+}
 
 /** Cliente HTTP JSON usado pela API REST do portal. */
 export async function requestJson<T>(
@@ -6,10 +28,7 @@ export async function requestJson<T>(
   route: string,
   init: RequestInit,
 ): Promise<T> {
-  const response = await fetch(new URL(route, base), {
-    ...init,
-    headers: { Accept: "application/json", ...init.headers },
-  });
+  const response = await send(base, route, init, "application/json");
 
   const text = await response.text();
   let body: unknown;
@@ -36,10 +55,7 @@ export async function requestBinary(
   init: RequestInit,
   expected: string,
 ): Promise<Buffer> {
-  const response = await fetch(new URL(route, base), {
-    ...init,
-    headers: { Accept: expected, ...init.headers },
-  });
+  const response = await send(base, route, init, expected);
 
   const type = response.headers.get("content-type") ?? "";
   if (!response.ok || !type.includes(expected)) {

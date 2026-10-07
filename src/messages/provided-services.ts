@@ -20,6 +20,7 @@ import {
   requiredGroup,
   xmlDocument,
 } from "../infra/xml.ts";
+import { ValidationError } from "../domain/errors.ts";
 
 /** Builders das mensagens do serviço `nfse` (serviços prestados). */
 
@@ -209,7 +210,7 @@ function foreignTradeGroup(trade: ForeignTrade): string {
 function takerGroup(taker: ServiceTaker): string {
   // `Endereco` e `EnderecoExterior` são um xsd:choice: enviar os dois invalida o XML.
   if (taker.address && taker.foreignAddress) {
-    throw new Error("Informe address ou foreignAddress do tomador, não os dois");
+    throw new ValidationError("Informe address ou foreignAddress do tomador, não os dois");
   }
   return requiredGroup(`${T}:TomadorServico`, [
     taker.cnpj || taker.cpf ? partyGroup(`${T}:IdentificacaoTomador`, taker) : "",
@@ -517,7 +518,7 @@ function periodFilter(args: PeriodFilter): string {
   if (args.competencePeriod) {
     return dateRangeGroup("PeriodoCompetencia", args.competencePeriod);
   }
-  throw new Error(
+  throw new ValidationError(
     "Informe nfseNumber, issuePeriod ou competencePeriod na consulta",
   );
 }

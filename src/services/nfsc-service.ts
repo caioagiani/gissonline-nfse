@@ -1,4 +1,4 @@
-import { GissError } from "../domain/errors.ts";
+import { GissError, ValidationError } from "../domain/errors.ts";
 import { rootSignature, type XmlSigner } from "../domain/signature-policy.ts";
 import type {
   PartyIdentification,
@@ -61,9 +61,9 @@ export class NfscService {
   async sendPurchasedServiceBatch(
     batch: PurchasedServiceBatch,
   ): Promise<ProtocolResult> {
-    if (batch.invoices.length === 0) throw new Error("Lote sem notas");
+    if (batch.invoices.length === 0) throw new ValidationError("Lote sem notas");
     if (batch.invoices.length > 50) {
-      throw new Error(
+      throw new ValidationError(
         `Lote com ${batch.invoices.length} notas — o limite é 50 por lote`,
       );
     }
@@ -106,7 +106,7 @@ export class NfscService {
     taker?: PartyIdentification;
   }): Promise<QueryResult> {
     if (!args.declaredNumber || !args.declaredSeries) {
-      throw new Error(
+      throw new ValidationError(
         "ConsultarServicoCompradoPorNumero exige declaredNumber e declaredSeries",
       );
     }

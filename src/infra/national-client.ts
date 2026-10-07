@@ -1,6 +1,11 @@
 import { request } from "node:https";
 import { gunzipSync, gzipSync } from "node:zlib";
 import type { Certificate } from "./certificate.ts";
+import {
+  assertCertificateUsable,
+  classifyTransportError,
+  timeoutError,
+} from "./transport-errors.ts";
 
 /**
  * Transporte da API do Sistema Nacional NFS-e (SEFIN e ADN).
@@ -27,6 +32,12 @@ export async function callNational(
   { certificate, method = "GET", json, timeoutMs = 60_000 }: NationalRequest,
 ): Promise<NationalResponse> {
   const payload = json === undefined ? undefined : JSON.stringify(json);
+  const context = {
+    provider: "nacional" as const,
+    operation: `${method} ${new URL(url).pathname}`,
+    write: method === "POST",
+  };
+  assertCertificateUsable(certificate, context);
 
   return new Promise((resolve, reject) => {
     const req = request(
@@ -61,9 +72,9 @@ export async function callNational(
     );
 
     req.setTimeout(timeoutMs, () => {
-      req.destroy(new Error(`Timeout de ${timeoutMs}ms em ${method} ${url}`));
+      req.destroy(timeoutError(timeoutMs));
     });
-    req.on("error", reject);
+    req.on("error", (error) => reject(classifyTransportError(error, context)));
     req.end(payload);
   });
 }
