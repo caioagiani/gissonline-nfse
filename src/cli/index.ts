@@ -19,6 +19,8 @@ import type { Address, CancellationCode, Rps } from "../domain/types.ts";
 import { exportPem, type Certificate } from "../infra/certificate.ts";
 import { isoDate } from "../infra/xml.ts";
 import {
+  nfseNumberFromKey,
+  parseNationalEvent,
   parseNationalNfse,
   type NationalCancellationReason,
   type NationalNfse,
@@ -38,7 +40,7 @@ import {
   type PortalMessage,
   type PartyRole,
 } from "../providers/giss/portal-service.ts";
-import { MUNICIPALITIES } from "../providers/giss/municipalities.ts";
+import { findMunicipalityByCode, MUNICIPALITIES } from "../providers/giss/municipalities.ts";
 import {
   ContactRepository,
   taxIdOf,
@@ -689,7 +691,18 @@ async function runNationalCommand(
       const format = command === "national-pdf" ? "pdf" : "xml";
       const file =
         format === "pdf"
-          ? await national.pdf(accessKey)
+          ? await national.pdf(accessKey).catch((error: unknown) => {
+              // O DANFSe do ADN cai com frequência (503). Nota emitida por um
+              // município do GissOnline tem o PDF da prefeitura como saída.
+              const city = findMunicipalityByCode(accessKey.slice(0, 7));
+              if (error instanceof NfseError && error.code === "UNAVAILABLE" && city) {
+                console.error(
+                  `The national PDF is unavailable. This invoice was issued in ${city.name} (GissOnline): ` +
+                    `try \`${INVOCATION} pdf --number ${nfseNumberFromKey(accessKey)}\`.`,
+                );
+              }
+              throw error;
+            })
           : Buffer.from((await national.get(accessKey)).xml, "utf8");
       const target = documentTarget(values.out, accessKey, format);
       mkdirSync(dirname(target), { recursive: true });
@@ -705,19 +718,38 @@ async function runNationalCommand(
         return true;
       }
       for (const document of documents) {
-        const nfse = document.type === "NFSE" ? parseNationalNfseSafe(document.xml) : null;
+        const head = [String(document.nsu).padStart(5), document.type.padEnd(6)];
+        if (document.type !== "NFSE") {
+          const event = parseNationalEvent(document.xml);
+          const replaced = event.replacementKey
+            ? ` → replaced by ${nfseNumberFromKey(event.replacementKey) ?? event.replacementKey}`
+            : "";
+          console.log(
+            [
+              ...head,
+              (event.code ?? "").padEnd(8),
+              (event.nfseNumber ?? "").padStart(9),
+              (event.requestedAt ?? event.processedAt)?.slice(0, 10) ?? "",
+              `${event.description ?? "event"}${replaced}`,
+            ].join("  "),
+          );
+          console.log(`${"".padStart(15)}key ${event.accessKey ?? document.accessKey}`);
+          continue;
+        }
+        const nfse = parseNationalNfseSafe(document.xml);
         const role = nfse?.issuerCnpj === config.cnpj ? "issued" : "received";
+        const party = role === "issued" ? nfse?.takerName : nfse?.issuerName;
         console.log(
           [
-            String(document.nsu).padStart(5),
-            document.type.padEnd(6),
+            ...head,
             nfse ? role.padEnd(8) : "".padEnd(8),
             nfse?.number?.padStart(9) ?? "".padStart(9),
             nfse?.processedAt?.slice(0, 10) ?? "",
             nfse?.serviceAmount?.toFixed(2).padStart(10) ?? "",
-            nfse?.issuingCity ?? "",
+            `${nfse?.issuingCity ?? ""}${party ? ` · ${party}` : ""}`,
           ].join("  "),
         );
+        console.log(`${"".padStart(15)}key ${document.accessKey}`);
       }
       const last = documents.at(-1);
       console.log(

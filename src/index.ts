@@ -79,6 +79,8 @@ export {
   dpsId,
   nationalTaxCode,
   parseNationalNfse,
+  parseNationalEvent,
+  nfseNumberFromKey,
   NATIONAL_NAMESPACE,
   NATIONAL_VERSION,
 } from "./providers/nacional/messages.ts";
@@ -87,6 +89,7 @@ export type {
   NationalCancellationReason,
   NationalEnvironment,
   NationalNfse,
+  NationalEvent,
   SimplesOption,
 } from "./providers/nacional/messages.ts";
 export { PortalService, buildPortalParty } from "./providers/giss/portal-service.ts";

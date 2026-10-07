@@ -3,6 +3,8 @@ import { describe, it } from "node:test";
 import { readFileSync } from "node:fs";
 import { NotSupportedError, ValidationError } from "../src/domain/errors.ts";
 import {
+  nfseNumberFromKey,
+  parseNationalEvent,
   brasiliaDateTime,
   buildCancellationEvent,
   buildDps,
@@ -319,3 +321,32 @@ describe("buildDps — o que ainda não é suportado", () => {
   });
 });
 
+
+describe("eventos distribuídos pelo ADN", () => {
+  const key = "35525021237969249000110000000000052926030000000004";
+  const replacement = "35525021237969249000110000000000053026030000000004";
+  const xml =
+    `<evento xmlns="http://www.sped.fazenda.gov.br/nfse" versao="1.00"><infEvento Id="EVT${key}105102001">` +
+    `<dhProc>2026-03-02T19:52:05-03:00</dhProc><pedRegEvento versao="1.00"><infPedReg Id="PRE${key}105102">` +
+    `<dhEvento>2026-03-25T13:28:22-03:00</dhEvento><CNPJAutor>${PROVIDER_CNPJ}</CNPJAutor><chNFSe>${key}</chNFSe>` +
+    `<e105102><xDesc>Cancelamento de NFS-e por Substituição</xDesc><cMotivo>99</cMotivo>` +
+    `<xMotivo>NFS-e substituida pelo emissor</xMotivo><chSubstituta>${replacement}</chSubstituta></e105102>` +
+    `</infPedReg></pedRegEvento></infEvento></evento>`;
+
+  it("lê tipo, nota, substituta e datas", () => {
+    const event = parseNationalEvent(xml);
+    assert.equal(event.code, "105102");
+    assert.equal(event.description, "Cancelamento de NFS-e por Substituição");
+    assert.equal(event.accessKey, key);
+    assert.equal(event.nfseNumber, "529");
+    assert.equal(event.replacementKey, replacement);
+    assert.equal(event.reason, "NFS-e substituida pelo emissor");
+    assert.equal(event.requestedAt, "2026-03-25T13:28:22-03:00");
+    assert.equal(event.processedAt, "2026-03-02T19:52:05-03:00");
+  });
+
+  it("número da nota sai da chave; chave inválida não inventa número", () => {
+    assert.equal(nfseNumberFromKey(replacement), "530");
+    assert.equal(nfseNumberFromKey("123"), undefined);
+  });
+});

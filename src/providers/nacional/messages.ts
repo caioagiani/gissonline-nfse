@@ -334,3 +334,49 @@ export function parseNationalNfse(xml: string): NationalNfse {
     xml,
   };
 }
+
+/** Evento de uma NFS-e (cancelamento, substituição...), como o ADN o distribui. */
+export interface NationalEvent {
+  /** Tipo do evento: 101101 cancelamento, 105102 cancelamento por substituição... */
+  code?: string;
+  description?: string;
+  /** Chave da NFS-e a que o evento se refere */
+  accessKey?: string;
+  /** Número da NFS-e, tirado da chave */
+  nfseNumber?: string;
+  /** Chave da nota substituta, nos cancelamentos por substituição */
+  replacementKey?: string;
+  reason?: string;
+  /** Quando o autor pediu o evento */
+  requestedAt?: string;
+  processedAt?: string;
+  xml: string;
+}
+
+export function parseNationalEvent(xml: string): NationalEvent {
+  const text = (tag: string): string | undefined => {
+    const match = new RegExp(`<(?:\\w+:)?${tag}>([^<]*)</(?:\\w+:)?${tag}>`).exec(xml);
+    return match?.[1] === undefined ? undefined : unescapeXml(match[1].trim());
+  };
+  const accessKey = text("chNFSe");
+  return {
+    code: /<(?:\w+:)?e(\d{6})>/.exec(xml)?.[1],
+    description: text("xDesc"),
+    accessKey,
+    nfseNumber: accessKey ? nfseNumberFromKey(accessKey) : undefined,
+    replacementKey: text("chSubstituta"),
+    reason: text("xMotivo"),
+    requestedAt: text("dhEvento"),
+    processedAt: text("dhProc"),
+    xml,
+  };
+}
+
+/**
+ * Número da NFS-e dentro da chave de acesso: município (7), ambiente (1),
+ * tipo de inscrição (1), CNPJ/CPF (14) e então o número, com 13 dígitos.
+ */
+export function nfseNumberFromKey(accessKey: string): string | undefined {
+  if (!/^\d{50}$/.test(accessKey)) return undefined;
+  return String(Number(accessKey.slice(23, 36)));
+}
