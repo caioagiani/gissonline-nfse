@@ -21,7 +21,7 @@ jobs:
       - run: sudo apt-get install -y --no-install-recommends libxml2-utils
       - name: Validate bundled schemas
         run: |
-          for f in docs/schemas/*.xsd docs/schemas-tomados/vigente/*.xsd; do
+          for f in docs/schemas/*.xsd docs/schemas-tomados/vigente/*.xsd docs/schemas-nacional/DPS_v1.01.xsd docs/schemas-nacional/pedRegEvento_v1.01.xsd; do
             xmllint --noout "$f" || exit 1
           done
       - name: Test (XML checked against the bundled XSD)
